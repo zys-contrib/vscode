@@ -5,6 +5,7 @@
 
 import { addDisposableListener } from 'vs/base/browser/dom';
 import { CancelablePromise, createCancelablePromise } from 'vs/base/common/async';
+import { CancellationToken } from 'vs/base/common/cancellation';
 import { Disposable } from 'vs/base/common/lifecycle';
 import { generateUuid } from 'vs/base/common/uuid';
 import { ICodeEditor } from 'vs/editor/browser/editorBrowser';
@@ -65,15 +66,12 @@ export class CopyPasteActionController extends Disposable implements IEditorCont
 			e.clipboardData.setData(vscodeClipboardFormat, handle);
 
 			const promise = createCancelablePromise(async token => {
-				const results = await Promise.all(providers.map(async provider => {
-					const result = await provider.onDidCopy!(model, selection, { text: clipboardText }, token);
-					return { provider, result };
-				}));
-
 				const map = new Map<CopyPasteActionProvider, unknown | undefined>();
-				for (const { provider, result } of results) {
+
+				await Promise.all(providers.map(async provider => {
+					const result = await provider.onDidCopy!(model, selection, { clipboardText: clipboardText }, token);
 					map.set(provider, result);
-				}
+				}));
 
 				return map;
 			});
@@ -104,9 +102,11 @@ export class CopyPasteActionController extends Disposable implements IEditorCont
 				results = await clipboardItem.results;
 			}
 
+			const token = CancellationToken.None;
+
 			for (const provider of providers) {
 				const data = results?.get(provider);
-				const edit = await provider.onWillPaste(model, selection, { text: clipboardText, data });
+				const edit = await provider.onWillPaste(model, selection, { clipboardText: clipboardText, clipboardData: data }, token);
 				if (!edit) {
 					continue;
 				}

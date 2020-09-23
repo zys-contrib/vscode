@@ -493,7 +493,7 @@ class CopyPasteActionProvider {
 		private readonly _provider: vscode.CopyPasteActionProvider
 	) { }
 
-	async onDidCopy(resource: URI, selection: ISelection, clipboard: { readonly text: string; }): Promise<undefined | string> {
+	async onDidCopy(resource: URI, selection: ISelection, context: { readonly clipboardText: string; }, token: CancellationToken): Promise<undefined | string> {
 		if (!this._provider.onDidCopy) {
 			return undefined;
 		}
@@ -501,7 +501,7 @@ class CopyPasteActionProvider {
 		const doc = this._documents.getDocument(resource);
 		const vscodeSelection = typeConvert.Selection.to(selection);
 
-		const result = await this._provider.onDidCopy(doc, vscodeSelection, clipboard);
+		const result = await this._provider.onDidCopy(doc, vscodeSelection, context, token);
 		if (!result) {
 			return undefined;
 		}
@@ -511,12 +511,12 @@ class CopyPasteActionProvider {
 		return handle;
 	}
 
-	async onWillPaste(resource: URI, selection: ISelection, clipboard: { text: string; handle: string | undefined; }): Promise<undefined | extHostProtocol.IWorkspaceEditDto> {
+	async onWillPaste(resource: URI, selection: ISelection, context: { clipboardText: string; handle: string | undefined; }, token: CancellationToken): Promise<undefined | extHostProtocol.IWorkspaceEditDto> {
 		const doc = this._documents.getDocument(resource);
 		const vscodeSelection = typeConvert.Selection.to(selection);
 
-		const data = clipboard.handle && this.storedValue?.handle === clipboard.handle ? this.storedValue.data : undefined;
-		const result = await this._provider.onWillPaste(doc, vscodeSelection, { text: clipboard.text, data: data });
+		const data = context.handle && this.storedValue?.handle === context.handle ? this.storedValue.data : undefined;
+		const result = await this._provider.onWillPaste(doc, vscodeSelection, { clipboardText: context.clipboardText, clipboardData: data }, token);
 		if (!result) {
 			return;
 		}
@@ -1683,12 +1683,12 @@ export class ExtHostLanguageFeatures implements extHostProtocol.ExtHostLanguageF
 		return store;
 	}
 
-	$onDidCopy(handle: number, resource: UriComponents, selection: ISelection, clipboard: { readonly text: string; }): Promise<string | undefined> {
-		return this._withAdapter(handle, CopyPasteActionProvider, adapter => adapter.onDidCopy(URI.revive(resource), selection, clipboard), undefined);
+	$onDidCopy(handle: number, resource: UriComponents, selection: ISelection, context: { readonly clipboardText: string; }, token: CancellationToken): Promise<string | undefined> {
+		return this._withAdapter(handle, CopyPasteActionProvider, adapter => adapter.onDidCopy(URI.revive(resource), selection, context, token), undefined);
 	}
 
-	$onWillPaste(handle: number, resource: UriComponents, selection: ISelection, clipboard: { text: string; handle: string | undefined; }): Promise<extHostProtocol.IWorkspaceEditDto | undefined> {
-		return this._withAdapter(handle, CopyPasteActionProvider, adapter => adapter.onWillPaste(URI.revive(resource), selection, clipboard), undefined);
+	$onWillPaste(handle: number, resource: UriComponents, selection: ISelection, context: { clipboardText: string; handle: string | undefined; }, token: CancellationToken): Promise<extHostProtocol.IWorkspaceEditDto | undefined> {
+		return this._withAdapter(handle, CopyPasteActionProvider, adapter => adapter.onWillPaste(URI.revive(resource), selection, context, token), undefined);
 	}
 
 	// --- formatting

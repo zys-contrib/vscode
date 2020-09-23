@@ -327,16 +327,16 @@ export class MainThreadLanguageFeatures implements MainThreadLanguageFeaturesSha
 	// --- copy paste action provider
 
 	$registerCopyPasteActionProvider(handle: number, selector: IDocumentFilterDto[], id: string, supportsCopy: boolean): void {
-		const provider: modes.CopyPasteActionProvider = {
+		const provider: modes.CopyPasteActionProvider<string> = {
 			id,
 			onDidCopy: supportsCopy
-				? (model: ITextModel, selection: Selection, clipboard: { readonly text: string }): Promise<string | undefined> => {
-					return this._proxy.$onDidCopy(handle, model.uri, selection, clipboard);
+				? (model: ITextModel, selection: Selection, context: { clipboardText: string }, token: CancellationToken): Promise<string | undefined> => {
+					return this._proxy.$onDidCopy(handle, model.uri, selection, context, token);
 				}
 				: undefined,
 
-			onWillPaste: async (model: ITextModel, selection: Selection, clipboard: { text: string, data?: string }) => {
-				const result = await this._proxy.$onWillPaste(handle, model.uri, selection, { text: clipboard.text, handle: clipboard.data });
+			onWillPaste: async (model: ITextModel, selection: Selection, context: { clipboardText: string, clipboardData?: string }, token: CancellationToken) => {
+				const result = await this._proxy.$onWillPaste(handle, model.uri, selection, { clipboardText: context.clipboardText, handle: context.clipboardData }, token);
 				return result && reviveWorkspaceEditDto(result);
 			}
 		};

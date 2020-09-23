@@ -2199,14 +2199,16 @@ declare module 'vscode' {
 		 *
 		 * @param document Document where the copy took place.
 		 * @param selection Selection being copied in the `document`.
-		 * @param clipboard Information about the clipboard state after the copy.
+		 * @param context Information about the clipboard state after the copy.
+		 * @param token A cancellation token.
 		 *
 		 * @return Optional metadata passed to `onWillPaste`.
 		 */
 		onDidCopy?(
 			document: TextDocument,
 			selection: Selection,
-			clipboard: { readonly text: string },
+			context: { readonly clipboardText: string },
+			token: CancellationToken,
 		): ProviderResult<T>;
 
 		/**
@@ -2216,17 +2218,19 @@ declare module 'vscode' {
 		 *
 		 * @param document Document being pasted into
 		 * @param selection Current selection in the document.
-		 * @param clipboard Information about the clipboard state. This may contain the metadata from `onDidCopy`.
+		 * @param context Information about the clipboard state. This may contain the metadata from `onDidCopy`.
+		 * @param token A cancellation token.
 		 *
 		 * @return Optional workspace edit that applies the paste. Return undefined to use standard pasting
 		 */
 		onWillPaste(
 			document: TextDocument,
 			selection: Selection,
-			clipboard: {
-				readonly text: string;
-				readonly data?: T;
+			context: {
+				readonly clipboardText: string;
+				readonly clipboardData?: T;
 			},
+			token: CancellationToken,
 		): ProviderResult<WorkspaceEdit>;
 	}
 

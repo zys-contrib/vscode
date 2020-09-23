@@ -1399,8 +1399,8 @@ export interface ExtHostLanguageFeaturesShape {
 	$provideCodeActions(handle: number, resource: UriComponents, rangeOrSelection: IRange | ISelection, context: modes.CodeActionContext, token: CancellationToken): Promise<ICodeActionListDto | undefined>;
 	$resolveCodeAction(handle: number, id: ChainedCacheId, token: CancellationToken): Promise<IWorkspaceEditDto | undefined>;
 	$releaseCodeActions(handle: number, cacheId: number): void;
-	$onDidCopy(handle: number, uri: UriComponents, selection: ISelection, clipboard: { readonly text: string; }): Promise<string | undefined>;
-	$onWillPaste(handle: number, uri: UriComponents, selection: ISelection, clipboard: { text: string; handle?: string | undefined; }): Promise<IWorkspaceEditDto | undefined>;
+	$onDidCopy(handle: number, uri: UriComponents, selection: ISelection, context: { clipboardText: string; }, token: CancellationToken): Promise<string | undefined>;
+	$onWillPaste(handle: number, uri: UriComponents, selection: ISelection, context: { clipboardText: string; handle?: string | undefined; }, token: CancellationToken): Promise<IWorkspaceEditDto | undefined>;
 	$provideDocumentFormattingEdits(handle: number, resource: UriComponents, options: modes.FormattingOptions, token: CancellationToken): Promise<ISingleEditOperation[] | undefined>;
 	$provideDocumentRangeFormattingEdits(handle: number, resource: UriComponents, range: IRange, options: modes.FormattingOptions, token: CancellationToken): Promise<ISingleEditOperation[] | undefined>;
 	$provideOnTypeFormattingEdits(handle: number, resource: UriComponents, position: IPosition, ch: string, options: modes.FormattingOptions, token: CancellationToken): Promise<ISingleEditOperation[] | undefined>;

@@ -56,7 +56,8 @@ export function activate(context: vscode.ExtensionContext) {
 		async onDidCopy(
 			_document: vscode.TextDocument,
 			_selection: vscode.Selection,
-			_clipboard: { readonly text: string },
+			_context: { clipboardText: string },
+			_token: vscode.CancellationToken,
 		): Promise<ClipboardData | undefined> {
 			return { count: copyCount++ };
 		}
@@ -64,11 +65,15 @@ export function activate(context: vscode.ExtensionContext) {
 		async onWillPaste(
 			document: vscode.TextDocument,
 			selection: vscode.Selection,
-			clipboard: { readonly text: string; readonly data?: ClipboardData; }
+			context: { clipboardText: string; clipboardData?: ClipboardData; },
+			_token: vscode.CancellationToken,
 		): Promise<vscode.WorkspaceEdit | undefined> {
+
+			await new Promise(resolve => setTimeout(resolve, 100));
+
 			const edit = new vscode.WorkspaceEdit();
 
-			const newText = `(copy #${clipboard.data?.count}) ${clipboard.text}`;
+			const newText = `(copy #${context.clipboardData?.count}) ${context.clipboardText}`;
 			edit.replace(document.uri, selection, newText);
 
 			return edit;

@@ -5655,15 +5655,15 @@ declare namespace monaco.languages {
 		readonly actions: ReadonlyArray<CodeAction>;
 	}
 
-	export interface CopyPasteActionProvider {
+	export interface CopyPasteActionProvider<T = unknown> {
 		id: string;
-		onDidCopy?(model: editor.ITextModel, selection: Selection, clipboard: {
-			readonly text: string;
-		}, token: CancellationToken): Promise<unknown | undefined>;
-		onWillPaste(model: editor.ITextModel, selection: Selection, clipboard: {
-			readonly text: string;
-			readonly data?: unknown;
-		}): Promise<WorkspaceEdit | undefined>;
+		onDidCopy?(model: editor.ITextModel, selection: Selection, context: {
+			clipboardText: string;
+		}, token: CancellationToken): Promise<T | undefined>;
+		onWillPaste(model: editor.ITextModel, selection: Selection, content: {
+			clipboardText: string;
+			clipboardData?: T;
+		}, token: CancellationToken): Promise<WorkspaceEdit | undefined>;
 	}
 
 	/**

@@ -672,23 +672,24 @@ export interface CodeActionProvider {
 	_getAdditionalMenuItems?(context: CodeActionContext, actions: readonly CodeAction[]): Command[];
 }
 
-export interface CopyPasteActionProvider {
+export interface CopyPasteActionProvider<T = unknown> {
 	id: string;
 
 	onDidCopy?(
 		model: model.ITextModel,
 		selection: Selection,
-		clipboard: { readonly text: string },
+		context: { clipboardText: string },
 		token: CancellationToken,
-	): Promise<unknown | undefined>;
+	): Promise<T | undefined>;
 
 	onWillPaste(
 		model: model.ITextModel,
 		selection: Selection,
-		clipboard: {
-			readonly text: string;
-			readonly data?: unknown;
+		content: {
+			clipboardText: string;
+			clipboardData?: T;
 		},
+		token: CancellationToken,
 	): Promise<WorkspaceEdit | undefined>;
 }
 
