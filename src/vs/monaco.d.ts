@@ -5655,6 +5655,17 @@ declare namespace monaco.languages {
 		readonly actions: ReadonlyArray<CodeAction>;
 	}
 
+	export interface CopyPasteActionProvider {
+		id: string;
+		onDidCopy?(model: editor.ITextModel, selection: Selection, clipboard: {
+			readonly text: string;
+		}, token: CancellationToken): Promise<unknown | undefined>;
+		onWillPaste(model: editor.ITextModel, selection: Selection, clipboard: {
+			readonly text: string;
+			readonly data?: unknown;
+		}): Promise<WorkspaceEdit | undefined>;
+	}
+
 	/**
 	 * Represents a parameter of a callable-signature. A parameter can
 	 * have a label and a doc-comment.

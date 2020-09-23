@@ -2171,4 +2171,86 @@ declare module 'vscode' {
 		with(color: ThemeColor): ThemeIcon2;
 	}
 	//#endregion
+
+	//#region https://github.com/microsoft/vscode/issues/30066
+
+	/**
+	 * TODOs:
+	 * - Multiple providers?
+	 * - Is the document already edited in onWillPaste?
+	 * - Does `onWillPaste` need to re-implement basic paste
+	 *
+	 * - Figure out CopyPasteActionProviderMetadata
+	 */
+
+	/**
+	 * Provider invoked when the user copies and pastes code.
+	 *
+	 * This gives extensions a chance to hook into pasting and change the text
+	 * that is pasted.
+	 */
+	interface CopyPasteActionProvider<T = unknown> {
+
+		/**
+		 * Optional method invoked after the user copies text in a file.
+		 *
+		 * During `onDidCopy`, an extension can compute metadata that is attached to
+		 * the clipboard and is passed back to the provider in `onWillPaste`.
+		 *
+		 * @param document Document where the copy took place.
+		 * @param selection Selection being copied in the `document`.
+		 * @param clipboard Information about the clipboard state after the copy.
+		 *
+		 * @return Optional metadata passed to `onWillPaste`.
+		 */
+		onDidCopy?(
+			document: TextDocument,
+			selection: Selection,
+			clipboard: { readonly text: string },
+		): ProviderResult<T>;
+
+		/**
+		 * Invoked before the user pastes into a document.
+		 *
+		 * In this method, extensions can return a workspace edit that replaces the standard pasting behavior.
+		 *
+		 * @param document Document being pasted into
+		 * @param selection Current selection in the document.
+		 * @param clipboard Information about the clipboard state. This may contain the metadata from `onDidCopy`.
+		 *
+		 * @return Optional workspace edit that applies the paste. Return undefined to use standard pasting
+		 */
+		onWillPaste(
+			document: TextDocument,
+			selection: Selection,
+			clipboard: {
+				readonly text: string;
+				readonly data?: T;
+			},
+		): ProviderResult<WorkspaceEdit>;
+	}
+
+	/**
+	 *
+	 */
+	interface CopyPasteActionProviderMetadata {
+		/**
+		 * Identifies the type of code action
+		 */
+		readonly kind: CodeActionKind;
+	}
+
+	namespace languages {
+		/**
+		 *
+		 */
+		export function registerCopyPasteActionProvider(
+			selector: DocumentSelector,
+			provider: CopyPasteActionProvider,
+			metadata: CopyPasteActionProviderMetadata
+		): Disposable;
+	}
+
+	//#endregion
+
 }
