@@ -4,7 +4,7 @@ pr: none
 stages:
 - stage: Scan Binaries
   jobs:
-  - job: Get Symbols
+  - job: VSCode
     pool:
       vmImage: VS2017-Win2016
     steps:
