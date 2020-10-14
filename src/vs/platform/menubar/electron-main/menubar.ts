@@ -9,7 +9,7 @@ import { IEnvironmentMainService } from 'vs/platform/environment/electron-main/e
 import { app, shell, Menu, MenuItem, BrowserWindow, MenuItemConstructorOptions, WebContents, Event, KeyboardEvent } from 'electron';
 import { getTitleBarStyle, INativeRunActionInWindowRequest, INativeRunKeybindingInWindowRequest, IWindowOpenable } from 'vs/platform/windows/common/windows';
 import { OpenContext } from 'vs/platform/windows/node/window';
-import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
+import { IConfigurationChangeEvent, IConfigurationService } from 'vs/platform/configuration/common/configuration';
 import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
 import { IUpdateService, StateType } from 'vs/platform/update/common/update';
 import product from 'vs/platform/product/common/product';
@@ -164,6 +164,7 @@ export class Menubar {
 	}
 
 	private registerListeners(): void {
+
 		// Keep flag when app quits
 		this.lifecycleMainService.onWillShutdown(() => this.willShutdown = true);
 
@@ -171,6 +172,19 @@ export class Menubar {
 		this.windowsMainService.onWindowsCountChanged(e => this.onWindowsCountChanged(e));
 		this.nativeHostMainService.onDidBlurWindow(() => this.onWindowFocusChange());
 		this.nativeHostMainService.onDidFocusWindow(() => this.onWindowFocusChange());
+
+		// Listen to config changes
+		this.configurationService.onDidChangeConfiguration(e => this.onConfigurationChanged(e));
+	}
+
+	private onConfigurationChanged(e: IConfigurationChangeEvent): void {
+
+		// Update "Confirm Before Quitting" entry on macOS only
+		// because it is being added to the application menu
+		// from here
+		if (isMacintosh && e.affectsConfiguration('workbench.confirmBeforeQuit')) {
+			this.scheduleUpdateMenu();
+		}
 	}
 
 	private get currentEnableMenuBarMnemonics(): boolean {
@@ -191,6 +205,7 @@ export class Menubar {
 		if (typeof enableNativeTabs !== 'boolean') {
 			enableNativeTabs = false;
 		}
+
 		return enableNativeTabs;
 	}
 
@@ -203,7 +218,6 @@ export class Menubar {
 
 		this.scheduleUpdateMenu();
 	}
-
 
 	private scheduleUpdateMenu(): void {
 		this.menuUpdater.schedule(); // buffer multiple attempts to update the menu
@@ -247,6 +261,7 @@ export class Menubar {
 	}
 
 	private install(): void {
+
 		// Store old menu in our array to avoid GC to collect the menu and crash. See #55347
 		// TODO@sbatten Remove this when fixed upstream by Electron
 		const oldMenu = Menu.getApplicationMenu();
