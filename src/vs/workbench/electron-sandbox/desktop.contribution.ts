@@ -42,25 +42,37 @@ import { ServicesAccessor } from 'vs/platform/instantiation/common/instantiation
 		registry.registerWorkbenchAction(SyncActionDescriptor.from(SwitchWindow, { primary: 0, mac: { primary: KeyMod.WinCtrl | KeyCode.KEY_W } }), 'Switch Window...');
 		registry.registerWorkbenchAction(SyncActionDescriptor.from(QuickSwitchWindow), 'Quick Switch Window...');
 
-		async function handleCloseOrQuitConfirm(accessor: ServicesAccessor, settingsKey: string, message: string, primaryButton: string): Promise<boolean> {
+		enum ConfirmSetting {
+			QUIT = 'workbench.confirmBeforeQuit',
+			WINDOW_CLOSE = 'window.confirmBeforeClose'
+		}
+
+		async function handleCloseOrQuitConfirm(accessor: ServicesAccessor, confirm: ConfirmSetting): Promise<boolean> {
 			const configurationService = accessor.get(IConfigurationService);
-			if (!configurationService.getValue<boolean>(settingsKey)) {
-				return true; // proceed
+			if (!configurationService.getValue<boolean>(confirm)) {
+				return true; // proceed directly if setting turned off
 			}
 
 			const dialogService = accessor.get(IDialogService);
 
+			const message = confirm === ConfirmSetting.QUIT ?
+				nls.localize('quitMessage', "Are you sure you want to quit?") :
+				nls.localize('closeWindowMessage', "Are you sure you want to close the window?");
+			const primaryButton = confirm === ConfirmSetting.QUIT ?
+				nls.localize({ key: 'quitButtonLabel', comment: ['&& denotes a mnemonic'] }, "&&Quit") :
+				nls.localize({ key: 'closeWindowButtonLabel', comment: ['&& denotes a mnemonic'] }, "&&Close Window");
+
 			const res = await dialogService.confirm({
 				type: 'question',
-				primaryButton,
 				message,
+				primaryButton,
 				checkbox: {
 					label: nls.localize('doNotAskAgain', "Do not ask me again"),
 				}
 			});
 
 			if (res.checkboxChecked) {
-				await configurationService.updateValue(settingsKey, false);
+				await configurationService.updateValue(confirm, false);
 			}
 
 			return res.confirmed;
@@ -73,11 +85,19 @@ import { ServicesAccessor } from 'vs/platform/instantiation/common/instantiation
 			primary: KeyMod.CtrlCmd | KeyCode.KEY_W,
 			handler: async accessor => {
 				const nativeHostService = accessor.get(INativeHostService);
+				const configurationService = accessor.get(IConfigurationService);
 
-				const message = nls.localize('closeWindowMessage', "Are you sure you want to close the window?");
-				const button = nls.localize({ key: 'closeWindowButtonLabel', comment: ['&& denotes a mnemonic'] }, "&&Close Window");
+				// Windows/Linux: confirm for quitting when we are about to close the last window
+				let confirmed: boolean;
+				if (!isMacintosh && configurationService.getValue<boolean>(ConfirmSetting.QUIT) && (await nativeHostService.getWindowCount()) === 1) {
+					confirmed = await handleCloseOrQuitConfirm(accessor, ConfirmSetting.QUIT);
+				}
 
-				const confirmed = await handleCloseOrQuitConfirm(accessor, 'window.confirmBeforeClose', message, button);
+				// Confirm for the window since this is either macOS or not the last window closing
+				else {
+					confirmed = await handleCloseOrQuitConfirm(accessor, ConfirmSetting.WINDOW_CLOSE);
+				}
+
 				if (confirmed) {
 					nativeHostService.closeWindow();
 				}
@@ -90,10 +110,7 @@ import { ServicesAccessor } from 'vs/platform/instantiation/common/instantiation
 			handler: async accessor => {
 				const nativeHostService = accessor.get(INativeHostService);
 
-				const message = nls.localize('quitMessage', "Are you sure you want to quit?");
-				const button = nls.localize({ key: 'quitButtonLabel', comment: ['&& denotes a mnemonic'] }, "&&Quit");
-
-				const confirmed = await handleCloseOrQuitConfirm(accessor, 'workbench.confirmBeforeQuit', message, button);
+				const confirmed = await handleCloseOrQuitConfirm(accessor, ConfirmSetting.QUIT);
 				if (confirmed) {
 					nativeHostService.quit();
 				}
