@@ -15,13 +15,15 @@ import { ZoomResetAction, ZoomOutAction, ZoomInAction, CloseCurrentWindowAction,
 import { ContextKeyExpr } from 'vs/platform/contextkey/common/contextkey';
 import { KeybindingsRegistry, KeybindingWeight } from 'vs/platform/keybinding/common/keybindingsRegistry';
 import { CommandsRegistry } from 'vs/platform/commands/common/commands';
-import { ServicesAccessor } from 'vs/platform/instantiation/common/instantiation';
 import { IsDevelopmentContext, IsMacContext } from 'vs/platform/contextkey/common/contextkeys';
 import { EditorsVisibleContext, SingleEditorGroupsContext } from 'vs/workbench/common/editor';
 import { INativeHostService } from 'vs/platform/native/electron-sandbox/native';
 import { IJSONContributionRegistry, Extensions as JSONExtensions } from 'vs/platform/jsonschemas/common/jsonContributionRegistry';
 import product from 'vs/platform/product/common/product';
 import { IJSONSchema } from 'vs/base/common/jsonSchema';
+import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
+import { IDialogService } from 'vs/platform/dialogs/common/dialogs';
+import { ServicesAccessor } from 'vs/platform/instantiation/common/instantiation';
 
 // Actions
 (function registerActions(): void {
@@ -40,23 +42,61 @@ import { IJSONSchema } from 'vs/base/common/jsonSchema';
 		registry.registerWorkbenchAction(SyncActionDescriptor.from(SwitchWindow, { primary: 0, mac: { primary: KeyMod.WinCtrl | KeyCode.KEY_W } }), 'Switch Window...');
 		registry.registerWorkbenchAction(SyncActionDescriptor.from(QuickSwitchWindow), 'Quick Switch Window...');
 
+		async function handleCloseOrQuitPrompt(accessor: ServicesAccessor, settingsKey: string, message: string, primaryButton: string): Promise<boolean> {
+			const configurationService = accessor.get(IConfigurationService);
+			if (!configurationService.getValue<boolean>(settingsKey)) {
+				return true; // proceed
+			}
+
+			const dialogService = accessor.get(IDialogService);
+
+			const res = await dialogService.confirm({
+				type: 'question',
+				primaryButton,
+				message,
+				checkbox: {
+					label: nls.localize('doNotAskAgain', "Do not ask me again"),
+				}
+			});
+
+			if (res.checkboxChecked) {
+				await configurationService.updateValue(settingsKey, false);
+			}
+
+			return res.confirmed;
+		}
+
 		KeybindingsRegistry.registerCommandAndKeybindingRule({
 			id: CloseCurrentWindowAction.ID, // close the window when the last editor is closed by reusing the same keybinding
 			weight: KeybindingWeight.WorkbenchContrib,
 			when: ContextKeyExpr.and(EditorsVisibleContext.toNegated(), SingleEditorGroupsContext),
 			primary: KeyMod.CtrlCmd | KeyCode.KEY_W,
-			handler: accessor => {
+			handler: async accessor => {
 				const nativeHostService = accessor.get(INativeHostService);
-				nativeHostService.closeWindow();
+
+				const message = nls.localize('closeWindowMessage', "Are you sure you want to close the window?");
+				const button = nls.localize({ key: 'closeWindowButtonLabel', comment: ['&& denotes a mnemonic'] }, "&&Close Window");
+
+				const confirmed = await handleCloseOrQuitPrompt(accessor, 'window.confirmBeforeClose', message, button);
+				if (confirmed) {
+					nativeHostService.closeWindow();
+				}
 			}
 		});
 
 		KeybindingsRegistry.registerCommandAndKeybindingRule({
 			id: 'workbench.action.quit',
 			weight: KeybindingWeight.WorkbenchContrib,
-			handler(accessor: ServicesAccessor) {
+			handler: async accessor => {
 				const nativeHostService = accessor.get(INativeHostService);
-				nativeHostService.quit();
+
+				const message = nls.localize('quitMessage', "Are you sure you want to quit?");
+				const button = nls.localize({ key: 'quitButtonLabel', comment: ['&& denotes a mnemonic'] }, "&&Quit");
+
+				const confirmed = await handleCloseOrQuitPrompt(accessor, 'workbench.confirmBeforeQuit', message, button);
+				if (confirmed) {
+					nativeHostService.quit();
+				}
 			},
 			when: undefined,
 			mac: { primary: KeyMod.CtrlCmd | KeyCode.KEY_Q },
@@ -292,6 +332,11 @@ import { IJSONSchema } from 'vs/base/common/jsonSchema';
 				'scope': ConfigurationScope.APPLICATION,
 				'description': nls.localize('window.clickThroughInactive', "If enabled, clicking on an inactive window will both activate the window and trigger the element under the mouse if it is clickable. If disabled, clicking anywhere on an inactive window will activate it only and a second click is required on the element."),
 				'included': isMacintosh
+			},
+			'window.confirmBeforeClose': {
+				'type': 'boolean',
+				'default': false,
+				'description': nls.localize('confirmBeforeClose', "Controls whether to ask for confirmation before closing the window through keyboard shortcut.")
 			}
 		}
 	});
