@@ -15,9 +15,8 @@ stages:
         exec { yarn gulp "vscode-symbols-win32-x64" }
       displayName: Download Symbols
 
-   - task: BinSkim@3
-     inputs:
-       toolVersion: Latest
-       InputType:   CommandLine
-       arguments:   analyze $(Build.ArtifactStagingDirectory)\symbols\*.dll;$(Build.ArtifactStagingDirectory)\symbols\*.exe --recurse
-
+    - task: BinSkim@3
+      inputs:
+        toolVersion: Latest
+        InputType:   CommandLine
+        arguments:   analyze $(Build.ArtifactStagingDirectory)\symbols\*.dll;$(Build.ArtifactStagingDirectory)\symbols\*.exe --recurse
