@@ -33,4 +33,4 @@ stages:
       inputs:
         toolVersion: Latest
         InputType:   CommandLine
-        arguments:   analyze $(Build.ArtifactStagingDirectory)\symbols\*.dll;$(Build.ArtifactStagingDirectory)\symbols\*.exe --recurse
+        arguments:   analyze $(agent.builddirectory)\symbols\*.dll;$(agent.builddirectory)\symbols\*.exe --recurse
