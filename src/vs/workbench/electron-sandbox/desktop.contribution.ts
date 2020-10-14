@@ -21,7 +21,7 @@ import { INativeHostService } from 'vs/platform/native/electron-sandbox/native';
 import { IJSONContributionRegistry, Extensions as JSONExtensions } from 'vs/platform/jsonschemas/common/jsonContributionRegistry';
 import product from 'vs/platform/product/common/product';
 import { IJSONSchema } from 'vs/base/common/jsonSchema';
-import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
+import { ConfigurationTarget, IConfigurationService } from 'vs/platform/configuration/common/configuration';
 import { IDialogService } from 'vs/platform/dialogs/common/dialogs';
 import { ServicesAccessor } from 'vs/platform/instantiation/common/instantiation';
 
@@ -42,7 +42,7 @@ import { ServicesAccessor } from 'vs/platform/instantiation/common/instantiation
 		registry.registerWorkbenchAction(SyncActionDescriptor.from(SwitchWindow, { primary: 0, mac: { primary: KeyMod.WinCtrl | KeyCode.KEY_W } }), 'Switch Window...');
 		registry.registerWorkbenchAction(SyncActionDescriptor.from(QuickSwitchWindow), 'Quick Switch Window...');
 
-		async function handleCloseOrQuitPrompt(accessor: ServicesAccessor, settingsKey: string, message: string, primaryButton: string): Promise<boolean> {
+		async function handleCloseOrQuitConfirm(accessor: ServicesAccessor, settingsKey: string, message: string, primaryButton: string): Promise<boolean> {
 			const configurationService = accessor.get(IConfigurationService);
 			if (!configurationService.getValue<boolean>(settingsKey)) {
 				return true; // proceed
@@ -77,7 +77,7 @@ import { ServicesAccessor } from 'vs/platform/instantiation/common/instantiation
 				const message = nls.localize('closeWindowMessage', "Are you sure you want to close the window?");
 				const button = nls.localize({ key: 'closeWindowButtonLabel', comment: ['&& denotes a mnemonic'] }, "&&Close Window");
 
-				const confirmed = await handleCloseOrQuitPrompt(accessor, 'window.confirmBeforeClose', message, button);
+				const confirmed = await handleCloseOrQuitConfirm(accessor, 'window.confirmBeforeClose', message, button);
 				if (confirmed) {
 					nativeHostService.closeWindow();
 				}
@@ -93,7 +93,7 @@ import { ServicesAccessor } from 'vs/platform/instantiation/common/instantiation
 				const message = nls.localize('quitMessage', "Are you sure you want to quit?");
 				const button = nls.localize({ key: 'quitButtonLabel', comment: ['&& denotes a mnemonic'] }, "&&Quit");
 
-				const confirmed = await handleCloseOrQuitPrompt(accessor, 'workbench.confirmBeforeQuit', message, button);
+				const confirmed = await handleCloseOrQuitConfirm(accessor, 'workbench.confirmBeforeQuit', message, button);
 				if (confirmed) {
 					nativeHostService.quit();
 				}
@@ -111,6 +111,13 @@ import { ServicesAccessor } from 'vs/platform/instantiation/common/instantiation
 		CommandsRegistry.registerCommand('workbench.action.closeWindowNoConfirm', accessor => {
 			const nativeHostService = accessor.get(INativeHostService);
 			nativeHostService.closeWindow();
+		});
+
+		CommandsRegistry.registerCommand('workbench.action.toggleConfirmBeforeQuit', accessor => {
+			const configurationService = accessor.get(IConfigurationService);
+			const setting = configurationService.inspect<boolean>('workbench.confirmBeforeQuit').userValue;
+
+			return configurationService.updateValue('workbench.confirmBeforeQuit', setting === false ? true : false, ConfigurationTarget.USER);
 		});
 	})();
 
@@ -165,6 +172,17 @@ import { ServicesAccessor } from 'vs/platform/instantiation/common/instantiation
 			title: nls.localize({ key: 'miCloseWindow', comment: ['&& denotes a mnemonic'] }, "Clos&&e Window")
 		},
 		order: 4
+	});
+
+	MenuRegistry.appendMenuItem(MenuId.MenubarFileMenu, {
+		group: 'z_ConfirmExit',
+		command: {
+			id: 'workbench.action.toggleConfirmBeforeQuit',
+			title: nls.localize('miConfirmExit', "Confirm Before Exit"),
+			toggled: ContextKeyExpr.equals('config.workbench.confirmBeforeQuit', true)
+		},
+		order: 1,
+		when: IsMacContext.toNegated()
 	});
 
 	MenuRegistry.appendMenuItem(MenuId.MenubarFileMenu, {

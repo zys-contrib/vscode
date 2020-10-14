@@ -377,8 +377,10 @@ export class Menubar {
 		const hide = new MenuItem({ label: nls.localize('mHide', "Hide {0}", product.nameLong), role: 'hide', accelerator: 'Command+H' });
 		const hideOthers = new MenuItem({ label: nls.localize('mHideOthers', "Hide Others"), role: 'hideOthers', accelerator: 'Command+Alt+H' });
 		const showAll = new MenuItem({ label: nls.localize('mShowAll', "Show All"), role: 'unhide' });
+		const confirmQuit = this.createMenuItem(nls.localize('miWarnBeforeQuit', "Warn Before Quitting"), 'workbench.action.toggleConfirmBeforeQuit', this.windowsMainService.getWindowCount() > 0, this.configurationService.getValue<boolean>('workbench.confirmBeforeQuit'));
 		const quit = new MenuItem(this.likeAction('workbench.action.quit', {
-			label: nls.localize('miQuit', "Quit {0}", product.nameLong), click: () => {
+			label: nls.localize('miQuit', "Quit {0}", product.nameLong),
+			click: () => {
 				const lastActiveWindow = this.windowsMainService.getLastActiveWindow();
 				if (
 					this.windowsMainService.getWindowCount() === 0 || 	// allow to quit when no more windows are open
@@ -407,6 +409,8 @@ export class Menubar {
 			hide,
 			hideOthers,
 			showAll,
+			__separator__(),
+			confirmQuit,
 			__separator__(),
 			quit
 		]);
