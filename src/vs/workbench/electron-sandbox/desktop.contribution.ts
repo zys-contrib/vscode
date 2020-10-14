@@ -102,6 +102,16 @@ import { ServicesAccessor } from 'vs/platform/instantiation/common/instantiation
 			mac: { primary: KeyMod.CtrlCmd | KeyCode.KEY_Q },
 			linux: { primary: KeyMod.CtrlCmd | KeyCode.KEY_Q }
 		});
+
+		CommandsRegistry.registerCommand('workbench.action.quitNoConfirm', accessor => {
+			const nativeHostService = accessor.get(INativeHostService);
+			nativeHostService.quit();
+		});
+
+		CommandsRegistry.registerCommand('workbench.action.closeWindowNoConfirm', accessor => {
+			const nativeHostService = accessor.get(INativeHostService);
+			nativeHostService.closeWindow();
+		});
 	})();
 
 	// Actions: macOS Native Tabs
