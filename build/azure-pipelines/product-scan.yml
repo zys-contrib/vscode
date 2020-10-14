@@ -1,0 +1,23 @@
+trigger: none
+pr: none
+
+stages:
+- stage: Scan Binaries
+  jobs:
+  - job: Get Symbols
+    pool:
+      vmImage: VS2017-Win2016
+    steps:
+    - powershell: |
+        . build/azure-pipelines/win32/exec.ps1
+        $ErrorActionPreference = "Stop"
+        $env:VSCODE_MIXIN_PASSWORD="$(github-distro-mixin-password)"
+        exec { yarn gulp "vscode-symbols-win32-x64" }
+      displayName: Download Symbols
+
+   - task: BinSkim@3
+     inputs:
+       toolVersion: Latest
+       InputType:   CommandLine
+       arguments:   analyze $(Build.ArtifactStagingDirectory)\symbols\*.dll;$(Build.ArtifactStagingDirectory)\symbols\*.exe --recurse
+
