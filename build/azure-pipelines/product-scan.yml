@@ -2,7 +2,7 @@ trigger: none
 pr: none
 
 stages:
-- stage: Scan Binaries
+- stage: ScanBinaries
   jobs:
   - job: VSCode
     pool:
