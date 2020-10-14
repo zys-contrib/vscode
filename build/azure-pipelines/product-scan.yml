@@ -33,4 +33,4 @@ stages:
       inputs:
         toolVersion: Latest
         InputType:   CommandLine
-        arguments:   analyze $(agent.builddirectory)\symbols\*.dll;$(agent.builddirectory)\symbols\*.exe --recurse
+        arguments:   analyze $(agent.builddirectory)\scanbin\*.dll;$(agent.builddirectory)\scanbin\*.exe --recurse

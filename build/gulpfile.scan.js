@@ -32,6 +32,7 @@ BUILD_TARGETS.forEach(buildTarget => {
 	const arch = buildTarget.arch;
 
 	const destination = path.join(path.dirname(root), 'scanbin', `VSCode${dashed(platform)}${dashed(arch)}`);
+	console.log(destination);
 
 	const setupSymbolsTask = task.define(`vscode-symbols${dashed(platform)}${dashed(arch)}`,
 		task.series(
