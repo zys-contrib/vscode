@@ -364,7 +364,7 @@ import { ServicesAccessor } from 'vs/platform/instantiation/common/instantiation
 			'window.confirmBeforeClose': {
 				'type': 'boolean',
 				'default': false,
-				'description': nls.localize('confirmBeforeClose', "Controls whether to ask for confirmation before closing the window through keyboard shortcut.")
+				'description': nls.localize('confirmBeforeClose', "Controls whether to ask for confirmation before closing the window.")
 			}
 		}
 	});

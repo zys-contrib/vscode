@@ -298,7 +298,7 @@ import { workbenchConfigurationNodeBase } from 'vs/workbench/common/configuratio
 				'type': 'boolean',
 				'default': isWeb,
 				'description': isNative ?
-					nls.localize('confirmBeforeQuitNative', "Controls whether to ask for confirmation before quitting through keyboard shortcut.") :
+					nls.localize('confirmBeforeQuitNative', "Controls whether to ask for confirmation before quitting.") :
 					nls.localize('confirmBeforeQuitWeb', "Controls whether to ask for confirmation before closing the browser tab or window."),
 				'scope': ConfigurationScope.APPLICATION
 			}
