@@ -23,7 +23,6 @@ import product from 'vs/platform/product/common/product';
 import { IJSONSchema } from 'vs/base/common/jsonSchema';
 import { ConfigurationTarget, IConfigurationService } from 'vs/platform/configuration/common/configuration';
 import { IDialogService } from 'vs/platform/dialogs/common/dialogs';
-import { ServicesAccessor } from 'vs/platform/instantiation/common/instantiation';
 
 // Actions
 (function registerActions(): void {
@@ -47,13 +46,10 @@ import { ServicesAccessor } from 'vs/platform/instantiation/common/instantiation
 			WINDOW_CLOSE = 'window.confirmBeforeClose'
 		}
 
-		async function handleCloseOrQuitConfirm(accessor: ServicesAccessor, confirm: ConfirmSetting): Promise<boolean> {
-			const configurationService = accessor.get(IConfigurationService);
+		async function handleCloseOrQuitConfirm(configurationService: IConfigurationService, dialogService: IDialogService, confirm: ConfirmSetting): Promise<boolean> {
 			if (!configurationService.getValue<boolean>(confirm)) {
 				return true; // proceed directly if setting turned off
 			}
-
-			const dialogService = accessor.get(IDialogService);
 
 			const message = confirm === ConfirmSetting.QUIT ?
 				nls.localize('quitMessage', "Are you sure you want to quit?") :
@@ -86,16 +82,17 @@ import { ServicesAccessor } from 'vs/platform/instantiation/common/instantiation
 			handler: async accessor => {
 				const nativeHostService = accessor.get(INativeHostService);
 				const configurationService = accessor.get(IConfigurationService);
+				const dialogService = accessor.get(IDialogService);
 
 				// Windows/Linux: confirm for quitting when we are about to close the last window
 				let confirmed: boolean;
 				if (!isMacintosh && configurationService.getValue<boolean>(ConfirmSetting.QUIT) && (await nativeHostService.getWindowCount()) === 1) {
-					confirmed = await handleCloseOrQuitConfirm(accessor, ConfirmSetting.QUIT);
+					confirmed = await handleCloseOrQuitConfirm(configurationService, dialogService, ConfirmSetting.QUIT);
 				}
 
 				// Confirm for the window since this is either macOS or not the last window closing
 				else {
-					confirmed = await handleCloseOrQuitConfirm(accessor, ConfirmSetting.WINDOW_CLOSE);
+					confirmed = await handleCloseOrQuitConfirm(configurationService, dialogService, ConfirmSetting.WINDOW_CLOSE);
 				}
 
 				if (confirmed) {
@@ -109,8 +106,10 @@ import { ServicesAccessor } from 'vs/platform/instantiation/common/instantiation
 			weight: KeybindingWeight.WorkbenchContrib,
 			handler: async accessor => {
 				const nativeHostService = accessor.get(INativeHostService);
+				const configurationService = accessor.get(IConfigurationService);
+				const dialogService = accessor.get(IDialogService);
 
-				const confirmed = await handleCloseOrQuitConfirm(accessor, ConfirmSetting.QUIT);
+				const confirmed = await handleCloseOrQuitConfirm(configurationService, dialogService, ConfirmSetting.QUIT);
 				if (confirmed) {
 					nativeHostService.quit();
 				}
