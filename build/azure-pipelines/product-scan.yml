@@ -15,7 +15,7 @@ stages:
     - task: geeklearningio.gl-vsts-tasks-yarn.yarn-installer-task.YarnInstaller@2
       inputs:
         versionSpec: "1.x"
-    
+
     - powershell: |
       . build/azure-pipelines/win32/exec.ps1
       $ErrorActionPreference = "Stop"
