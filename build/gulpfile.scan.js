@@ -31,14 +31,17 @@ BUILD_TARGETS.forEach(buildTarget => {
 	const platform = buildTarget.platform;
 	const arch = buildTarget.arch;
 
-	const destination = path.join(path.dirname(root), 'scanbin', `VSCode${dashed(platform)}${dashed(arch)}`);
-	console.log(destination);
+	const destinationExe = path.join(path.dirname(root), 'scanbin', `VSCode${dashed(platform)}${dashed(arch)}`, 'bin');
+	const destinationPdb = path.join(path.dirname(root), 'scanbin', `VSCode${dashed(platform)}${dashed(arch)}`, 'pdb');
+	console.log(destinationExe);
+	console.log(destinationPdb);
 
 	const setupSymbolsTask = task.define(`vscode-symbols${dashed(platform)}${dashed(arch)}`,
 		task.series(
-			util.rimraf(destination),
-			() => electron.dest(destination, _.extend({}, config, { platform, arch: arch === 'armhf' ? 'arm' : arch, ffmpegChromium: true })),
-			() => electron.dest(destination, _.extend({}, config, { platform, arch: arch === 'armhf' ? 'arm' : arch, pdbs: true }))
+			util.rimraf(destinationExe),
+			util.rimraf(destinationPdb),
+			() => electron.dest(destinationExe, _.extend({}, config, { platform, arch: arch === 'armhf' ? 'arm' : arch, ffmpegChromium: true })),
+			() => electron.dest(destinationPdb, _.extend({}, config, { platform, arch: arch === 'armhf' ? 'arm' : arch, pdbs: true }))
 		)
 	);
 
