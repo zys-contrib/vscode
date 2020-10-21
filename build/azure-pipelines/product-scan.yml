@@ -29,6 +29,18 @@ stages:
         exec { yarn gulp "vscode-symbols-win32-x64" }
       displayName: Download Symbols
 
+    - powershell: |
+        . build/azure-pipelines/win32/exec.ps1
+        $ErrorActionPreference = "Stop"
+        exec { ls $(agent.builddirectory)\scanbin\*.exe -recurse }
+      displayName: List Binaries
+
+    - powershell: |
+        . build/azure-pipelines/win32/exec.ps1
+        $ErrorActionPreference = "Stop"
+        exec { ls $(agent.builddirectory)\scanbin\*.pdb -recurse }
+      displayName: List Symbols
+
     - task: BinSkim@3
       inputs:
         toolVersion: Latest
