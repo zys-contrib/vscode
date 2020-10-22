@@ -47,7 +47,7 @@ stages:
         codeBaseAdmins: 'REDMOND\stbatt'
         instanceUrlForTsaV2: 'MSAZURE'
         projectNameMSAZURE: 'One'
-        areaPath: 'One\VSCode'
+        areaPath: 'One\VSCode\Client'
         uploadAPIScan: false
         uploadBinSkim: true
         uploadCredScan: false
