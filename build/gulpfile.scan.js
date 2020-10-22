@@ -40,7 +40,7 @@ BUILD_TARGETS.forEach(buildTarget => {
 		task.series(
 			util.rimraf(destinationExe),
 			util.rimraf(destinationPdb),
-			() => electron.dest(destinationExe, _.extend({}, config, { platform, arch: arch === 'armhf' ? 'arm' : arch, ffmpegChromium: true })),
+			() => electron.dest(destinationExe, _.extend({}, config, { platform, arch: arch === 'armhf' ? 'arm' : arch })),
 			() => electron.dest(destinationPdb, _.extend({}, config, { platform, arch: arch === 'armhf' ? 'arm' : arch, pdbs: true }))
 		)
 	);
