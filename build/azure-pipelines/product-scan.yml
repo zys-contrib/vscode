@@ -41,7 +41,7 @@ stages:
         codebase: 'NewOrUpdate'
         tsaEnvironment: 'PROD'
         serviceTreeID: '79c048b2-322f-4ed5-a1ea-252a1250e4b3'
-        codeBaseName: 'VS Code Client'
+        codeBaseName: 'vscode-client'
         notificationAlias: 'sbatten@microsoft.com'
         notifyAlwaysV2: true
         codeBaseAdmins: 'REDMOND\stbatt'
