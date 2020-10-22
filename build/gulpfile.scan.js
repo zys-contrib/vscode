@@ -6,6 +6,7 @@
 'use strict';
 
 const gulp = require('gulp');
+const del = require('del')
 const path = require('path');
 const task = require('./lib/task');
 const util = require('./lib/util');
@@ -41,7 +42,9 @@ BUILD_TARGETS.forEach(buildTarget => {
 			util.rimraf(destinationExe),
 			util.rimraf(destinationPdb),
 			() => electron.dest(destinationExe, _.extend({}, config, { platform, arch: arch === 'armhf' ? 'arm' : arch })),
-			() => electron.dest(destinationPdb, _.extend({}, config, { platform, arch: arch === 'armhf' ? 'arm' : arch, pdbs: true }))
+			() => electron.dest(destinationPdb, _.extend({}, config, { platform, arch: arch === 'armhf' ? 'arm' : arch, pdbs: true })),
+			() => del(path.join(destinationExe, 'swiftshader', '**'), {force:true}),
+			() => del(path.join(destinationExe, 'd3dcompiler_47.dll'), {force:true})
 		)
 	);
 
