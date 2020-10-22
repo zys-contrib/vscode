@@ -43,7 +43,7 @@ BUILD_TARGETS.forEach(buildTarget => {
 			util.rimraf(destinationPdb),
 			() => electron.dest(destinationExe, _.extend({}, config, { platform, arch: arch === 'armhf' ? 'arm' : arch })),
 			() => electron.dest(destinationPdb, _.extend({}, config, { platform, arch: arch === 'armhf' ? 'arm' : arch, pdbs: true })),
-			() => del(path.join(destinationExe, 'swiftshader', '**'), {force:true}),
+			util.rimraf(path.join(destinationExe, 'swiftshader')),
 			() => del(path.join(destinationExe, 'd3dcompiler_47.dll'), {force:true})
 		)
 	);
