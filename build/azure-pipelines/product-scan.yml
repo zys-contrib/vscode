@@ -33,7 +33,7 @@ stages:
       inputs:
         toolVersion: Latest
         InputType:   CommandLine
-        arguments:   analyze "$(agent.builddirectory)\scanbin\*.dll $(agent.builddirectory)\scanbin\*.exe" --recurse --local-symbol-directories $(agent.builddirectory)\scanbin\VSCode-win32-x64\pdb
+        arguments:   analyze $(agent.builddirectory)\scanbin\*.dll $(agent.builddirectory)\scanbin\*.exe --recurse --local-symbol-directories $(agent.builddirectory)\scanbin\VSCode-win32-x64\pdb
 
     - task: TSAUpload@1
       inputs:
