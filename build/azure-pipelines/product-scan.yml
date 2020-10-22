@@ -34,3 +34,28 @@ stages:
         toolVersion: Latest
         InputType:   CommandLine
         arguments:   analyze "$(agent.builddirectory)\scanbin\*.dll $(agent.builddirectory)\scanbin\*.exe" --recurse --local-symbol-directories $(agent.builddirectory)\scanbin\VSCode-win32-x64\pdb
+
+    - task: TSAUpload@1
+      inputs:
+        tsaVersion: 'TsaV2'
+        codebase: 'NewOrUpdate'
+        tsaEnvironment: 'PROD'
+        serviceTreeID: '79c048b2-322f-4ed5-a1ea-252a1250e4b3'
+        codeBaseName: 'VS Code Client'
+        notificationAlias: 'sbatten@outlook.com'
+        notifyAlwaysV2: false
+        codeBaseAdmins: 'REDMOND\stbatt'
+        instanceUrlForTsaV2: 'MSAZURE'
+        projectNameMSAZURE: 'One'
+        areaPath: 'One\VSCode'
+        uploadAPIScan: false
+        uploadBinSkim: true
+        uploadCredScan: false
+        uploadFortifySCA: false
+        uploadFxCop: false
+        uploadModernCop: false
+        uploadPoliCheck: false
+        uploadPREfast: false
+        uploadRoslyn: false
+        uploadTSLint: false
+        uploadAsync: true
