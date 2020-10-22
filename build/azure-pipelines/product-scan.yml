@@ -43,7 +43,7 @@ stages:
         serviceTreeID: '79c048b2-322f-4ed5-a1ea-252a1250e4b3'
         codeBaseName: 'VS Code Client'
         notificationAlias: 'sbatten@microsoft.com'
-        notifyAlwaysV2: false
+        notifyAlwaysV2: true
         codeBaseAdmins: 'REDMOND\stbatt'
         instanceUrlForTsaV2: 'MSAZURE'
         projectNameMSAZURE: 'One'
