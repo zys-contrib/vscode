@@ -42,7 +42,7 @@ stages:
         tsaEnvironment: 'PROD'
         serviceTreeID: '79c048b2-322f-4ed5-a1ea-252a1250e4b3'
         codeBaseName: 'VS Code Client'
-        notificationAlias: 'sbatten@outlook.com'
+        notificationAlias: 'sbatten@microsoft.com'
         notifyAlwaysV2: false
         codeBaseAdmins: 'REDMOND\stbatt'
         instanceUrlForTsaV2: 'MSAZURE'
