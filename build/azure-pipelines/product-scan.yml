@@ -53,7 +53,7 @@ stages:
         areaPath: 'One\VSCode\Client'
         uploadAPIScan: false
         uploadBinSkim: true
-        uploadCredScan: false
+        uploadCredScan: true
         uploadFortifySCA: false
         uploadFxCop: false
         uploadModernCop: false
