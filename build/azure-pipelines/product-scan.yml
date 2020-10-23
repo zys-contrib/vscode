@@ -8,6 +8,9 @@ stages:
     pool:
       vmImage: VS2017-Win2016
     steps:
+    - task: CredScan@2
+      inputs:
+        toolMajorVersion: 'V2'
     - task: NodeTool@0
       inputs:
         versionSpec: "12.14.1"
