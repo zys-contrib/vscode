@@ -39,6 +39,11 @@
         "category": "Git"
       },
       {
+        "command": "git.cloneRecursive",
+        "title": "%command.cloneRecursive%",
+        "category": "Git"
+      },
+      {
         "command": "git.init",
         "title": "%command.init%",
         "category": "Git",
@@ -299,6 +304,11 @@
         "category": "Git"
       },
       {
+        "command": "git.rebase",
+        "title": "%command.rebase%",
+        "category": "Git"
+      },
+      {
         "command": "git.createTag",
         "title": "%command.createTag%",
         "category": "Git"
@@ -496,6 +506,10 @@
           "when": "config.git.enabled && !git.missing"
         },
         {
+          "command": "git.cloneRecursive",
+          "when": "config.git.enabled && !git.missing"
+        },
+        {
           "command": "git.init",
           "when": "config.git.enabled && !git.missing"
         },
@@ -624,6 +638,10 @@
           "when": "config.git.enabled && !git.missing && gitOpenRepositoryCount != 0"
         },
         {
+          "command": "git.rebaseAbort",
+          "when": "config.git.enabled && !git.missing && gitOpenRepositoryCount != 0 && gitRebaseInProgress"
+        },
+        {
           "command": "git.commitNoVerify",
           "when": "config.git.enabled && !git.missing && config.git.allowNoVerifyCommit && gitOpenRepositoryCount != 0"
         },
@@ -701,6 +719,10 @@
         },
         {
           "command": "git.merge",
+          "when": "config.git.enabled && !git.missing && gitOpenRepositoryCount != 0"
+        },
+        {
+          "command": "git.rebase",
           "when": "config.git.enabled && !git.missing && gitOpenRepositoryCount != 0"
         },
         {
@@ -1434,6 +1456,9 @@
           "command": "git.merge"
         },
         {
+          "command": "git.rebase"
+        },
+        {
           "command": "git.branch"
         },
         {
@@ -1637,6 +1662,7 @@
             "null"
           ],
           "default": null,
+          "scope": "machine",
           "description": "%config.defaultCloneDirectory%"
         },
         "git.enableSmartCommit": {
