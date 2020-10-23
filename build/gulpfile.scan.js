@@ -13,6 +13,8 @@ const util = require('./lib/util');
 const _ = require('underscore');
 const electron = require('gulp-atom-electron');
 const { config } = require('./lib/electron');
+const filter = require('gulp-filter');
+const deps = require('./dependencies');
 
 const root = path.dirname(__dirname);
 
@@ -41,13 +43,32 @@ BUILD_TARGETS.forEach(buildTarget => {
 		task.series(
 			util.rimraf(destinationExe),
 			util.rimraf(destinationPdb),
-			() => electron.dest(destinationExe, _.extend({}, config, { platform, arch: arch === 'armhf' ? 'arm' : arch })),
-			() => electron.dest(destinationPdb, _.extend({}, config, { platform, arch: arch === 'armhf' ? 'arm' : arch, pdbs: true })),
-			util.rimraf(path.join(destinationExe, 'swiftshader')),
-			() => del(path.join(destinationExe, 'd3dcompiler_47.dll'), {force:true})
+			// () => electron.dest(destinationExe, _.extend({}, config, { platform, arch: arch === 'armhf' ? 'arm' : arch })),
+			// () => electron.dest(destinationPdb, _.extend({}, config, { platform, arch: arch === 'armhf' ? 'arm' : arch, pdbs: true })),
+			// util.rimraf(path.join(destinationExe, 'swiftshader')),
+			// () => del(path.join(destinationExe, 'd3dcompiler_47.dll'), {force:true}),
+			nodeModules(destinationExe, destinationPdb)
 		)
 	);
 
 	gulp.task(setupSymbolsTask);
 });
 
+function nodeModules(destinationExe, destinationPdb) {
+	const productionDependencies = deps.getProductionDependencies(root);
+	const dependenciesSrc = _.flatten(productionDependencies.map(d => path.relative(root, d.path)).map(d => [`${d}/**`, `!${d}/**/{test,tests}/**`]));
+
+	const exe = () => {
+		return gulp.src(dependenciesSrc, { base: '.', dot: true })
+			.pipe(filter(['**/*.node']))
+			.pipe(gulp.dest(destinationExe));
+	}
+
+	const pdb = () => {
+		return gulp.src(dependenciesSrc, { base: '.', dot: true })
+			.pipe(filter(['**/*.pdb']))
+			.pipe(gulp.dest(destinationPdb));
+	}
+
+	return gulp.parallel(exe, pdb);
+}
