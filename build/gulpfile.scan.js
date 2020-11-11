@@ -39,16 +39,31 @@ BUILD_TARGETS.forEach(buildTarget => {
 	console.log(destinationExe);
 	console.log(destinationPdb);
 
+
+	const tasks = [];
+
+	// removal tasks
+	tasks.push(util.rimraf(destinationExe), util.rimraf(destinationPdb));
+
+	// electron
+	tasks.push(() => electron.dest(destinationExe, _.extend({}, config, { platform, arch: arch === 'armhf' ? 'arm' : arch })));
+
+
+	// pdbs for windows
+	if (arch === 'win32') {
+		tasks.push(
+			() => electron.dest(destinationPdb, _.extend({}, config, { platform, arch: arch === 'armhf' ? 'arm' : arch, pdbs: true })),
+			() => del(path.join(destinationExe, 'd3dcompiler_47.dll'), { force: true }));
+	}
+
+	// cleanup and node modules
+	tasks.push(
+		util.rimraf(path.join(destinationExe, 'swiftshader')),
+		nodeModules(destinationExe, destinationPdb)
+	);
+
 	const setupSymbolsTask = task.define(`vscode-symbols${dashed(platform)}${dashed(arch)}`,
-		task.series(
-			util.rimraf(destinationExe),
-			util.rimraf(destinationPdb),
-			// () => electron.dest(destinationExe, _.extend({}, config, { platform, arch: arch === 'armhf' ? 'arm' : arch })),
-			// () => electron.dest(destinationPdb, _.extend({}, config, { platform, arch: arch === 'armhf' ? 'arm' : arch, pdbs: true })),
-			// util.rimraf(path.join(destinationExe, 'swiftshader')),
-			// () => del(path.join(destinationExe, 'd3dcompiler_47.dll'), {force:true}),
-			nodeModules(destinationExe, destinationPdb)
-		)
+		task.series(...tasks)
 	);
 
 	gulp.task(setupSymbolsTask);
