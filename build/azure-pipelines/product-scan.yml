@@ -11,6 +11,7 @@ stages:
       - template: win32/product-scan-win32.yml
 
 - stage: Linux
+  dependsOn: []
   pool:
     vmImage: VS2017-Win2016
   jobs:
