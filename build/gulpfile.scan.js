@@ -36,9 +36,6 @@ BUILD_TARGETS.forEach(buildTarget => {
 
 	const destinationExe = path.join(path.dirname(root), 'scanbin', `VSCode${dashed(platform)}${dashed(arch)}`, 'bin');
 	const destinationPdb = path.join(path.dirname(root), 'scanbin', `VSCode${dashed(platform)}${dashed(arch)}`, 'pdb');
-	console.log(destinationExe);
-	console.log(destinationPdb);
-
 
 	const tasks = [];
 
@@ -50,7 +47,7 @@ BUILD_TARGETS.forEach(buildTarget => {
 
 
 	// pdbs for windows
-	if (arch === 'win32') {
+	if (platform === 'win32') {
 		tasks.push(
 			() => electron.dest(destinationPdb, _.extend({}, config, { platform, arch: arch === 'armhf' ? 'arm' : arch, pdbs: true })),
 			() => del(path.join(destinationExe, 'd3dcompiler_47.dll'), { force: true }));

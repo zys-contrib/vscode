@@ -10,12 +10,12 @@ stages:
       steps:
       - template: win32/product-scan-win32.yml
 
-- stage: Linux
-  dependsOn: []
-  pool:
-    vmImage: 'Ubuntu-16.04'
-  jobs:
-  - job: Linux
-    steps:
-    - template: linux/product-scan-linux.yml
+# - stage: Linux
+#   dependsOn: []
+#   pool:
+#     vmImage: 'Ubuntu-16.04'
+#   jobs:
+#   - job: Linux
+#     steps:
+#     - template: linux/product-scan-linux.yml
 
