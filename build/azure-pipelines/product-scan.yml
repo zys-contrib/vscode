@@ -13,7 +13,7 @@ stages:
 - stage: Linux
   dependsOn: []
   pool:
-    vmImage: VS2017-Win2016
+    vmImage: 'Ubuntu-16.04'
   jobs:
   - job: Linux
     steps:

@@ -6,7 +6,7 @@
 'use strict';
 
 const gulp = require('gulp');
-const del = require('del')
+const del = require('del');
 const path = require('path');
 const task = require('./lib/task');
 const util = require('./lib/util');
@@ -77,13 +77,13 @@ function nodeModules(destinationExe, destinationPdb) {
 		return gulp.src(dependenciesSrc, { base: '.', dot: true })
 			.pipe(filter(['**/*.node']))
 			.pipe(gulp.dest(destinationExe));
-	}
+	};
 
 	const pdb = () => {
 		return gulp.src(dependenciesSrc, { base: '.', dot: true })
 			.pipe(filter(['**/*.pdb']))
 			.pipe(gulp.dest(destinationPdb));
-	}
+	};
 
 	return gulp.parallel(exe, pdb);
 }
