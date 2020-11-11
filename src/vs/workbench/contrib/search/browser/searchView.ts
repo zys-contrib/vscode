@@ -22,6 +22,7 @@ import { URI } from 'vs/base/common/uri';
 import 'vs/css!./media/searchview';
 import { ICodeEditor, isCodeEditor, isDiffEditor, getCodeEditor } from 'vs/editor/browser/editorBrowser';
 import { IEditorOptions } from 'vs/editor/common/config/editorOptions';
+import { CommonFindController } from 'vs/editor/contrib/find/findController';
 import * as nls from 'vs/nls';
 import { createAndFillInContextMenuActions } from 'vs/platform/actions/browser/menuEntryActionViewItem';
 import { IMenu, IMenuService, MenuId } from 'vs/platform/actions/common/actions';
@@ -59,7 +60,7 @@ import { IAccessibilityService } from 'vs/platform/accessibility/common/accessib
 import { ViewPane, IViewPaneOptions } from 'vs/workbench/browser/parts/views/viewPaneContainer';
 import { IKeybindingService } from 'vs/platform/keybinding/common/keybinding';
 import { Memento, MementoObject } from 'vs/workbench/common/memento';
-import { IStorageService, StorageScope } from 'vs/platform/storage/common/storage';
+import { IStorageService, StorageScope, StorageTarget } from 'vs/platform/storage/common/storage';
 import { IOpenerService } from 'vs/platform/opener/common/opener';
 import { MultiCursorSelectionController } from 'vs/editor/contrib/multicursor/multicursor';
 import { Selection } from 'vs/editor/common/core/selection';
@@ -70,6 +71,7 @@ import { ServiceCollection } from 'vs/platform/instantiation/common/serviceColle
 import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
 import { Orientation } from 'vs/base/browser/ui/sash/sash';
 import { searchDetailsIcon } from 'vs/workbench/contrib/search/browser/searchIcons';
+import { Range } from 'vs/editor/common/core/range';
 
 const $ = dom.$;
 
@@ -82,6 +84,90 @@ enum SearchUIState {
 export enum SearchViewPosition {
 	SideBar,
 	Panel
+}
+
+export type SearchViewContextMid = 13;
+export const SearchViewContextMid = 13;
+
+export interface IMatchContext {
+	/** Identifies which kind of match this is (text,file,folder) */
+	matchingKind: 'textMatch';
+	/** vscode id for this match */
+	id: string;
+	/** The text that was matched */
+	matchedText: string;
+	/** Text we would replace the matched text for, if we apply the match */
+	replacementText: string;
+	/** uri of the file were this match happened */
+	uri: URI;
+	/** location of where the matched text is inside the file */
+	matchRange: Range;
+	renderableMatch: Match;
+	$mid: SearchViewContextMid;
+}
+
+export interface IFileMatchContext {
+	/** Identifies which kind of match this is (text,file,folder) */
+	matchingKind: 'fileMatch';
+	/** uri of the file were all these matches happened */
+	uri: URI;
+	/** matches for this particular file */
+	matches: IMatchContext[];
+	renderableMatch: FileMatch;
+	$mid: SearchViewContextMid;
+}
+
+export interface IFolderMatchContext {
+	/** Identifies which kind of match this is (text,file,folder) */
+	matchingKind: 'folderMatch';
+	/** vscode id for this match */
+	id: string;
+	/** matches for this particular folder */
+	matches: IFileMatchContext[];
+	/** resource that might be associate with this match  */
+	resource: URI | null;
+	renderableMatch: FolderMatch;
+	$mid: SearchViewContextMid;
+}
+
+export interface IFolderMatchWithResourceContext extends IFolderMatchContext {
+	resource: URI;
+	renderableMatch: FolderMatchWithResource;
+}
+
+export type IRenderableMatchContext = (IMatchContext | IFileMatchContext | IFolderMatchContext);
+
+function toMatchContext(match: Match): IMatchContext {
+	return {
+		matchingKind: 'textMatch',
+		id: match.id(),
+		uri: URI.parse(match.parent().id()),
+		matchedText: match.fullMatchText(),
+		replacementText: match.replaceString,
+		matchRange: match.range(),
+		renderableMatch: match,
+		$mid: SearchViewContextMid
+	};
+}
+
+function toFileMatchContext(fileMatch: FileMatch): IFileMatchContext {
+	return {
+		matchingKind: 'fileMatch',
+		uri: URI.parse(fileMatch.id()),
+		matches: fileMatch.matches().map(toMatchContext),
+		renderableMatch: fileMatch,
+		$mid: SearchViewContextMid
+	};
+}
+
+function toFolderMatchContext<T extends IFolderMatchContext>(folderMatch: FolderMatch): T {
+	return {
+		matchingKind: 'folderMatch',
+		matches: folderMatch.matches().map(toFileMatchContext),
+		id: folderMatch.id(),
+		renderableMatch: folderMatch,
+		$mid: SearchViewContextMid
+	} as T;
 }
 
 const SEARCH_CANCELLED_MESSAGE = nls.localize('searchCanceled', "Search was canceled before any results could be found - ");
@@ -219,7 +305,7 @@ export class SearchView extends ViewPane {
 		this.viewModel = this._register(this.searchWorkbenchService.searchModel);
 		this.queryBuilder = this.instantiationService.createInstance(QueryBuilder);
 		this.memento = new Memento(this.id, storageService);
-		this.viewletState = this.memento.getMemento(StorageScope.WORKSPACE);
+		this.viewletState = this.memento.getMemento(StorageScope.WORKSPACE, StorageTarget.USER);
 
 		this._register(this.fileService.onDidFilesChange(e => this.onFilesChanged(e)));
 		this._register(this.textFileService.untitled.onDidDispose(model => this.onUntitledDidDispose(model.resource)));
@@ -779,13 +865,24 @@ export class SearchView extends ViewPane {
 		e.browserEvent.preventDefault();
 		e.browserEvent.stopPropagation();
 
+		const match = e.element;
+		let context: IRenderableMatchContext | undefined = undefined;
+		if (match instanceof FileMatch) {
+			context = toFileMatchContext(match);
+		} else if (match instanceof Match) {
+			context = toMatchContext(match);
+		} else if (match instanceof FolderMatch) {
+			context = toFolderMatchContext(match);
+			context.resource = match.resource;
+		}
+
 		const actions: IAction[] = [];
 		const actionsDisposable = createAndFillInContextMenuActions(this.contextMenu, { shouldForwardArgs: true }, actions);
 
 		this.contextMenuService.showContextMenu({
 			getAnchor: () => e.anchor,
 			getActions: () => actions,
-			getActionsContext: () => e.element,
+			getActionsContext: () => [context],
 			onHide: () => dispose(actionsDisposable)
 		});
 	}
@@ -888,28 +985,63 @@ export class SearchView extends ViewPane {
 		}
 	}
 
-	updateTextFromSelection({ allowUnselectedWord = true, allowSearchOnType = true }): boolean {
-		let updatedText = false;
-		const seedSearchStringFromSelection = this.configurationService.getValue<IEditorOptions>('editor').find!.seedSearchStringFromSelection;
-		if (seedSearchStringFromSelection) {
-			let selectedText = this.getSearchTextFromEditor(allowUnselectedWord);
-			if (selectedText) {
-				if (this.searchWidget.searchInput.getRegex()) {
-					selectedText = strings.escapeRegExpCharacters(selectedText);
-				}
-
-				if (allowSearchOnType && !this.viewModel.searchResult.isDirty) {
-					this.searchWidget.setValue(selectedText);
-				} else {
-					this.pauseSearching = true;
-					this.searchWidget.setValue(selectedText);
-					this.pauseSearching = false;
-				}
-				updatedText = true;
+	updateTextFromFindWidgetOrSelection({ allowUnselectedWord = true, allowSearchOnType = true }): boolean {
+		const activeEditor = this.editorService.activeTextEditorControl;
+		if (isCodeEditor(activeEditor)) {
+			const controller = CommonFindController.get(activeEditor as ICodeEditor);
+			if (controller.isFindInputFocused()) {
+				return this.updateTextFromFindWidget(controller, { allowSearchOnType });
 			}
 		}
 
-		return updatedText;
+		return this.updateTextFromSelection({ allowUnselectedWord, allowSearchOnType });
+	}
+
+	private updateTextFromFindWidget(controller: CommonFindController, { allowSearchOnType = true }): boolean {
+		if (!this.searchConfig.seedWithNearestWord && (window.getSelection()?.toString() ?? '') === '') {
+			return false;
+		}
+
+		const searchString = controller.getState().searchString;
+		if (searchString === '') {
+			return false;
+		}
+
+		this.searchWidget.searchInput.setCaseSensitive(controller.getState().matchCase);
+		this.searchWidget.searchInput.setWholeWords(controller.getState().wholeWord);
+		this.searchWidget.searchInput.setRegex(controller.getState().isRegex);
+		this.updateText(searchString, allowSearchOnType);
+
+		return true;
+	}
+
+	private updateTextFromSelection({ allowUnselectedWord = true, allowSearchOnType = true }): boolean {
+		const seedSearchStringFromSelection = this.configurationService.getValue<IEditorOptions>('editor').find!.seedSearchStringFromSelection;
+		if (!seedSearchStringFromSelection) {
+			return false;
+		}
+
+		let selectedText = this.getSearchTextFromEditor(allowUnselectedWord);
+		if (selectedText === null) {
+			return false;
+		}
+
+		if (this.searchWidget.searchInput.getRegex()) {
+			selectedText = strings.escapeRegExpCharacters(selectedText);
+		}
+
+		this.updateText(selectedText, allowSearchOnType);
+		return true;
+	}
+
+	private updateText(text: string, allowSearchOnType: boolean = true) {
+		if (allowSearchOnType && !this.viewModel.searchResult.isDirty) {
+			this.searchWidget.setValue(text);
+		} else {
+			this.pauseSearching = true;
+			this.searchWidget.setValue(text);
+			this.pauseSearching = false;
+		}
 	}
 
 	focusNextInputBox(): void {
