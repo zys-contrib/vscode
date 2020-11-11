@@ -1,7 +1,4 @@
 steps:
-- task: CredScan@2
-  inputs:
-    toolMajorVersion: 'V2'
 - task: NodeTool@0
   inputs:
     versionSpec: "12.14.1"
