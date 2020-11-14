@@ -635,6 +635,7 @@ export class DefaultSettings extends Disposable {
 					scope: prop.scope,
 					type: prop.type,
 					arrayItemType: listItemType,
+					format: prop.format,
 					objectProperties,
 					objectPatternProperties,
 					objectAdditionalProperties,

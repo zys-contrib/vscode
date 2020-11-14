@@ -42,7 +42,7 @@ import { ICssStyleCollector, IColorTheme, IThemeService, registerThemingParticip
 import { getIgnoredSettings } from 'vs/platform/userDataSync/common/settingsMerge';
 import { ITOCEntry } from 'vs/workbench/contrib/preferences/browser/settingsLayout';
 import { ISettingsEditorViewState, settingKeyToDisplayFormat, SettingsTreeElement, SettingsTreeGroupChild, SettingsTreeGroupElement, SettingsTreeNewExtensionsElement, SettingsTreeSettingElement } from 'vs/workbench/contrib/preferences/browser/settingsTreeModels';
-import { ExcludeSettingWidget, ISettingListChangeEvent, IListDataItem, ListSettingWidget, settingsNumberInputBackground, settingsNumberInputBorder, settingsNumberInputForeground, settingsSelectBackground, settingsSelectBorder, settingsSelectForeground, settingsSelectListBorder, settingsTextInputBackground, settingsTextInputBorder, settingsTextInputForeground, ObjectSettingWidget, IObjectDataItem, IObjectEnumOption, ObjectValue, IObjectValueSuggester, IObjectKeySuggester, focusedRowBackground, focusedRowBorder, settingsHeaderForeground, rowHoverBackground } from 'vs/workbench/contrib/preferences/browser/settingsWidgets';
+import { ExcludeSettingWidget, ISettingListChangeEvent, IListDataItem, ListSettingWidget, settingsNumberInputBackground, settingsNumberInputBorder, settingsNumberInputForeground, settingsSelectBackground, settingsSelectBorder, settingsSelectForeground, settingsSelectListBorder, settingsTextInputBackground, settingsTextInputBorder, settingsTextInputForeground, ObjectSettingWidget, IObjectDataItem, IObjectEnumOption, ObjectValue, IObjectValueSuggester, IObjectKeySuggester, focusedRowBackground, focusedRowBorder, settingsHeaderForeground, rowHoverBackground, ColorSettingWidget, settingsColorInputBackground, settingsColorInputForeground, settingsColorInputBorder } from 'vs/workbench/contrib/preferences/browser/settingsWidgets';
 import { SETTINGS_EDITOR_COMMAND_SHOW_CONTEXT_MENU } from 'vs/workbench/contrib/preferences/common/preferences';
 import { IWorkbenchEnvironmentService } from 'vs/workbench/services/environment/common/environmentService';
 import { ISetting, ISettingsGroup, SettingValueType } from 'vs/workbench/services/preferences/common/preferences';
@@ -391,7 +391,13 @@ interface ISettingTextItemTemplate extends ISettingItemTemplate<string> {
 	validationErrorMessageElement: HTMLElement;
 }
 
+interface ISettingColorItemTemplate extends ISettingItemTemplate<string> {
+	colorWidget: ColorSettingWidget;
+	validationErrorMessageElement: HTMLElement;
+}
+
 type ISettingNumberItemTemplate = ISettingTextItemTemplate;
+type ISettingColorItemTemplate2 = ISettingTextItemTemplate;
 
 interface ISettingEnumItemTemplate extends ISettingItemTemplate<number> {
 	selectBox: SelectBox;
@@ -431,6 +437,7 @@ const SETTINGS_NUMBER_TEMPLATE_ID = 'settings.number.template';
 const SETTINGS_ENUM_TEMPLATE_ID = 'settings.enum.template';
 const SETTINGS_BOOL_TEMPLATE_ID = 'settings.bool.template';
 const SETTINGS_ARRAY_TEMPLATE_ID = 'settings.array.template';
+const SETTINGS_COLOR_TEMPLATE_ID = 'settings.color.template';
 const SETTINGS_EXCLUDE_TEMPLATE_ID = 'settings.exclude.template';
 const SETTINGS_OBJECT_TEMPLATE_ID = 'settings.object.template';
 const SETTINGS_COMPLEX_TEMPLATE_ID = 'settings.complex.template';
@@ -773,6 +780,68 @@ export abstract class AbstractSettingRenderer extends Disposable implements ITre
 	}
 
 	protected abstract renderValue(dataElement: SettingsTreeSettingElement, template: ISettingItemTemplate, onChange: (value: any) => void): void;
+
+	protected setElementAriaLabels(dataElement: SettingsTreeSettingElement, templateId: string, template: ISettingItemTemplate): string {
+		// Create base Id for element references
+		const baseId = (dataElement.displayCategory + '_' + dataElement.displayLabel).replace(/ /g, '_').toLowerCase();
+
+		const modifiedText = template.otherOverridesElement.textContent ?
+			template.otherOverridesElement.textContent : (dataElement.isConfigured ? localize('settings.Modified', ' Modified. ') : '');
+
+		let itemElement: HTMLElement | null = null;
+
+		// Use '.' as reader pause
+		let label = dataElement.displayCategory + ' ' + dataElement.displayLabel + '. ';
+
+		// Setup and add ARIA attributes
+		// Create id and label for control/input element - parent is wrapper div
+
+		if (templateId === SETTINGS_TEXT_TEMPLATE_ID) {
+			if (itemElement = (<ISettingTextItemTemplate>template).inputBox.inputElement) {
+				itemElement.setAttribute('role', 'textbox');
+				label += modifiedText;
+			}
+		} else if (templateId === SETTINGS_NUMBER_TEMPLATE_ID) {
+			if (itemElement = (<ISettingNumberItemTemplate>template).inputBox.inputElement) {
+				itemElement.setAttribute('role', 'textbox');
+				label += ' number. ' + modifiedText;
+			}
+		} else if (templateId === SETTINGS_BOOL_TEMPLATE_ID) {
+			if (itemElement = (<ISettingBoolItemTemplate>template).checkbox.domNode) {
+				itemElement.setAttribute('role', 'checkbox');
+				label += modifiedText;
+				// Add checkbox target to description clickable and able to toggle checkbox
+				template.descriptionElement.setAttribute('checkbox_label_target_id', baseId + '_setting_item');
+			}
+		} else if (templateId === SETTINGS_ENUM_TEMPLATE_ID) {
+			if (itemElement = <HTMLElement>template.controlElement.firstElementChild) {
+				itemElement.setAttribute('role', 'combobox');
+				label += modifiedText;
+			}
+		} else if (templateId === SETTINGS_OBJECT_TEMPLATE_ID) {
+			if (itemElement = (<ISettingObjectItemTemplate>template).objectWidget.domNode) {
+				itemElement.setAttribute('role', 'list');
+				label += modifiedText;
+			}
+		} else {
+			// Don't change attributes if we don't know what we areFunctions
+			return '';
+		}
+
+		// We don't have control element, return empty label
+		if (!itemElement) {
+			return '';
+		}
+
+		// Labels will not be read on descendent input elements of the parent treeitem
+		// unless defined as roles for input items
+		// voiceover does not seem to use labeledby correctly, set labels directly on input elements
+		itemElement.id = baseId + '_setting_item';
+		itemElement.setAttribute('aria-label', label);
+		itemElement.setAttribute('aria-describedby', baseId + '_setting_description settings_aria_more_actions_shortcut_label');
+
+		return label;
+	}
 
 	disposeTemplate(template: IDisposableTemplate): void {
 		dispose(template.toDispose);
@@ -1267,6 +1336,131 @@ export class SettingTextRenderer extends AbstractSettingRenderer implements ITre
 	}
 }
 
+export class SettingColorRenderer extends AbstractSettingRenderer implements ITreeRenderer<SettingsTreeSettingElement, never, ISettingColorItemTemplate> {
+	templateId = SETTINGS_COLOR_TEMPLATE_ID;
+
+	renderTemplate(container: HTMLElement): ISettingColorItemTemplate {
+		const common = this.renderCommonTemplate(null, container, 'color');
+		const validationErrorMessageElement = DOM.append(common.containerElement, $('.setting-item-validation-message'));
+
+		const colorWidget = this._instantiationService.createInstance(ColorSettingWidget, common.controlElement);
+		common.toDispose.add(colorWidget);
+
+		const template: ISettingColorItemTemplate = {
+			...common,
+			colorWidget,
+			validationErrorMessageElement
+		};
+
+		this.addSettingElementFocusHandler(template);
+
+		// common.toDispose.add(
+		// 	listWidget.onDidChangeList(e => {
+		// 		const newList = this.computeNewList(template, e);
+		// 		this.onDidChangeList(template, newList);
+		// 		if (newList !== null && template.onChange) {
+		// 			template.onChange(newList);
+		// 		}
+		// 	})
+		// );
+
+		return template;
+	}
+
+	renderElement(element: ITreeNode<SettingsTreeSettingElement, never>, index: number, templateData: ISettingColorItemTemplate): void {
+		super.renderSettingElement(element, index, templateData);
+	}
+
+	protected renderValue(dataElement: SettingsTreeSettingElement, template: ISettingColorItemTemplate, onChange: (value: string) => void): void {
+		template.colorWidget.setValue(dataElement.value);
+		// const value = getListDisplayValue(dataElement);
+		// template.listWidget.setValue(value);
+		// template.context = dataElement;
+
+		// template.onChange = (v) => {
+		// 	onChange(v);
+		// 	renderArrayValidations(dataElement, template, v, false);
+		// };
+
+		//renderValidations(dataElement, template, true);
+	}
+}
+
+export class SettingColorRenderer2 extends AbstractSettingRenderer implements ITreeRenderer<SettingsTreeSettingElement, never, ISettingColorItemTemplate2> {
+	templateId = SETTINGS_COLOR_TEMPLATE_ID;
+
+	renderTemplate(container: HTMLElement): ISettingColorItemTemplate2 {
+		const common = this.renderCommonTemplate(null, container, 'color');
+		const validationErrorMessageElement = DOM.append(common.containerElement, $('.setting-item-validation-message'));
+
+		const inputBox = new InputBox(common.controlElement, this._contextViewService, {});
+		inputBox.inputElement.classList.add(AbstractSettingRenderer.CONTROL_CLASS);
+		inputBox.inputElement.tabIndex = 0;
+
+		const colorPreview = DOM.append(common.controlElement, $('div'));
+		colorPreview.classList.add('color-preview');
+
+		common.toDispose.add(attachInputBoxStyler(inputBox, this._themeService, {
+			inputBackground: settingsColorInputBackground,
+			inputForeground: settingsColorInputForeground,
+			inputBorder: settingsColorInputBorder
+		}));
+		common.toDispose.add(
+			inputBox.onDidChange(e => {
+				if (template.onChange) {
+					console.log('onDidChange...');
+					template.onChange(e);
+				}
+			}));
+		common.toDispose.add(inputBox);
+
+		// TODO@9at8: listWidget filters out all key events from input boxes, so we need to come up with a better way
+		// Disable ArrowUp and ArrowDown behaviour in favor of list navigation
+		common.toDispose.add(DOM.addStandardDisposableListener(inputBox.inputElement, DOM.EventType.KEY_DOWN, e => {
+			if (e.equals(KeyCode.UpArrow) || e.equals(KeyCode.DownArrow)) {
+				e.preventDefault();
+			}
+		}));
+
+		const template: ISettingTextItemTemplate = {
+			...common,
+			inputBox,
+			validationErrorMessageElement
+		};
+
+		this.addSettingElementFocusHandler(template);
+
+		return template;
+	}
+
+	renderElement(element: ITreeNode<SettingsTreeSettingElement, never>, index: number, templateData: ISettingColorItemTemplate2): void {
+		super.renderSettingElement(element, index, templateData);
+	}
+
+	protected renderValue(dataElement: SettingsTreeSettingElement, template: ISettingColorItemTemplate2, onChange: (value: string) => void): void {
+		template.onChange = undefined;
+		template.inputBox.value = dataElement.value;
+		template.onChange = value => {
+			console.log('onChange...');
+			if (!renderValidations(dataElement, template, false)) {
+				this.updateColorPreview(template, dataElement.value);
+				onChange(value);
+			}
+		};
+
+		if (!renderValidations(dataElement, template, true)) {
+			this.updateColorPreview(template, dataElement.value);
+		}
+	}
+
+	private updateColorPreview(template: ISettingColorItemTemplate2, value: string): void {
+		const colorPreview = <HTMLElement | null>template.controlElement.querySelector('.color-preview');
+		if (colorPreview) {
+			colorPreview.style.backgroundColor = Color.fromHex(value).toString();
+		}
+	}
+}
+
 export class SettingEnumRenderer extends AbstractSettingRenderer implements ITreeRenderer<SettingsTreeSettingElement, never, ISettingEnumItemTemplate> {
 	templateId = SETTINGS_ENUM_TEMPLATE_ID;
 
@@ -1545,6 +1739,8 @@ export class SettingTreeRenderers {
 			this._instantiationService.createInstance(SettingArrayRenderer, this.settingActions, actionFactory),
 			this._instantiationService.createInstance(SettingComplexRenderer, this.settingActions, actionFactory),
 			this._instantiationService.createInstance(SettingTextRenderer, this.settingActions, actionFactory),
+			//this._instantiationService.createInstance(SettingColorRenderer, this.settingActions, actionFactory),
+			this._instantiationService.createInstance(SettingColorRenderer2, this.settingActions, actionFactory),
 			this._instantiationService.createInstance(SettingExcludeRenderer, this.settingActions, actionFactory),
 			this._instantiationService.createInstance(SettingEnumRenderer, this.settingActions, actionFactory),
 			this._instantiationService.createInstance(SettingObjectRenderer, this.settingActions, actionFactory),
@@ -1771,6 +1967,9 @@ class SettingsTreeDelegate extends CachedListVirtualDelegate<SettingsTreeGroupCh
 			}
 
 			if (element.valueType === SettingValueType.String) {
+				if (element.setting.format === 'color-hex') {
+					return SETTINGS_COLOR_TEMPLATE_ID;
+				}
 				return SETTINGS_TEXT_TEMPLATE_ID;
 			}
 

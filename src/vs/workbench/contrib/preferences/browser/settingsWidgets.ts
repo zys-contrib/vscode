@@ -25,6 +25,7 @@ import { editorWidgetBorder, focusBorder, foreground, inputBackground, inputBord
 import { attachButtonStyler, attachInputBoxStyler, attachSelectBoxStyler } from 'vs/platform/theme/common/styler';
 import { IColorTheme, ICssStyleCollector, IThemeService, registerThemingParticipant } from 'vs/platform/theme/common/themeService';
 import { preferencesEditIcon } from 'vs/workbench/contrib/preferences/browser/preferencesWidgets';
+import { AbstractSettingRenderer } from 'vs/workbench/contrib/preferences/browser/settingsTree';
 
 const $ = DOM.$;
 export const settingsHeaderForeground = registerColor('settings.headerForeground', { light: '#444444', dark: '#e7e7e7', hc: '#ffffff' }, localize('headerForeground', "The foreground color for a section header or active title."));
@@ -49,6 +50,11 @@ export const settingsCheckboxBorder = registerColor('settings.checkboxBorder', {
 export const settingsTextInputBackground = registerColor('settings.textInputBackground', { dark: inputBackground, light: inputBackground, hc: inputBackground }, localize('textInputBoxBackground', "Settings editor text input box background."));
 export const settingsTextInputForeground = registerColor('settings.textInputForeground', { dark: inputForeground, light: inputForeground, hc: inputForeground }, localize('textInputBoxForeground', "Settings editor text input box foreground."));
 export const settingsTextInputBorder = registerColor('settings.textInputBorder', { dark: inputBorder, light: inputBorder, hc: inputBorder }, localize('textInputBoxBorder', "Settings editor text input box border."));
+
+// Color control colors
+export const settingsColorInputBackground = registerColor('settings.colorInputBackground', { dark: inputBackground, light: inputBackground, hc: inputBackground }, localize('colorInputBoxBackground', "Settings editor color input box background."));
+export const settingsColorInputForeground = registerColor('settings.colorInputForeground', { dark: inputForeground, light: inputForeground, hc: inputForeground }, localize('colorInputBoxForeground', "Settings editor color input box foreground."));
+export const settingsColorInputBorder = registerColor('settings.colorInputBorder', { dark: inputBorder, light: inputBorder, hc: inputBorder }, localize('colorInputBoxBorder', "Settings editor color input box border."));
 
 // Number control colors
 export const settingsNumberInputBackground = registerColor('settings.numberInputBackground', { dark: inputBackground, light: inputBackground, hc: inputBackground }, localize('numberInputBoxBackground', "Settings editor number input box background."));
@@ -1046,5 +1052,36 @@ export class ObjectSettingWidget extends AbstractListSettingWidget<IObjectDataIt
 			keyHeaderText: localize('objectKeyHeader', "Item"),
 			valueHeaderText: localize('objectValueHeader', "Value"),
 		};
+	}
+}
+
+export class ColorSettingWidget extends Disposable {
+	private colorInput: InputBox;
+	private colorPreview: HTMLElement;
+
+	constructor(
+		private container: HTMLElement,
+		@IContextViewService private readonly contextViewService: IContextViewService,
+		@IThemeService protected readonly themeService: IThemeService
+	) {
+		super();
+
+		this.colorPreview = DOM.append(this.container, $('div'));
+		this.colorPreview.classList.add('color-preview');
+
+		this.colorInput = new InputBox(this.container, this.contextViewService, {});
+		this.colorInput.inputElement.classList.add(AbstractSettingRenderer.CONTROL_CLASS);
+		this.colorInput.inputElement.tabIndex = 0;
+
+		attachInputBoxStyler(this.colorInput, this.themeService, {
+			inputBackground: settingsTextInputBackground,
+			inputForeground: settingsTextInputForeground,
+			inputBorder: settingsTextInputBorder
+		});
+	}
+
+	public setValue(color: string) {
+		this.colorPreview.style.backgroundColor = Color.fromHex(color).toString();
+		this.colorInput.value = color;
 	}
 }
