@@ -195,7 +195,7 @@ export interface IRemoteTerminalService {
 	dispose(): void;
 
 	getActiveTabIndex(activeWorkspaceRootUri: URI | undefined): number;
-	getActiveInstanceIndex(tabIndex: number, activeWorkspaceRootUri: URI | undefined): number;
+	getActiveInstanceIndex(activeWorkspaceRootUri: URI | undefined): number;
 	listTerminals(isInitialization?: boolean): Promise<IRemoteTerminalAttachTarget[]>;
 	// listTerminalsForWorkspace(activeWorkspaceRootUri: URI | undefined): Promise<IRemoteTerminalAttachTarget[][]>;
 	createRemoteTerminalProcess(terminalId: number, shellLaunchConfig: IShellLaunchConfig, activeWorkspaceRootUri: URI | undefined, cols: number, rows: number, configHelper: ITerminalConfigHelper,): Promise<ITerminalChildProcess>;
