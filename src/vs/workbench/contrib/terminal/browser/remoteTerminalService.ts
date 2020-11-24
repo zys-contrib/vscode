@@ -23,6 +23,8 @@ export class RemoteTerminalService extends Disposable implements IRemoteTerminal
 
 	private readonly _remoteTerminalChannel: RemoteTerminalChannelClient | null;
 	private _hasConnectedToRemote = false;
+	private activeTabIndex: number | undefined;
+	private activeInstanceIndex: number[] = [];
 
 	constructor(
 		@ITerminalInstanceService readonly terminalInstanceService: ITerminalInstanceService,
@@ -40,18 +42,26 @@ export class RemoteTerminalService extends Disposable implements IRemoteTerminal
 		}
 	}
 
-	getActiveTabIndex(activeWorkspaceRootUri: URI | undefined): number {
-		return 2;
+	getActiveTabIndex(activeWorkspaceRootUri?: URI | undefined): number {
+		return this.activeTabIndex || 0;
 	}
 
-	setActiveTabIndex(index: number, activeWorkspaceRootUri: URI | undefined): void {
+	setActiveTabIndex(index: number, activeWorkspaceRootUri?: URI | undefined): void {
+		this.activeTabIndex = index;
+	}
+
+	getActiveInstanceIndex(tabIndex: number, activeWorkspaceRootUri?: URI | undefined): number {
+		return this.activeInstanceIndex[tabIndex];
+	}
+
+	setActiveInstanceIndex(index: number, tabIndex: number, activeWorkspaceRootUri?: URI | undefined): void {
+		this.activeInstanceIndex[tabIndex] = index;
 	}
 
 	public async createRemoteTerminalProcess(terminalId: number, shellLaunchConfig: IShellLaunchConfig, activeWorkspaceRootUri: URI | undefined, cols: number, rows: number, configHelper: ITerminalConfigHelper,): Promise<ITerminalChildProcess> {
 		if (!this._remoteTerminalChannel) {
 			throw new Error(`Cannot create remote terminal when there is no remote!`);
 		}
-
 		let isPreconnectionTerminal = false;
 		if (!this._hasConnectedToRemote) {
 			isPreconnectionTerminal = true;
@@ -59,12 +69,15 @@ export class RemoteTerminalService extends Disposable implements IRemoteTerminal
 				this._hasConnectedToRemote = true;
 			});
 		}
-
 		return new RemoteTerminalProcess(terminalId, shellLaunchConfig, activeWorkspaceRootUri, cols, rows, configHelper, isPreconnectionTerminal, this._remoteTerminalChannel, this._remoteAgentService, this._logService, this._commandService);
 	}
 
 	public async listTerminals(isInitialization = false): Promise<IRemoteTerminalAttachTarget[]> {
 		const terms = this._remoteTerminalChannel ? await this._remoteTerminalChannel.listTerminals(isInitialization) : [];
+		// const tab = this.getActiveTabIndex();
+		// const instanceId = this.getActiveInstanceIndex(tab);
+		// const active = terms.filter(t => t.id === instanceId);
+		// sort so that the terminal shown is the active instance?
 		return terms.map(termDto => {
 			return <IRemoteTerminalAttachTarget>{
 				id: termDto.id,
@@ -109,7 +122,7 @@ export class RemoteTerminalProcess extends Disposable implements ITerminalChildP
 		private readonly _remoteTerminalChannel: RemoteTerminalChannelClient,
 		private readonly _remoteAgentService: IRemoteAgentService,
 		private readonly _logService: ILogService,
-		private readonly _commandService: ICommandService,
+		private readonly _commandService: ICommandService
 	) {
 		super();
 		this._startBarrier = new Barrier();

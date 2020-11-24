@@ -28,6 +28,7 @@ import { IAvailableShellsRequest, IRemoteTerminalAttachTarget, IShellDefinition,
 import { escapeNonWindowsPath } from 'vs/workbench/contrib/terminal/common/terminalEnvironment';
 import { IWorkbenchEnvironmentService } from 'vs/workbench/services/environment/common/environmentService';
 import { IExtensionService } from 'vs/workbench/services/extensions/common/extensions';
+import { IHistoryService } from 'vs/workbench/services/history/common/history';
 import { IWorkbenchLayoutService } from 'vs/workbench/services/layout/browser/layoutService';
 import { ILifecycleService } from 'vs/workbench/services/lifecycle/common/lifecycle';
 import { IRemoteAgentService } from 'vs/workbench/services/remote/common/remoteAgentService';
@@ -118,7 +119,8 @@ export class TerminalService implements ITerminalService {
 		@IWorkbenchEnvironmentService private readonly _environmentService: IWorkbenchEnvironmentService,
 		@IRemoteTerminalService private readonly _remoteTerminalService: IRemoteTerminalService,
 		@ITelemetryService private readonly _telemetryService: ITelemetryService,
-		@IWorkspaceContextService private readonly _workspaceContextService: IWorkspaceContextService
+		@IWorkspaceContextService private readonly _workspaceContextService: IWorkspaceContextService,
+		@IHistoryService private readonly _historyService: IHistoryService,
 	) {
 		this._activeTabIndex = 0;
 		this._isShuttingDown = false;
@@ -131,8 +133,15 @@ export class TerminalService implements ITerminalService {
 		this._configHelper = this._instantiationService.createInstance(TerminalConfigHelper);
 		this.onTabDisposed(tab => this._removeTab(tab));
 		this.onActiveTabChanged(() => {
+			this._remoteTerminalService.setActiveTabIndex(this.activeTabIndex, this._historyService.getLastActiveWorkspaceRoot());
 			const instance = this.getActiveInstance();
 			this._onActiveInstanceChanged.fire(instance ? instance : undefined);
+		});
+		this.onActiveInstanceChanged(() => {
+			const instance = this.getActiveInstance();
+			if (instance) {
+				this._remoteTerminalService.setActiveInstanceIndex(instance.id, this.activeTabIndex, this._historyService.getLastActiveWorkspaceRoot());
+			}
 		});
 		this.onInstanceLinksReady(instance => this._setInstanceLinkProviders(instance));
 
