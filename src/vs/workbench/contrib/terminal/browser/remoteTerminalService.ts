@@ -40,6 +40,13 @@ export class RemoteTerminalService extends Disposable implements IRemoteTerminal
 		}
 	}
 
+	getActiveTabIndex(activeWorkspaceRootUri: URI | undefined): number {
+		return 2;
+	}
+
+	setActiveTabIndex(index: number, activeWorkspaceRootUri: URI | undefined): void {
+	}
+
 	public async createRemoteTerminalProcess(terminalId: number, shellLaunchConfig: IShellLaunchConfig, activeWorkspaceRootUri: URI | undefined, cols: number, rows: number, configHelper: ITerminalConfigHelper,): Promise<ITerminalChildProcess> {
 		if (!this._remoteTerminalChannel) {
 			throw new Error(`Cannot create remote terminal when there is no remote!`);

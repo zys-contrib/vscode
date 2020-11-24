@@ -184,13 +184,24 @@ export interface ITerminalService {
 	isAttachedToTerminal(remoteTerm: IRemoteTerminalAttachTarget): boolean;
 }
 
+export interface IRemoteTerminalSplitInfo {
+	instanceId: number;
+	relativeSize: number;
+}
+
 export interface IRemoteTerminalService {
 	readonly _serviceBrand: undefined;
 
 	dispose(): void;
 
+	getActiveTabIndex(activeWorkspaceRootUri: URI | undefined): number;
+	// getActiveInstanceIndex(tabIndex: number, activeWorkspaceRootUri: URI | undefined): number;
 	listTerminals(isInitialization?: boolean): Promise<IRemoteTerminalAttachTarget[]>;
+	// listTerminalsForWorkspace(activeWorkspaceRootUri: URI | undefined): Promise<IRemoteTerminalAttachTarget[][]>;
 	createRemoteTerminalProcess(terminalId: number, shellLaunchConfig: IShellLaunchConfig, activeWorkspaceRootUri: URI | undefined, cols: number, rows: number, configHelper: ITerminalConfigHelper,): Promise<ITerminalChildProcess>;
+	// updateTerminalSplitInfos(layout: IRemoteTerminalSplitInfo[][], activeWorkspaceRootUri: URI | undefined): void;
+	setActiveTabIndex(index: number, activeWorkspaceRootUri: URI | undefined): void;
+	// setActiveInstanceIndex(instanceIndex: number, tabIndex: number, activeWorkspaceRootUri: URI | undefined): void;
 }
 
 /**

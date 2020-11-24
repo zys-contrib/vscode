@@ -178,6 +178,7 @@ export interface IRemoteTerminalAttachTarget {
 	cwd: string;
 	workspaceId: string;
 	workspaceName: string;
+	relativeSize?: number;
 }
 
 export interface IShellLaunchConfig {
