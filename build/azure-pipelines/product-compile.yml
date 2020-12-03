@@ -4,8 +4,12 @@ steps:
       echo -n $BUILD_SOURCEVERSION > .build/commit
       echo -n $VSCODE_QUALITY > .build/quality
       echo -n $ENABLE_TERRAPIN > .build/terrapin
+      which g++-5
+      export CC=/usr/bin/gcc-5
+      export CXX=/usr/bin/g++-5
       echo $CC
       echo $CXX
+      $CXX --version
     displayName: Prepare compilation cache flag
 
   - task: 1ESLighthouseEng.PipelineArtifactCaching.RestoreCacheV1.RestoreCache@1
