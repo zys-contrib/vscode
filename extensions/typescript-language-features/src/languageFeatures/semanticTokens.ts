@@ -64,9 +64,11 @@ class DocumentSemanticTokensProvider implements vscode.DocumentSemanticTokensPro
 
 		const start = document.offsetAt(range.start);
 		const length = document.offsetAt(range.end) - start;
+
 		return this._provideSemanticTokens(document, { file, start, length }, token);
 	}
 
+	// TODO: No EncodedSemanticClassificationsRequestArgs types in protocol
 	async _provideSemanticTokens(document: vscode.TextDocument, requestArg: ExperimentalProtocol.EncodedSemanticClassificationsRequestArgs, token: vscode.CancellationToken): Promise<vscode.SemanticTokens | null> {
 		const file = this.client.toOpenedFilePath(document);
 		if (!file) {
@@ -75,7 +77,11 @@ class DocumentSemanticTokensProvider implements vscode.DocumentSemanticTokensPro
 
 		let versionBeforeRequest = document.version;
 
-		const response = await (this.client as ExperimentalProtocol.IExtendedTypeScriptServiceClient).execute('encodedSemanticClassifications-full', requestArg, token, {
+		// TODO: encodedSemanticClassifications not in protocol
+		const response = await (this.client as ExperimentalProtocol.IExtendedTypeScriptServiceClient).execute('encodedSemanticClassifications-full',
+			// TODO: 'format not supported'
+			{ ...requestArg, format: '2020' },
+			token, {
 			cancelOnResourceChange: document.uri
 		});
 		if (response.type !== 'response' || !response.body) {
