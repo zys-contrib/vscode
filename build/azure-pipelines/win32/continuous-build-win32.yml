@@ -5,6 +5,9 @@ stages:
   jobs:
   - job: Compile
     steps:
+    - checkout: self
+      fetchDepth: 1
+
     - task: NodeTool@0
       inputs:
         versionSpec: "12.18.3"
@@ -72,12 +75,15 @@ stages:
     displayName: Unit Tests (Browser)
     dependsOn: Compile
     steps:
+    - checkout: self
+      fetchDepth: 1
+
     - task: DownloadPipelineArtifact@2
       displayName: Download Artifact
       inputs:
         source: "current"
         artifact: VSCodeWindows
-        path: "$(Pipeline.Workspace)/s/out"
+        path: "$(Build.SourcesDirectory)/out"
 
     - task: NodeTool@0
       inputs:
@@ -87,10 +93,10 @@ stages:
       inputs:
         versionSpec: "1.x"
 
-    - task: UsePythonVersion@0
-      inputs:
-        versionSpec: "2.x"
-        addToPath: true
+    # - task: UsePythonVersion@0
+    #   inputs:
+    #     versionSpec: "2.x"
+    #     addToPath: true
 
     - task: 1ESLighthouseEng.PipelineArtifactCaching.RestoreCacheV1.RestoreCache@1
       inputs:
@@ -105,19 +111,19 @@ stages:
       displayName: Install Dependencies
       condition: and(succeeded(), ne(variables['CacheRestored'], 'true'))
 
-    - task: 1ESLighthouseEng.PipelineArtifactCaching.SaveCacheV1.SaveCache@1
-      inputs:
-        keyfile: ".yarnrc, remote/.yarnrc, **/yarn.lock, !**/node_modules/**/yarn.lock, !**/.*/**/yarn.lock"
-        targetfolder: "**/node_modules, !**/node_modules/**/node_modules"
-        vstsFeed: "vscode-build-cache"
-      condition: and(succeeded(), ne(variables['CacheRestored'], 'true'))
+    # - task: 1ESLighthouseEng.PipelineArtifactCaching.SaveCacheV1.SaveCache@1
+    #   inputs:
+    #     keyfile: ".yarnrc, remote/.yarnrc, **/yarn.lock, !**/node_modules/**/yarn.lock, !**/.*/**/yarn.lock"
+    #     targetfolder: "**/node_modules, !**/node_modules/**/node_modules"
+    #     vstsFeed: "vscode-build-cache"
+    #   condition: and(succeeded(), ne(variables['CacheRestored'], 'true'))
 
-    - powershell: |
-        . build/azure-pipelines/win32/exec.ps1
-        $ErrorActionPreference = "Stop"
-        exec { yarn postinstall }
-      displayName: Run postinstall scripts
-      condition: and(succeeded(), eq(variables['CacheRestored'], 'true'))
+    # - powershell: |
+    #     . build/azure-pipelines/win32/exec.ps1
+    #     $ErrorActionPreference = "Stop"
+    #     exec { yarn postinstall }
+    #   displayName: Run postinstall scripts
+    #   condition: and(succeeded(), eq(variables['CacheRestored'], 'true'))
 
     - powershell: |
         yarn test-browser --browser chromium --browser firefox --tfs "Browser Unit Tests"
