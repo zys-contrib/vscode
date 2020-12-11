@@ -74,9 +74,10 @@ stages:
     steps:
     - task: DownloadPipelineArtifact@2
       displayName: Download Artifact
-      source: "current"
-      artifact: VSCodeWindows
-      path: "$(Pipeline.Workspace)/s/out"
+      inputs:
+        source: "current"
+        artifact: VSCodeWindows
+        path: "$(Pipeline.Workspace)/s/out"
 
     - task: NodeTool@0
       inputs:
