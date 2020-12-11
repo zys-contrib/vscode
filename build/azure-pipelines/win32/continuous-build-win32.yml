@@ -18,11 +18,11 @@ stages:
         versionSpec: "2.x"
         addToPath: true
 
-    # - task: 1ESLighthouseEng.PipelineArtifactCaching.RestoreCacheV1.RestoreCache@1
-    #   inputs:
-    #     keyfile: ".yarnrc, remote/.yarnrc, **/yarn.lock, !**/node_modules/**/yarn.lock, !**/.*/**/yarn.lock"
-    #     targetfolder: "**/node_modules, !**/node_modules/**/node_modules"
-    #     vstsFeed: "vscode-build-cache"
+    - task: 1ESLighthouseEng.PipelineArtifactCaching.RestoreCacheV1.RestoreCache@1
+      inputs:
+        keyfile: ".yarnrc, remote/.yarnrc, **/yarn.lock, !**/node_modules/**/yarn.lock, !**/.*/**/yarn.lock"
+        targetfolder: "**/node_modules, !**/node_modules/**/node_modules"
+        vstsFeed: "vscode-build-cache"
 
     - powershell: |
         yarn --frozen-lockfile
@@ -31,12 +31,12 @@ stages:
       displayName: Install Dependencies
       condition: and(succeeded(), ne(variables['CacheRestored'], 'true'))
 
-    # - task: 1ESLighthouseEng.PipelineArtifactCaching.SaveCacheV1.SaveCache@1
-    #   inputs:
-    #     keyfile: ".yarnrc, remote/.yarnrc, **/yarn.lock, !**/node_modules/**/yarn.lock, !**/.*/**/yarn.lock"
-    #     targetfolder: "**/node_modules, !**/node_modules/**/node_modules"
-    #     vstsFeed: "vscode-build-cache"
-    #   condition: and(succeeded(), ne(variables['CacheRestored'], 'true'))
+    - task: 1ESLighthouseEng.PipelineArtifactCaching.SaveCacheV1.SaveCache@1
+      inputs:
+        keyfile: ".yarnrc, remote/.yarnrc, **/yarn.lock, !**/node_modules/**/yarn.lock, !**/.*/**/yarn.lock"
+        targetfolder: "**/node_modules, !**/node_modules/**/node_modules"
+        vstsFeed: "vscode-build-cache"
+      condition: and(succeeded(), ne(variables['CacheRestored'], 'true'))
 
     - powershell: |
         . build/azure-pipelines/win32/exec.ps1
@@ -92,11 +92,11 @@ stages:
     #     versionSpec: "2.x"
     #     addToPath: true
 
-    # - task: 1ESLighthouseEng.PipelineArtifactCaching.RestoreCacheV1.RestoreCache@1
-    #   inputs:
-    #     keyfile: ".yarnrc, remote/.yarnrc, **/yarn.lock, !**/node_modules/**/yarn.lock, !**/.*/**/yarn.lock"
-    #     targetfolder: "**/node_modules, !**/node_modules/**/node_modules"
-    #     vstsFeed: "vscode-build-cache"
+    - task: 1ESLighthouseEng.PipelineArtifactCaching.RestoreCacheV1.RestoreCache@1
+      inputs:
+        keyfile: ".yarnrc, remote/.yarnrc, **/yarn.lock, !**/node_modules/**/yarn.lock, !**/.*/**/yarn.lock"
+        targetfolder: "**/node_modules, !**/node_modules/**/node_modules"
+        vstsFeed: "vscode-build-cache"
 
     - powershell: |
         yarn --frozen-lockfile
@@ -105,12 +105,12 @@ stages:
       displayName: Install Dependencies
       condition: and(succeeded(), ne(variables['CacheRestored'], 'true'))
 
-    # - task: 1ESLighthouseEng.PipelineArtifactCaching.SaveCacheV1.SaveCache@1
-    #   inputs:
-    #     keyfile: ".yarnrc, remote/.yarnrc, **/yarn.lock, !**/node_modules/**/yarn.lock, !**/.*/**/yarn.lock"
-    #     targetfolder: "**/node_modules, !**/node_modules/**/node_modules"
-    #     vstsFeed: "vscode-build-cache"
-    #   condition: and(succeeded(), ne(variables['CacheRestored'], 'true'))
+    - task: 1ESLighthouseEng.PipelineArtifactCaching.SaveCacheV1.SaveCache@1
+      inputs:
+        keyfile: ".yarnrc, remote/.yarnrc, **/yarn.lock, !**/node_modules/**/yarn.lock, !**/.*/**/yarn.lock"
+        targetfolder: "**/node_modules, !**/node_modules/**/node_modules"
+        vstsFeed: "vscode-build-cache"
+      condition: and(succeeded(), ne(variables['CacheRestored'], 'true'))
 
     # - powershell: |
     #     . build/azure-pipelines/win32/exec.ps1
