@@ -49,13 +49,13 @@ stages:
         yarn electron
       displayName: Download Electron
 
-    - powershell: |
-        yarn monaco-compile-check
-      displayName: Run Monaco Editor Checks
+    # - powershell: |
+    #     yarn monaco-compile-check
+    #   displayName: Run Monaco Editor Checks
 
-    - script: |
-        yarn valid-layers-check
-      displayName: Run Valid Layers Checks
+    # - script: |
+    #     yarn valid-layers-check
+    #   displayName: Run Valid Layers Checks
 
     - powershell: |
         yarn compile
@@ -72,8 +72,11 @@ stages:
     displayName: Unit Tests (Browser)
     dependsOn: Compile
     steps:
-    - download: current
+    - task: DownloadPipelineArtifact@2
+      displayName: Download Artifact
+      source: "current"
       artifact: VSCodeWindows
+      path: "$(Pipeline.Workspace)/s/out"
 
     - task: NodeTool@0
       inputs:
