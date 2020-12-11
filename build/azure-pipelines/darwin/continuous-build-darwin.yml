@@ -1,4 +1,11 @@
-steps:
+stages:
+- stage: macOS
+  dependsOn: []
+  pool:
+    vmImage: macOS-latest
+  jobs:
+  - job: Compile
+  steps:
   - task: NodeTool@0
     inputs:
       versionSpec: "12.18.3"
@@ -51,29 +58,29 @@ steps:
       yarn download-builtin-extensions
     displayName: Download Built-in Extensions
 
-  - script: |
-      ./scripts/test.sh --tfs "Unit Tests"
-    displayName: Run Unit Tests (Electron)
+  # - script: |
+  #     ./scripts/test.sh --tfs "Unit Tests"
+  #   displayName: Run Unit Tests (Electron)
 
-  - script: |
-      yarn test-browser --browser chromium --browser webkit --browser firefox --tfs "Browser Unit Tests"
-    displayName: Run Unit Tests (Browser)
+  # - script: |
+  #     yarn test-browser --browser chromium --browser webkit --browser firefox --tfs "Browser Unit Tests"
+  #   displayName: Run Unit Tests (Browser)
 
-  - script: |
-      ./scripts/test-integration.sh --tfs "Integration Tests"
-    displayName: Run Integration Tests (Electron)
+  # - script: |
+  #     ./scripts/test-integration.sh --tfs "Integration Tests"
+  #   displayName: Run Integration Tests (Electron)
 
-  - task: PublishPipelineArtifact@0
-    inputs:
-      artifactName: crash-dump-macos
-      targetPath: .build/crashes
-    displayName: "Publish Crash Reports"
-    continueOnError: true
-    condition: failed()
+  # - task: PublishPipelineArtifact@0
+  #   inputs:
+  #     artifactName: crash-dump-macos
+  #     targetPath: .build/crashes
+  #   displayName: "Publish Crash Reports"
+  #   continueOnError: true
+  #   condition: failed()
 
-  - task: PublishTestResults@2
-    displayName: Publish Tests Results
-    inputs:
-      testResultsFiles: "*-results.xml"
-      searchFolder: "$(Build.ArtifactStagingDirectory)/test-results"
-    condition: succeededOrFailed()
+  # - task: PublishTestResults@2
+  #   displayName: Publish Tests Results
+  #   inputs:
+  #     testResultsFiles: "*-results.xml"
+  #     searchFolder: "$(Build.ArtifactStagingDirectory)/test-results"
+  #   condition: succeededOrFailed()

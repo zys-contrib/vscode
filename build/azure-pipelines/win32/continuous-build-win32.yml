@@ -66,7 +66,7 @@ stages:
       displayName: Download Built-in Extensions
 
   - job: UnitTests
-    displayName: Units Tests
+    displayName: Unit Tests
     dependsOn: Compile
     steps:
     - powershell: |
@@ -112,7 +112,7 @@ stages:
       condition: succeededOrFailed()
 
   - job: IntegrationTests
-    displayName: Run Integration Tests (Electron)
+    displayName: Integration Tests (Electron)
     dependsOn: Compile
     steps:
     - powershell: |
