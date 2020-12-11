@@ -5,17 +5,17 @@ jobs:
   steps:
   - template: build/azure-pipelines/win32/continuous-build-win32.yml
 
-- job: Linux
-  pool:
-    vmImage: 'Ubuntu-16.04'
-  steps:
-  - template: build/azure-pipelines/linux/continuous-build-linux.yml
+# - job: Linux
+#   pool:
+#     vmImage: 'Ubuntu-16.04'
+#   steps:
+#   - template: build/azure-pipelines/linux/continuous-build-linux.yml
 
-- job: macOS
-  pool:
-    vmImage: macOS-latest
-  steps:
-  - template: build/azure-pipelines/darwin/continuous-build-darwin.yml
+# - job: macOS
+#   pool:
+#     vmImage: macOS-latest
+#   steps:
+#   - template: build/azure-pipelines/darwin/continuous-build-darwin.yml
 
 trigger:
   branches:

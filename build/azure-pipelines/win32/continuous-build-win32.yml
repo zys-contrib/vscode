@@ -59,29 +59,29 @@ steps:
       yarn download-builtin-extensions
     displayName: Download Built-in Extensions
 
-  - powershell: |
-      .\scripts\test.bat --tfs "Unit Tests"
-    displayName: Run Unit Tests (Electron)
+  # - powershell: |
+  #     .\scripts\test.bat --tfs "Unit Tests"
+  #   displayName: Run Unit Tests (Electron)
 
-  - powershell: |
-      yarn test-browser --browser chromium --browser firefox --tfs "Browser Unit Tests"
-    displayName: Run Unit Tests (Browser)
+  # - powershell: |
+  #     yarn test-browser --browser chromium --browser firefox --tfs "Browser Unit Tests"
+  #   displayName: Run Unit Tests (Browser)
 
-  - powershell: |
-      .\scripts\test-integration.bat --tfs "Integration Tests"
-    displayName: Run Integration Tests (Electron)
+  # - powershell: |
+  #     .\scripts\test-integration.bat --tfs "Integration Tests"
+  #   displayName: Run Integration Tests (Electron)
 
-  - task: PublishPipelineArtifact@0
-    displayName: "Publish Crash Reports"
-    inputs:
-      artifactName: crash-dump-windows
-      targetPath: .build\crashes
-    continueOnError: true
-    condition: failed()
+  # - task: PublishPipelineArtifact@0
+  #   displayName: "Publish Crash Reports"
+  #   inputs:
+  #     artifactName: crash-dump-windows
+  #     targetPath: .build\crashes
+  #   continueOnError: true
+  #   condition: failed()
 
-  - task: PublishTestResults@2
-    displayName: Publish Tests Results
-    inputs:
-      testResultsFiles: "*-results.xml"
-      searchFolder: "$(Build.ArtifactStagingDirectory)/test-results"
-    condition: succeededOrFailed()
+  # - task: PublishTestResults@2
+  #   displayName: Publish Tests Results
+  #   inputs:
+  #     testResultsFiles: "*-results.xml"
+  #     searchFolder: "$(Build.ArtifactStagingDirectory)/test-results"
+  #   condition: succeededOrFailed()
