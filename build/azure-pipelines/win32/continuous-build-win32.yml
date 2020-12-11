@@ -5,9 +5,6 @@ stages:
   jobs:
   - job: Compile
     steps:
-    - checkout: self
-      fetchDepth: 1
-
     - task: NodeTool@0
       inputs:
         versionSpec: "12.18.3"
@@ -75,9 +72,6 @@ stages:
     displayName: Unit Tests (Browser)
     dependsOn: Compile
     steps:
-    - checkout: self
-      fetchDepth: 1
-
     - task: DownloadPipelineArtifact@2
       displayName: Download Artifact
       inputs:
