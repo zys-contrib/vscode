@@ -8,7 +8,7 @@ stages:
 - template: build/azure-pipelines/win32/continuous-build-win32.yml
 
 # Linux
-- template: build/azure-pipelines/linux/continuous-build-linux.yml
+# - template: build/azure-pipelines/linux/continuous-build-linux.yml
 
 # macOS
-- template: build/azure-pipelines/darwin/continuous-build-darwin.yml
+# - template: build/azure-pipelines/darwin/continuous-build-darwin.yml

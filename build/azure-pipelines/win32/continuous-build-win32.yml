@@ -61,11 +61,11 @@ stages:
         yarn compile
       displayName: Compile Sources
 
-    - powershell: |
-        yarn download-builtin-extensions
-      displayName: Download Built-in Extensions
+    # - powershell: |
+    #     yarn download-builtin-extensions
+    #   displayName: Download Built-in Extensions
 
-    - publish: $(System.DefaultWorkingDirectory)
+    - publish: $(System.DefaultWorkingDirectory)/out
       artifact: VSCodeWindows
 
   - job: UnitTests
@@ -120,28 +120,28 @@ stages:
         searchFolder: "$(Build.ArtifactStagingDirectory)/test-results"
       condition: succeededOrFailed()
 
-  - job: IntegrationTests
-    displayName: Integration Tests (Electron)
-    dependsOn: Compile
-    steps:
-    - download: current
-      artifact: VSCodeWindows
+  # - job: IntegrationTests
+  #   displayName: Integration Tests (Electron)
+  #   dependsOn: Compile
+  #   steps:
+  #   - download: current
+  #     artifact: VSCodeWindows
 
-    - powershell: |
-        .\scripts\test-integration.bat --tfs "Integration Tests"
-      displayName: Run Integration Tests (Electron)
+  #   - powershell: |
+  #       .\scripts\test-integration.bat --tfs "Integration Tests"
+  #     displayName: Run Integration Tests (Electron)
 
-    - task: PublishPipelineArtifact@0
-      displayName: "Publish Crash Reports"
-      inputs:
-        artifactName: crash-dump-windows
-        targetPath: .build\crashes
-      continueOnError: true
-      condition: failed()
+  #   - task: PublishPipelineArtifact@0
+  #     displayName: "Publish Crash Reports"
+  #     inputs:
+  #       artifactName: crash-dump-windows
+  #       targetPath: .build\crashes
+  #     continueOnError: true
+  #     condition: failed()
 
-    - task: PublishTestResults@2
-      displayName: Publish Tests Results
-      inputs:
-        testResultsFiles: "*-results.xml"
-        searchFolder: "$(Build.ArtifactStagingDirectory)/test-results"
-      condition: succeededOrFailed()
+  #   - task: PublishTestResults@2
+  #     displayName: Publish Tests Results
+  #     inputs:
+  #       testResultsFiles: "*-results.xml"
+  #       searchFolder: "$(Build.ArtifactStagingDirectory)/test-results"
+  #     condition: succeededOrFailed()
