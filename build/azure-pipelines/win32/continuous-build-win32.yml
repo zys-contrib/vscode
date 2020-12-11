@@ -68,38 +68,52 @@ stages:
     - publish: $(System.DefaultWorkingDirectory)/out
       artifact: VSCodeWindows
 
-  - job: UnitTests
-    displayName: Unit Tests
-    dependsOn: Compile
-    steps:
-    - download: current
-      artifact: VSCodeWindows
-
-    - powershell: |
-        .\scripts\test.bat --tfs "Unit Tests"
-      displayName: Run Unit Tests (Electron)
-
-    - task: PublishPipelineArtifact@0
-      displayName: "Publish Crash Reports"
-      inputs:
-        artifactName: crash-dump-windows
-        targetPath: .build\crashes
-      continueOnError: true
-      condition: failed()
-
-    - task: PublishTestResults@2
-      displayName: Publish Tests Results
-      inputs:
-        testResultsFiles: "*-results.xml"
-        searchFolder: "$(Build.ArtifactStagingDirectory)/test-results"
-      condition: succeededOrFailed()
-
   - job: BrowserUnitTests
     displayName: Unit Tests (Browser)
     dependsOn: Compile
     steps:
     - download: current
       artifact: VSCodeWindows
+
+    - task: NodeTool@0
+      inputs:
+        versionSpec: "12.18.3"
+
+    - task: geeklearningio.gl-vsts-tasks-yarn.yarn-installer-task.YarnInstaller@2
+      inputs:
+        versionSpec: "1.x"
+
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: "2.x"
+        addToPath: true
+
+    - task: 1ESLighthouseEng.PipelineArtifactCaching.RestoreCacheV1.RestoreCache@1
+      inputs:
+        keyfile: ".yarnrc, remote/.yarnrc, **/yarn.lock, !**/node_modules/**/yarn.lock, !**/.*/**/yarn.lock"
+        targetfolder: "**/node_modules, !**/node_modules/**/node_modules"
+        vstsFeed: "vscode-build-cache"
+
+    - powershell: |
+        yarn --frozen-lockfile
+      env:
+        CHILD_CONCURRENCY: "1"
+      displayName: Install Dependencies
+      condition: and(succeeded(), ne(variables['CacheRestored'], 'true'))
+
+    - task: 1ESLighthouseEng.PipelineArtifactCaching.SaveCacheV1.SaveCache@1
+      inputs:
+        keyfile: ".yarnrc, remote/.yarnrc, **/yarn.lock, !**/node_modules/**/yarn.lock, !**/.*/**/yarn.lock"
+        targetfolder: "**/node_modules, !**/node_modules/**/node_modules"
+        vstsFeed: "vscode-build-cache"
+      condition: and(succeeded(), ne(variables['CacheRestored'], 'true'))
+
+    - powershell: |
+        . build/azure-pipelines/win32/exec.ps1
+        $ErrorActionPreference = "Stop"
+        exec { yarn postinstall }
+      displayName: Run postinstall scripts
+      condition: and(succeeded(), eq(variables['CacheRestored'], 'true'))
 
     - powershell: |
         yarn test-browser --browser chromium --browser firefox --tfs "Browser Unit Tests"
@@ -119,6 +133,32 @@ stages:
         testResultsFiles: "*-results.xml"
         searchFolder: "$(Build.ArtifactStagingDirectory)/test-results"
       condition: succeededOrFailed()
+
+  # - job: UnitTests
+  #   displayName: Unit Tests
+  #   dependsOn: Compile
+  #   steps:
+  #   - download: current
+  #     artifact: VSCodeWindows
+
+  #   - powershell: |
+  #       .\scripts\test.bat --tfs "Unit Tests"
+  #     displayName: Run Unit Tests (Electron)
+
+  #   - task: PublishPipelineArtifact@0
+  #     displayName: "Publish Crash Reports"
+  #     inputs:
+  #       artifactName: crash-dump-windows
+  #       targetPath: .build\crashes
+  #     continueOnError: true
+  #     condition: failed()
+
+  #   - task: PublishTestResults@2
+  #     displayName: Publish Tests Results
+  #     inputs:
+  #       testResultsFiles: "*-results.xml"
+  #       searchFolder: "$(Build.ArtifactStagingDirectory)/test-results"
+  #     condition: succeededOrFailed()
 
   # - job: IntegrationTests
   #   displayName: Integration Tests (Electron)
