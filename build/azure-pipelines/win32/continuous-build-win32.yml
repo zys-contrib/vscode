@@ -65,10 +65,16 @@ stages:
         yarn download-builtin-extensions
       displayName: Download Built-in Extensions
 
+    - publish: $(System.DefaultWorkingDirectory)
+      artifact: VSCodeWindows
+
   - job: UnitTests
     displayName: Unit Tests
     dependsOn: Compile
     steps:
+    - download: current
+      artifact: VSCodeWindows
+
     - powershell: |
         .\scripts\test.bat --tfs "Unit Tests"
       displayName: Run Unit Tests (Electron)
@@ -92,6 +98,9 @@ stages:
     displayName: Unit Tests (Browser)
     dependsOn: Compile
     steps:
+    - download: current
+      artifact: VSCodeWindows
+
     - powershell: |
         yarn test-browser --browser chromium --browser firefox --tfs "Browser Unit Tests"
       displayName: Run Unit Tests (Browser)
@@ -115,6 +124,9 @@ stages:
     displayName: Integration Tests (Electron)
     dependsOn: Compile
     steps:
+    - download: current
+      artifact: VSCodeWindows
+
     - powershell: |
         .\scripts\test-integration.bat --tfs "Integration Tests"
       displayName: Run Integration Tests (Electron)
