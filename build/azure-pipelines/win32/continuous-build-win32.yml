@@ -99,7 +99,8 @@ stages:
     #     vstsFeed: "vscode-build-cache"
 
     - powershell: |
-        cd test/unit && yarn --frozen-lockfile
+        cd test/unit
+        yarn --frozen-lockfile
       env:
         CHILD_CONCURRENCY: "1"
       displayName: Install Dependencies
