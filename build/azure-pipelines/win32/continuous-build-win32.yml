@@ -92,11 +92,11 @@ stages:
     #     versionSpec: "2.x"
     #     addToPath: true
 
-    # - task: 1ESLighthouseEng.PipelineArtifactCaching.RestoreCacheV1.RestoreCache@1
-    #   inputs:
-    #     keyfile: ".yarnrc, remote/.yarnrc, **/yarn.lock, !**/node_modules/**/yarn.lock, !**/.*/**/yarn.lock"
-    #     targetfolder: "**/node_modules, !**/node_modules/**/node_modules"
-    #     vstsFeed: "vscode-build-cache"
+    - task: 1ESLighthouseEng.PipelineArtifactCaching.RestoreCacheV1.RestoreCache@1
+      inputs:
+        keyfile: ".yarnrc, remote/.yarnrc, **/yarn.lock, !**/node_modules/**/yarn.lock, !**/.*/**/yarn.lock"
+        targetfolder: "**/node_modules, !**/node_modules/**/node_modules"
+        vstsFeed: "vscode-build-cache"
 
     - powershell: |
         cd test/unit
