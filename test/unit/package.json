@@ -3,10 +3,14 @@
   "version": "0.1.0",
   "devDependencies": {
     "glob": "^5.0.13",
+    "iconv-lite-umd": "0.6.8",
+    "jschardet": "2.2.1",
     "minimatch": "^3.0.4",
     "mocha": "^2.2.5",
     "mocha-junit-reporter": "^1.17.0",
     "optimist": "0.3.5",
-    "playwright": "1.6.2"
+    "playwright": "1.6.2",
+    "sinon": "^1.17.2",
+    "xterm": "4.10.0-beta.4"
   }
 }
