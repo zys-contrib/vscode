@@ -45,9 +45,9 @@ stages:
       displayName: Run postinstall scripts
       condition: and(succeeded(), eq(variables['CacheRestored'], 'true'))
 
-    - powershell: |
-        yarn electron
-      displayName: Download Electron
+    # - powershell: |
+    #     yarn electron
+    #   displayName: Download Electron
 
     # - powershell: |
     #     yarn monaco-compile-check
