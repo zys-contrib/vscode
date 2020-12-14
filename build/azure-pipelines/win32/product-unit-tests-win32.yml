@@ -8,17 +8,9 @@ steps:
 
   - task: 1ESLighthouseEng.PipelineArtifactCaching.RestoreCacheV1.RestoreCache@1
     inputs:
-      keyfile: "build/.cachesalt, .build/commit, .build/quality, .build/terrapin"
-      targetfolder: ".build, out-build, out-vscode-min, out-vscode-reh-min, out-vscode-reh-web-min"
+      keyfile: ".build/arch, .build/terrapin, build/.cachesalt, .yarnrc, remote/.yarnrc, **/yarn.lock, !**/node_modules/**/yarn.lock, !**/.*/**/yarn.lock"
+      targetfolder: "**/node_modules, !**/node_modules/**/node_modules"
       vstsFeed: "npm-vscode"
-      platformIndependent: true
-      alias: "Compilation"
-
-  - powershell: |
-      $ErrorActionPreference = "Stop"
-      exit 1
-    displayName: Check RestoreCache
-    condition: and(succeeded(), ne(variables['CacheRestored-Compilation'], 'true'))
 
   - task: NodeTool@0
     inputs:
@@ -48,3 +40,5 @@ steps:
       exec { yarn test-browser --build --browser chromium --browser firefox --tfs "Browser Unit Tests" }
     displayName: Run unit tests (Browser)
     condition: and(succeeded(), eq(variables['VSCODE_STEP_ON_IT'], 'false'), ne(variables['VSCODE_ARCH'], 'arm64'))
+
+  - template: ../product-test-results.yml
