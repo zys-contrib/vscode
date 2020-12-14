@@ -1,0 +1,15 @@
+steps:
+  - task: PublishPipelineArtifact@0
+    inputs:
+      artifactName: crash-dump-windows-$(VSCODE_ARCH)
+      targetPath: .build\crashes
+    displayName: "Publish Crash Reports"
+    continueOnError: true
+    condition: failed()
+
+  - task: PublishTestResults@2
+    displayName: Publish Tests Results
+    inputs:
+      testResultsFiles: "*-results.xml"
+      searchFolder: "$(Build.ArtifactStagingDirectory)/test-results"
+    condition: and(succeededOrFailed(), ne(variables['VSCODE_ARCH'], 'arm64'))

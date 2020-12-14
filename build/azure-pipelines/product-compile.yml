@@ -106,7 +106,8 @@ steps:
 
   - script: |
       set -e
-      yarn concurrently --names "compile-core,compile-extensions" "yarn gulp compile-build" "yarn gulp compile-extensions-build"
+      yarn gulp compile-build
+      yarn gulp compile-extensions-build
       yarn gulp minify-vscode
       yarn gulp minify-vscode-reh
       yarn gulp minify-vscode-reh-web
