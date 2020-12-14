@@ -83,6 +83,7 @@ steps:
         export CC=$(which gcc-5)
         export CXX=$(which g++-5)
       fi
+      echo $CXX
       export npm_config_arch=$(NPM_ARCH)
       export CHILD_CONCURRENCY="1"
       for i in {1..3}; do # try 3 times, for Terrapin
