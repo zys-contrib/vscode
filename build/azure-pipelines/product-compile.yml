@@ -99,11 +99,11 @@ steps:
       vstsFeed: "npm-vscode"
     condition: and(succeeded(), ne(variables['CacheExists-Compilation'], 'true'), ne(variables['CacheRestored'], 'true'))
 
-  - script: |
-      set -e
-      yarn postinstall
-    displayName: Run postinstall scripts
-    condition: and(succeeded(), ne(variables['CacheExists-Compilation'], 'true'), eq(variables['CacheRestored'], 'true'))
+  # - script: |
+  #     set -e
+  #     yarn postinstall
+  #   displayName: Run postinstall scripts
+  #   condition: and(succeeded(), ne(variables['CacheExists-Compilation'], 'true'), eq(variables['CacheRestored'], 'true'))
 
   # Mixin must run before optimize, because the CSS loader will inline small SVGs
   - script: |
@@ -116,11 +116,11 @@ steps:
       set -e
       yarn gulp compile-build
       yarn gulp compile-extensions-build
-      yarn gulp minify-vscode
-      yarn gulp minify-vscode-reh
-      yarn gulp minify-vscode-reh-web
     displayName: Compile
     condition: and(succeeded(), ne(variables['CacheExists-Compilation'], 'true'))
+      # yarn gulp minify-vscode
+      # yarn gulp minify-vscode-reh
+      # yarn gulp minify-vscode-reh-web
 
   - script: |
       set -e
