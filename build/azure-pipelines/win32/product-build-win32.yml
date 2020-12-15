@@ -132,6 +132,14 @@ steps:
     displayName: Build Server
     condition: and(succeeded(), ne(variables['VSCODE_ARCH'], 'arm64'))
 
+  - task: 1ESLighthouseEng.PipelineArtifactCaching.SaveCacheV1.SaveCache@1
+    inputs:
+      keyfile: "build/.cachesalt, .build/commit, .build/quality, .build/terrapin"
+      targetfolder: ".build, out-build, out-vscode-min, out-vscode-reh-min, out-vscode-reh-web-min"
+      vstsFeed: "npm-vscode"
+      platformIndependent: true
+      alias: "CompilationFull"
+
   # - powershell: |
   #     . build/azure-pipelines/win32/exec.ps1
   #     $ErrorActionPreference = "Stop"
