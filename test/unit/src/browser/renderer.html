@@ -3,12 +3,12 @@
 <head>
 	<meta charset="utf-8">
 	<title>VSCode Tests</title>
-	<link href="../../../node_modules/mocha/mocha.css" rel="stylesheet" />
+	<link href="../../node_modules/mocha/mocha.css" rel="stylesheet" />
 </head>
 
 <body>
 	<div id="mocha"></div>
-	<script src="../../../node_modules/mocha/mocha.js"></script>
+	<script src="../../node_modules/mocha/mocha.js"></script>
 	<script>
 		// !!! DO NOT CHANGE !!!
 		// Our unit tests may run in environments without
@@ -38,8 +38,8 @@
 	</script>
 
 	<!-- Depending on --build or not, load loader from known locations -->
-	<script src="../../../out/vs/loader.js"></script>
-	<script src="../../../out-build/vs/loader.js"></script>
+	<script src="../../../../out/vs/loader.js"></script>
+	<script src="../../../../out-build/vs/loader.js"></script>
 
 	<script>
 		const urlParams = new URLSearchParams(window.location.search);
@@ -49,14 +49,14 @@
 		const baseUrl = window.location.href;
 		require.config({
 			catchError: true,
-			baseUrl: new URL('../../../src', baseUrl).href,
+			baseUrl: new URL('../../../../src', baseUrl).href,
 			paths: {
-				vs: new URL(`../../../${!!isBuild ? 'out-build' : 'out'}/vs`, baseUrl).href,
-				assert: new URL('../assert.js', baseUrl).href,
-				sinon: new URL('../../../node_modules/sinon/pkg/sinon-1.17.7.js', baseUrl).href,
-				xterm: new URL('../../../node_modules/xterm/lib/xterm.js', baseUrl).href,
-				'iconv-lite-umd': new URL('../../../node_modules/iconv-lite-umd/lib/iconv-lite-umd.js', baseUrl).href,
-				jschardet: new URL('../../../node_modules/jschardet/dist/jschardet.min.js', baseUrl).href
+				vs: new URL(`../../../../${!!isBuild ? 'out-build' : 'out'}/vs`, baseUrl).href,
+				assert: new URL('../../assert.js', baseUrl).href,
+				sinon: new URL('../../node_modules/sinon/pkg/sinon-1.17.7.js', baseUrl).href,
+				xterm: new URL('../../node_modules/xterm/lib/xterm.js', baseUrl).href,
+				'iconv-lite-umd': new URL('../../node_modules/iconv-lite-umd/lib/iconv-lite-umd.js', baseUrl).href,
+				jschardet: new URL('../../node_modules/jschardet/dist/jschardet.min.js', baseUrl).href
 			}
 		});
 	</script>
