@@ -47,8 +47,8 @@ stages:
           - template: product-hygiene.yml
 
   - stage: Windows
-    dependsOn:
-      - Compile
+    dependsOn: []
+    #  - Compile
     condition: and(succeeded(), eq(variables['VSCODE_COMPILE_ONLY'], 'false'))
     pool:
       vmImage: VS2017-Win2016
@@ -62,7 +62,7 @@ stages:
           - template: win32/product-build-win32.yml
 
       - job: WindowsUnitTests
-        displayName: Windows (Unit Tests)
+        displayName: Windows (Browser Tests)
         dependsOn: Windows
         condition: and(succeeded(), eq(variables['VSCODE_BUILD_WIN32'], 'true'))
         variables:
@@ -71,7 +71,7 @@ stages:
           - template: win32/product-unit-tests-win32.yml
 
       - job: WindowsIntegrationTests
-        displayName: Windows (Integration Tests)
+        displayName: Windows (Electron Tests)
         dependsOn: Windows
         condition: and(succeeded(), eq(variables['VSCODE_BUILD_WIN32'], 'true'))
         variables:
