@@ -116,11 +116,11 @@ steps:
       set -e
       yarn gulp compile-build
       yarn gulp compile-extensions-build
+      yarn gulp minify-vscode
+      yarn gulp minify-vscode-reh
+      yarn gulp minify-vscode-reh-web
     displayName: Compile
     condition: and(succeeded(), ne(variables['CacheExists-Compilation'], 'true'))
-      # yarn gulp minify-vscode
-      # yarn gulp minify-vscode-reh
-      # yarn gulp minify-vscode-reh-web
 
   - script: |
       set -e
