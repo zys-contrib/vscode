@@ -19,26 +19,32 @@ steps:
       versionSpec: "2.x"
       addToPath: true
 
-  - task: 1ESLighthouseEng.PipelineArtifactCaching.RestoreCacheV1.RestoreCache@1
-    inputs:
-      keyfile: ".build/arch, .build/terrapin, build/.cachesalt, .yarnrc, remote/.yarnrc, **/yarn.lock, !**/node_modules/**/yarn.lock, !**/.*/**/yarn.lock"
-      targetfolder: "**/node_modules, !**/node_modules/**/node_modules"
-      vstsFeed: "npm-vscode"
+  # - task: 1ESLighthouseEng.PipelineArtifactCaching.RestoreCacheV1.RestoreCache@1
+  #   inputs:
+  #     keyfile: ".build/arch, .build/terrapin, build/.cachesalt, .yarnrc, remote/.yarnrc, **/yarn.lock, !**/node_modules/**/yarn.lock, !**/.*/**/yarn.lock"
+  #     targetfolder: "**/node_modules, !**/node_modules/**/node_modules"
+  #     vstsFeed: "npm-vscode"
+
+  # - powershell: |
+  #     . build/azure-pipelines/win32/exec.ps1
+  #     $ErrorActionPreference = "Stop"
+  #     exec { yarn postinstall }
+  #   displayName: Run postinstall scripts
+  #   condition: and(succeeded(), eq(variables['CacheRestored'], 'true'))
 
   - powershell: |
       . build/azure-pipelines/win32/exec.ps1
       $ErrorActionPreference = "Stop"
-      exec { yarn postinstall }
-    displayName: Run postinstall scripts
-    condition: and(succeeded(), eq(variables['CacheRestored'], 'true'))
-
-  - powershell: |
-      . build/azure-pipelines/win32/exec.ps1
-      $ErrorActionPreference = "Stop"
-      exec { yarn electron $(VSCODE_ARCH) }
-      exec { .\scripts\test.bat --build --tfs "Unit Tests" }
-    displayName: Run unit tests (Electron)
+      exec { yarn npm-run-all -lp "electron $(VSCODE_ARCH)" "playwright-install" }
+    displayName: Download Electron and Playwright
     condition: and(succeeded(), eq(variables['VSCODE_STEP_ON_IT'], 'false'), ne(variables['VSCODE_ARCH'], 'arm64'))
+
+  # - powershell: |
+  #     . build/azure-pipelines/win32/exec.ps1
+  #     $ErrorActionPreference = "Stop"
+  #     exec { .\scripts\test.bat --build --tfs "Unit Tests" }
+  #   displayName: Run unit tests (Electron)
+  #   condition: and(succeeded(), eq(variables['VSCODE_STEP_ON_IT'], 'false'), ne(variables['VSCODE_ARCH'], 'arm64'))
 
   - powershell: |
       . build/azure-pipelines/win32/exec.ps1
