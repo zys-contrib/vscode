@@ -1,6 +1,9 @@
 {
   "name": "code-oss-dev-unit-test",
   "version": "0.1.0",
+  "scripts": {
+    "playwright-install": "node node_modules/playwright/install.js"
+  },
   "devDependencies": {
     "glob": "^5.0.13",
     "iconv-lite-umd": "0.6.8",
