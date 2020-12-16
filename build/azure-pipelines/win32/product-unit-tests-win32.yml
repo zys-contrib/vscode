@@ -10,14 +10,29 @@ steps:
     displayName: Download Artifact
     inputs:
       source: "current"
-      artifact: WindowsBuildArtifacts
-      path: "$(agent.builddirectory)"
+      artifact: WindowsNodeModules
+      path: "$(Build.SourcesDirectory)/node_modules"
 
-  - task: 1ESLighthouseEng.PipelineArtifactCaching.RestoreCacheV1.RestoreCache@1
+  - task: DownloadPipelineArtifact@2
+    displayName: Download Artifact
     inputs:
-      keyfile: ".build/arch, .build/terrapin, build/.cachesalt, .yarnrc, remote/.yarnrc, **/yarn.lock, !**/node_modules/**/yarn.lock, !**/.*/**/yarn.lock"
-      targetfolder: "**/node_modules, !**/node_modules/**/node_modules"
-      vstsFeed: "npm-vscode"
+      source: "current"
+      artifact: WindowsClient
+      path: $(agent.builddirectory)/vscode-win32-$(VSCODE_ARCH)
+
+  - task: DownloadPipelineArtifact@2
+    displayName: Download Artifact
+    inputs:
+      source: "current"
+      artifact: WindowsRemote
+      path: $(agent.builddirectory)/vscode-reh-win32-$(VSCODE_ARCH)
+
+  - task: DownloadPipelineArtifact@2
+    displayName: Download Artifact
+    inputs:
+      source: "current"
+      artifact: WindowsRemoteWeb
+      path: $(agent.builddirectory)/vscode-reh-web-win32-$(VSCODE_ARCH)
 
   - task: NodeTool@0
     inputs:
