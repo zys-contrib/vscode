@@ -6,20 +6,6 @@ steps:
       artifact: Windows
       path: "$(Build.SourcesDirectory)/out-build"
 
-  # - task: 1ESLighthouseEng.PipelineArtifactCaching.RestoreCacheV1.RestoreCache@1
-  #   inputs:
-  #     keyfile: "build/.cachesalt, .build/commit, .build/quality, .build/terrapin"
-  #     targetfolder: ".build, out-build, out-vscode-min, out-vscode-reh-min, out-vscode-reh-web-min"
-  #     vstsFeed: "npm-vscode"
-  #     platformIndependent: true
-  #     alias: "Compilation"
-
-  # - powershell: |
-  #     $ErrorActionPreference = "Stop"
-  #     exit 1
-  #   displayName: Check RestoreCache
-  #   condition: and(succeeded(), ne(variables['CacheRestored-CompilationFull'], 'true'))
-
   - task: NodeTool@0
     inputs:
       versionSpec: "12.18.3"
@@ -43,7 +29,7 @@ steps:
       retry { exec { yarn --frozen-lockfile } }
     env:
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
-    displayName: Install dependencies
+    displayName: Install dependencies (unit tests)
 
   - powershell: |
       . build/azure-pipelines/win32/exec.ps1
@@ -60,11 +46,21 @@ steps:
     displayName: Run unit tests (Browser)
     condition: and(succeeded(), eq(variables['VSCODE_STEP_ON_IT'], 'false'), ne(variables['VSCODE_ARCH'], 'arm64'))
 
-  # - powershell: |
-  #     . build/azure-pipelines/win32/exec.ps1
-  #     $ErrorActionPreference = "Stop"
-  #     exec { $env:VSCODE_REMOTE_SERVER_PATH = "$(agent.builddirectory)\vscode-reh-web-win32-$(VSCODE_ARCH)"; .\resources\server\test\test-web-integration.bat --browser firefox }
-  #   displayName: Run integration tests (Browser)
-  #   condition: and(succeeded(), eq(variables['VSCODE_STEP_ON_IT'], 'false'), ne(variables['VSCODE_ARCH'], 'arm64'))
+  - powershell: |
+      . build/azure-pipelines/win32/exec.ps1
+      . build/azure-pipelines/win32/retry.ps1
+      $ErrorActionPreference = "Stop"
+      $env:npm_config_arch="$(VSCODE_ARCH)"
+      $env:CHILD_CONCURRENCY="1"
+      cd test/integration/browser
+      retry { exec { yarn --frozen-lockfile } }
+    displayName: Install dependencies (integration tests)
+
+  - powershell: |
+      . build/azure-pipelines/win32/exec.ps1
+      $ErrorActionPreference = "Stop"
+      exec { $env:VSCODE_REMOTE_SERVER_PATH = "$(agent.builddirectory)\vscode-reh-web-win32-$(VSCODE_ARCH)"; .\resources\server\test\test-web-integration.bat --browser firefox }
+    displayName: Run integration tests (Browser)
+    condition: and(succeeded(), eq(variables['VSCODE_STEP_ON_IT'], 'false'), ne(variables['VSCODE_ARCH'], 'arm64'))
 
   - template: ../product-test-results.yml
