@@ -132,6 +132,9 @@ steps:
     displayName: Build Server
     condition: and(succeeded(), ne(variables['VSCODE_ARCH'], 'arm64'))
 
+  - publish: $(System.DefaultWorkingDirectory)/out-build
+    artifact: Windows
+
   # - task: 1ESLighthouseEng.PipelineArtifactCaching.SaveCacheV1.SaveCache@1
   #   inputs:
   #     keyfile: "build/.cachesalt, .build/commit, .build/quality, .build/terrapin"

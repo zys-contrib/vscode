@@ -1,17 +1,24 @@
 steps:
-  - task: 1ESLighthouseEng.PipelineArtifactCaching.RestoreCacheV1.RestoreCache@1
+  - task: DownloadPipelineArtifact@2
+    displayName: Download Artifact
     inputs:
-      keyfile: "build/.cachesalt, .build/commit, .build/quality, .build/terrapin"
-      targetfolder: ".build, out-build, out-vscode-min, out-vscode-reh-min, out-vscode-reh-web-min"
-      vstsFeed: "npm-vscode"
-      platformIndependent: true
-      alias: "Compilation"
+      source: "current"
+      artifact: VSCodeWindows
+      path: "$(Build.SourcesDirectory)/out-build"
 
-  - powershell: |
-      $ErrorActionPreference = "Stop"
-      exit 1
-    displayName: Check RestoreCache
-    condition: and(succeeded(), ne(variables['CacheRestored-CompilationFull'], 'true'))
+  # - task: 1ESLighthouseEng.PipelineArtifactCaching.RestoreCacheV1.RestoreCache@1
+  #   inputs:
+  #     keyfile: "build/.cachesalt, .build/commit, .build/quality, .build/terrapin"
+  #     targetfolder: ".build, out-build, out-vscode-min, out-vscode-reh-min, out-vscode-reh-web-min"
+  #     vstsFeed: "npm-vscode"
+  #     platformIndependent: true
+  #     alias: "Compilation"
+
+  # - powershell: |
+  #     $ErrorActionPreference = "Stop"
+  #     exit 1
+  #   displayName: Check RestoreCache
+  #   condition: and(succeeded(), ne(variables['CacheRestored-CompilationFull'], 'true'))
 
   - task: NodeTool@0
     inputs:
