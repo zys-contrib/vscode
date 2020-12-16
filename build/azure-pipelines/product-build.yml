@@ -62,7 +62,7 @@ stages:
         steps:
           - template: win32/product-build-win32.yml
 
-      - job: WindowsUnitTests
+      - job: WindowsBrowserTests
         displayName: Windows (Browser Tests)
         dependsOn: Windows
         condition: and(succeeded(), eq(variables['VSCODE_BUILD_WIN32'], 'true'))
@@ -71,7 +71,7 @@ stages:
         steps:
           - template: win32/product-unit-tests-win32.yml
 
-      - job: WindowsIntegrationTests
+      - job: WindowsElectronTests
         displayName: Windows (Electron Tests)
         dependsOn: Windows
         condition: and(succeeded(), eq(variables['VSCODE_BUILD_WIN32'], 'true'))
@@ -80,9 +80,11 @@ stages:
         steps:
           - template: win32/product-integration-tests-win32.yml
 
-      - job: WindowsSign
-        displayName: Windows (Sign)
-        dependsOn: WindowsUnitTests
+      - job: WindowsESRPCodeSign
+        displayName: Windows (ESRP CodeSign)
+        dependsOn:
+          - WindowsBrowserTests
+          - WindowsElectronTests
         condition: and(succeeded(), eq(variables['VSCODE_BUILD_WIN32'], 'true'))
         variables:
           VSCODE_ARCH: x64

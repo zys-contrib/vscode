@@ -12,6 +12,8 @@
     "@types/optimist": "0.0.29",
     "@types/rimraf": "2.0.2",
     "@types/tmp": "^0.1.0",
+    "optimist": "0.3.5",
+    "playwright": "1.6.2",
     "rimraf": "^2.6.1",
     "tmp": "0.0.33",
     "tree-kill": "1.2.2",

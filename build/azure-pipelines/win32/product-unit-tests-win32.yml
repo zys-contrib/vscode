@@ -61,6 +61,8 @@ steps:
       $env:CHILD_CONCURRENCY="1"
       cd test/integration/browser
       retry { exec { yarn --frozen-lockfile } }
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
     displayName: Install dependencies (integration tests)
 
   - powershell: |
