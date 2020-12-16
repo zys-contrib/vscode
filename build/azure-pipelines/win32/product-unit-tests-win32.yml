@@ -3,7 +3,7 @@ steps:
     displayName: Download Artifact
     inputs:
       source: "current"
-      artifact: VSCodeWindows
+      artifact: Windows
       path: "$(Build.SourcesDirectory)/out-build"
 
   # - task: 1ESLighthouseEng.PipelineArtifactCaching.RestoreCacheV1.RestoreCache@1
