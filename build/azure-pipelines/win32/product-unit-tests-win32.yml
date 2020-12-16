@@ -3,15 +3,15 @@ steps:
     displayName: Download Artifact
     inputs:
       source: "current"
-      artifact: WindowsCore
+      artifact: WindowsBuildOutput
       path: "$(Build.SourcesDirectory)/out-build"
 
   - task: DownloadPipelineArtifact@2
     displayName: Download Artifact
     inputs:
       source: "current"
-      artifact: WindowsServer
-      path: "$(agent.builddirectory)/vscode-reh-web-win32-$(VSCODE_ARCH)"
+      artifact: WindowsBuildArtifacts
+      path: "$(agent.builddirectory)"
 
   - task: NodeTool@0
     inputs:
@@ -87,12 +87,6 @@ steps:
     env:
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
     displayName: Install dependencies (integration tests)
-
-  - powershell: |
-      . build/azure-pipelines/win32/exec.ps1
-      $ErrorActionPreference = "Stop"
-      exec { yarn postinstall }
-    displayName: Run postinstall scripts
 
   - powershell: |
       . build/azure-pipelines/win32/exec.ps1
