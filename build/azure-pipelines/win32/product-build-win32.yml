@@ -125,7 +125,7 @@ steps:
     displayName: Build Server
     condition: and(succeeded(), ne(variables['VSCODE_ARCH'], 'arm64'))
 
-  - script: |
+  - bash: |
       set -e
       cat << EOF > .artifactignore
       **/*
