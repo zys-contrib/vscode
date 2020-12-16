@@ -11,7 +11,7 @@ steps:
     inputs:
       source: "current"
       artifact: WindowsServer
-      path: "$(Build.SourcesDirectory)/vscode-reh-win32-$(VSCODE_ARCH)"
+      path: "$(agent.builddirectory)/vscode-reh-win32-$(VSCODE_ARCH)"
 
   - task: NodeTool@0
     inputs:

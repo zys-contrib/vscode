@@ -135,10 +135,10 @@ steps:
   - publish: $(System.DefaultWorkingDirectory)/out-build
     artifact: WindowsCore
 
-  - publish: $(System.DefaultWorkingDirectory)/vscode-win32-$(VSCODE_ARCH)
+  - publish: $(agent.builddirectory)/vscode-win32-$(VSCODE_ARCH)
     artifact: WindowsClient
 
-  - publish: $(System.DefaultWorkingDirectory)/vscode-reh-win32-$(VSCODE_ARCH)
+  - publish: $(agent.builddirectory)/vscode-reh-win32-$(VSCODE_ARCH)
     artifact: WindowsServer
 
   # - task: 1ESLighthouseEng.PipelineArtifactCaching.SaveCacheV1.SaveCache@1
