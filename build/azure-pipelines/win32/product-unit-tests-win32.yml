@@ -3,8 +3,15 @@ steps:
     displayName: Download Artifact
     inputs:
       source: "current"
-      artifact: Windows
+      artifact: WindowsCore
       path: "$(Build.SourcesDirectory)/out-build"
+
+  - task: DownloadPipelineArtifact@2
+    displayName: Download Artifact
+    inputs:
+      source: "current"
+      artifact: WindowsServer
+      path: "$(Build.SourcesDirectory)/vscode-reh-win32-$(VSCODE_ARCH)"
 
   - task: NodeTool@0
     inputs:

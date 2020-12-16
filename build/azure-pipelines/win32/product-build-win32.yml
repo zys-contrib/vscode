@@ -133,7 +133,13 @@ steps:
     condition: and(succeeded(), ne(variables['VSCODE_ARCH'], 'arm64'))
 
   - publish: $(System.DefaultWorkingDirectory)/out-build
-    artifact: Windows
+    artifact: WindowsCore
+
+  - publish: $(System.DefaultWorkingDirectory)/vscode-win32-$(VSCODE_ARCH)
+    artifact: WindowsClient
+
+  - publish: $(System.DefaultWorkingDirectory)/vscode-reh-win32-$(VSCODE_ARCH)
+    artifact: WindowsServer
 
   # - task: 1ESLighthouseEng.PipelineArtifactCaching.SaveCacheV1.SaveCache@1
   #   inputs:
