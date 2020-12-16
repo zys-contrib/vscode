@@ -133,7 +133,7 @@ steps:
       !s/node_modules/**
       !s/out-*/**
       EOF
-    workingDirectory: $(agent.builddirectory)
+    cwd: $(agent.builddirectory)
     displayName: Prepare .artifactignore
 
   - publish: $(agent.builddirectory)
