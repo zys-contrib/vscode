@@ -13,6 +13,12 @@ steps:
       artifact: WindowsBuildArtifacts
       path: "$(agent.builddirectory)"
 
+  - task: 1ESLighthouseEng.PipelineArtifactCaching.RestoreCacheV1.RestoreCache@1
+    inputs:
+      keyfile: ".build/arch, .build/terrapin, build/.cachesalt, .yarnrc, remote/.yarnrc, **/yarn.lock, !**/node_modules/**/yarn.lock, !**/.*/**/yarn.lock"
+      targetfolder: "**/node_modules, !**/node_modules/**/node_modules"
+      vstsFeed: "npm-vscode"
+
   - task: NodeTool@0
     inputs:
       versionSpec: "12.18.3"
@@ -82,8 +88,7 @@ steps:
       $ErrorActionPreference = "Stop"
       $env:npm_config_arch="$(VSCODE_ARCH)"
       $env:CHILD_CONCURRENCY="1"
-      cd test/integration/browser
-      retry { exec { yarn --frozen-lockfile } }
+      retry { exec { yarn --cwd "test/integration/browser" --frozen-lockfile } }
     env:
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
     displayName: Install dependencies (integration tests)
