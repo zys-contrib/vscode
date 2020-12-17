@@ -116,11 +116,11 @@ steps:
     condition: and(succeeded(), ne(variables['VSCODE_ARCH'], 'arm64'))
 
   - powershell: |
-      . build/azure-pipelines/win32/exec.ps1
+      . s/build/azure-pipelines/win32/exec.ps1
       $ErrorActionPreference = "Stop"
       exec { tar -czf $(Build.ArtifactStagingDirectory)/windows.tar.gz vscode-* }
     workingDirectory: $(Agent.BuildDirectory)
-    displayName: Extract compilation output
+    displayName: Compress build artifact
 
   - task: PublishPipelineArtifact@1
     inputs:
