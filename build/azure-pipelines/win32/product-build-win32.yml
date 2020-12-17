@@ -115,16 +115,15 @@ steps:
     displayName: Build Server
     condition: and(succeeded(), ne(variables['VSCODE_ARCH'], 'arm64'))
 
-  - bash: |
-      set -e
-      cat << EOF > .artifactignore
-      **/*
-      !vscode-reh-*/**
-      !s/out-build/**
-      !s/out-vscode-*/**
-      EOF
+  - powershell: |
+      . build/azure-pipelines/win32/exec.ps1
+      $ErrorActionPreference = "Stop"
+      exec { tar -czf $(Build.ArtifactStagingDirectory)/windows.tar.gz vscode-* }
     workingDirectory: $(Agent.BuildDirectory)
-    displayName: Prepare .artifactignore
+    displayName: Extract compilation output
 
-  - publish: $(Agent.BuildDirectory)
-    artifact: Windows
+  - task: PublishPipelineArtifact@1
+    inputs:
+      targetPath: $(Build.ArtifactStagingDirectory)/windows.tar.gz
+      artifactName: WindowsBuild
+    displayName: Publish build artifact
