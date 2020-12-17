@@ -129,11 +129,11 @@ steps:
       set -e
       cat << EOF > .artifactignore
       **/*
-      !out-build/**
-      !out-vscode-*/**
+      !s/out-build/**
+      !s/out-vscode-*/**
       EOF
-    # workingDirectory: $(agent.builddirectory)
+    workingDirectory: $(Agent.BuildDirectory)
     displayName: Prepare .artifactignore
 
-  - publish: $(System.DefaultWorkingDirectory)
+  - publish: $(Agent.BuildDirectory)
     artifact: Windows
