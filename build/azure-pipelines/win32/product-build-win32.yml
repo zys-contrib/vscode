@@ -134,5 +134,5 @@ steps:
     # workingDirectory: $(agent.builddirectory)
     displayName: Prepare .artifactignore
 
-  - publish: $(agent.builddirectory)
+  - publish: $(System.DefaultWorkingDirectory)
     artifact: Windows
