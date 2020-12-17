@@ -129,6 +129,7 @@ steps:
       set -e
       cat << EOF > .artifactignore
       **/*
+      !vscode-*/**
       !s/out-build/**
       !s/out-vscode-*/**
       EOF
