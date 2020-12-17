@@ -58,7 +58,7 @@ export function makeAddress(host: string, port: number): string {
 }
 
 export function parseAddress(address: string): { host: string, port: number } | undefined {
-	const matches = address.match(/^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\:|localhost:)?([0-9]+)$/);
+	const matches = address.match(/^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\:|localhost:|[a-zA-Z]+:)?([0-9]+)$/);
 	if (!matches) {
 		return undefined;
 	}
@@ -97,7 +97,7 @@ export function mapHasAddressLocalhostOrAllInterfaces<T>(map: Map<string, T>, ho
 	if (originalAddress) {
 		return originalAddress;
 	}
-	const otherHost = isAllInterfaces(host) ? 'localhost' : (host === 'localhost' ? '0.0.0.0' : undefined);
+	const otherHost = isAllInterfaces(host) ? 'localhost' : (isLocalhost(host) ? '0.0.0.0' : undefined);
 	if (otherHost) {
 		return mapHasAddress(map, otherHost, port);
 	}
