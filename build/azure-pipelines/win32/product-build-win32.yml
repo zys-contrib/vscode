@@ -129,7 +129,8 @@ steps:
       set -e
       cat << EOF > .artifactignore
       **/*
-      !out-*/**
+      !out-build/**
+      !out-vscode-*/**
       EOF
     # workingDirectory: $(agent.builddirectory)
     displayName: Prepare .artifactignore
