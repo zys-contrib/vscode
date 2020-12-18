@@ -44,9 +44,9 @@ steps:
 
   - task: Cache@2
     inputs:
-      key: "node_modules99 | .build/arch, .build/terrapin, build/.cachesalt, .yarnrc, remote/.yarnrc, **/yarn.lock, !**/node_modules/**/yarn.lock, !**/.*/**/yarn.lock"
-      path: $(Build.SourcesDirectory)/node_modules
-      cacheHitVar: CacheRestored
+      key: "yarn | .build/arch, .build/terrapin, build/.cachesalt, .yarnrc, remote/.yarnrc, **/yarn.lock, !**/node_modules/**/yarn.lock, !**/.*/**/yarn.lock"
+      path: $(Pipeline.Workspace)/.yarn
+      # cacheHitVar: CacheRestored
     displayName: Cache node_modules
 
   # - task: 1ESLighthouseEng.PipelineArtifactCaching.RestoreCacheV1.RestoreCache@1
@@ -82,7 +82,7 @@ steps:
       ELECTRON_SKIP_BINARY_DOWNLOAD: 1
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
     displayName: Install dependencies
-    condition: and(succeeded(), ne(variables['CacheRestored'], 'true'))
+    # condition: and(succeeded(), ne(variables['CacheRestored'], 'true'))
 
   # - task: 1ESLighthouseEng.PipelineArtifactCaching.SaveCacheV1.SaveCache@1
   #   inputs:
