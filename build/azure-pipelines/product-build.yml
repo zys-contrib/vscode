@@ -64,32 +64,32 @@ stages:
 
       - job: WindowsBrowserTests
         displayName: Windows (Browser Tests)
-        dependsOn: Windows
+        # dependsOn: Windows
         condition: and(succeeded(), eq(variables['VSCODE_BUILD_WIN32'], 'true'))
         variables:
           VSCODE_ARCH: x64
         steps:
-          - template: win32/product-unit-tests-win32.yml
+          - template: win32/product-browser-tests-win32.yml
 
       - job: WindowsElectronTests
         displayName: Windows (Electron Tests)
-        dependsOn: Windows
+        # dependsOn: Windows
         condition: and(succeeded(), eq(variables['VSCODE_BUILD_WIN32'], 'true'))
         variables:
           VSCODE_ARCH: x64
         steps:
-          - template: win32/product-integration-tests-win32.yml
+          - template: win32/product-electron-tests-win32.yml
 
-      - job: WindowsESRPCodeSign
-        displayName: Windows (ESRP CodeSign)
-        dependsOn:
-          - WindowsBrowserTests
-          - WindowsElectronTests
-        condition: and(succeeded(), eq(variables['VSCODE_BUILD_WIN32'], 'true'))
-        variables:
-          VSCODE_ARCH: x64
-        steps:
-          - template: product-sign.yml
+      # - job: WindowsESRPCodeSign
+      #   displayName: Windows (ESRP CodeSign)
+      #   dependsOn:
+      #     - WindowsBrowserTests
+      #     - WindowsElectronTests
+      #   condition: and(succeeded(), eq(variables['VSCODE_BUILD_WIN32'], 'true'))
+      #   variables:
+      #     VSCODE_ARCH: x64
+      #   steps:
+      #     - template: product-sign.yml
 
       # - job: Windows32
       #   condition: and(succeeded(), eq(variables['VSCODE_BUILD_WIN32_32BIT'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
