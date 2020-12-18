@@ -118,7 +118,7 @@ steps:
   - powershell: |
       . build/azure-pipelines/win32/exec.ps1
       $ErrorActionPreference = "Stop"
-      exec { tar -czf $(Build.ArtifactStagingDirectory)/windows.tar.gz $(Agent.BuildDirectory)/vscode-* }
+      exec { tar -czf $(Build.ArtifactStagingDirectory)/windows.tar.gz ../vscode-* }
     displayName: Compress build artifact
 
   - task: PublishPipelineArtifact@1
