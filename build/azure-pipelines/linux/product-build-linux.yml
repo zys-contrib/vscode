@@ -122,6 +122,11 @@ steps:
 
   - script: |
       set -e
+      tar -czf $(Build.ArtifactStagingDirectory)/linux.tar.gz ../vscode-*
+    displayName: Compress build artifact
+
+  - script: |
+      set -e
       yarn npm-run-all -lp "electron $(VSCODE_ARCH)" "playwright-install"
     displayName: Download Electron and Playwright
     condition: and(succeeded(), eq(variables['VSCODE_ARCH'], 'x64'), eq(variables['VSCODE_STEP_ON_IT'], 'false'))
