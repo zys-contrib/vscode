@@ -122,8 +122,14 @@ steps:
 
   - script: |
       set -e
-      tar -czf $(Build.ArtifactStagingDirectory)/linux.tar.gz $(agent.builddirectory)/vscode-*
+      tar -czf $(Build.ArtifactStagingDirectory)/linux2.tar.gz $(agent.builddirectory)/vscode-*
     displayName: Compress build artifact
+
+  - task: PublishPipelineArtifact@1
+    inputs:
+      targetPath: $(Build.ArtifactStagingDirectory)/linux2.tar.gz
+      artifactName: LinuxBuild
+    displayName: Publish build artifact
 
   - script: |
       set -e

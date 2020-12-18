@@ -125,6 +125,12 @@ steps:
       tar -czf $(Build.ArtifactStagingDirectory)/linux.tar.gz ../vscode-*
     displayName: Compress build artifact
 
+  - task: PublishPipelineArtifact@1
+    inputs:
+      targetPath: $(Build.ArtifactStagingDirectory)/linux.tar.gz
+      artifactName: LinuxBuild
+    displayName: Publish build artifact
+
   - script: |
       set -e
       yarn gulp "vscode-linux-$(VSCODE_ARCH)-build-deb"
