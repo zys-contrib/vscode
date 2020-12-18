@@ -93,6 +93,26 @@ stages:
         steps:
           - template: linux/product-build-linux.yml
 
+      - job: Linux
+        displayName: Linux (Browser Test)
+        condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX'], 'true'))
+        container: vscode-x64
+        variables:
+          VSCODE_ARCH: x64
+          NPM_ARCH: x64
+        steps:
+          - template: linux/product-browser-tests-linux.yml
+
+      - job: Linux
+        displayName: Linux (Electron Test)
+        condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX'], 'true'))
+        container: vscode-x64
+        variables:
+          VSCODE_ARCH: x64
+          NPM_ARCH: x64
+        steps:
+          - template: linux/product-electron-tests-linux.yml
+
       - job: LinuxSnap
         dependsOn:
           - Linux
