@@ -115,6 +115,18 @@ steps:
     displayName: Build Server
     condition: and(succeeded(), ne(variables['VSCODE_ARCH'], 'arm64'))
 
+  - powershell: |
+      . build/azure-pipelines/win32/exec.ps1
+      $ErrorActionPreference = "Stop"
+      exec { tar -czf $(Build.ArtifactStagingDirectory)/windows.tar.gz $(Agent.BuildDirectory)/vscode-* }
+    displayName: Compress build artifact
+
+  - task: PublishPipelineArtifact@1
+    inputs:
+      targetPath: $(Build.ArtifactStagingDirectory)/windows.tar.gz
+      artifactName: WindowsBuild
+    displayName: Publish build artifact
+
   # - powershell: |
   #     . build/azure-pipelines/win32/exec.ps1
   #     $ErrorActionPreference = "Stop"
