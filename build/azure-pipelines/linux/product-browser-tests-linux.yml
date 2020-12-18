@@ -27,7 +27,7 @@ steps:
   - task: DownloadPipelineArtifact@2
     inputs:
       artifact: LinuxBuild
-      path: $(Agent.BuildDirectory)
+      path: $(Build.ArtifactStagingDirectory)
     displayName: Download build output
 
   - script: |
