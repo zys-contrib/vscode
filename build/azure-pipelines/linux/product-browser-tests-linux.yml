@@ -19,6 +19,12 @@ steps:
       path: $(Build.ArtifactStagingDirectory)
     displayName: Download compilation output
 
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifact: LinuxBuild
+      path: $(Agent.BuildDirectory)
+    displayName: Download build output
+
   - script: |
       set -e
       tar -xzf $(Build.ArtifactStagingDirectory)/compilation.tar.gz
@@ -119,17 +125,6 @@ steps:
       VSCODE_MIXIN_PASSWORD="$(github-distro-mixin-password)" \
         yarn gulp vscode-reh-web-linux-$(VSCODE_ARCH)-min-ci
     displayName: Build Server
-
-  - script: |
-      set -e
-      tar -czf $(Build.ArtifactStagingDirectory)/linux2.tar.gz $(agent.builddirectory)/vscode-*
-    displayName: Compress build artifact
-
-  - task: PublishPipelineArtifact@1
-    inputs:
-      targetPath: $(Build.ArtifactStagingDirectory)/linux2.tar.gz
-      artifactName: LinuxBuild
-    displayName: Publish build artifact
 
   - script: |
       set -e
