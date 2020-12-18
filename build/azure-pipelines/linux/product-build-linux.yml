@@ -122,7 +122,7 @@ steps:
 
   - script: |
       set -e
-      tar -czf $(Build.ArtifactStagingDirectory)/linux.tar.gz $(Agent.BuildDirectory)/VSCode-* $(Agent.BuildDirectory)/vscode-reh-*
+      tar -czf $(Build.ArtifactStagingDirectory)/linux.tar.gz ../VSCode-* ../vscode-reh-*
     displayName: Compress build artifact
 
   - task: PublishPipelineArtifact@1
