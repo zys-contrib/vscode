@@ -19,6 +19,11 @@ steps:
       path: $(Build.ArtifactStagingDirectory)
     displayName: Download compilation output
 
+  - script: |
+      set -e
+      tar -xzf $(Build.ArtifactStagingDirectory)/compilation.tar.gz
+    displayName: Extract compilation output
+
   - task: DownloadPipelineArtifact@2
     inputs:
       artifact: LinuxBuild
@@ -27,8 +32,9 @@ steps:
 
   - script: |
       set -e
-      tar -xzf $(Build.ArtifactStagingDirectory)/compilation.tar.gz
-    displayName: Extract compilation output
+      tar -xzf $(Build.ArtifactStagingDirectory)/linux.tar.gz
+    workingDirectory: $(Agent.BuildDirectory)
+    displayName: Extract build output
 
   - script: |
       set -e
@@ -107,24 +113,24 @@ steps:
       vstsFeed: "npm-vscode"
     condition: and(succeeded(), ne(variables['CacheRestored'], 'true'))
 
-  - script: |
-      set -e
-      node build/azure-pipelines/mixin
-    displayName: Mix in quality
+  # - script: |
+  #     set -e
+  #     node build/azure-pipelines/mixin
+  #   displayName: Mix in quality
 
-  - script: |
-      set -e
-      VSCODE_MIXIN_PASSWORD="$(github-distro-mixin-password)" \
-        yarn gulp vscode-linux-$(VSCODE_ARCH)-min-ci
-    displayName: Build
+  # - script: |
+  #     set -e
+  #     VSCODE_MIXIN_PASSWORD="$(github-distro-mixin-password)" \
+  #       yarn gulp vscode-linux-$(VSCODE_ARCH)-min-ci
+  #   displayName: Build
 
-  - script: |
-      set -e
-      VSCODE_MIXIN_PASSWORD="$(github-distro-mixin-password)" \
-        yarn gulp vscode-reh-linux-$(VSCODE_ARCH)-min-ci
-      VSCODE_MIXIN_PASSWORD="$(github-distro-mixin-password)" \
-        yarn gulp vscode-reh-web-linux-$(VSCODE_ARCH)-min-ci
-    displayName: Build Server
+  # - script: |
+  #     set -e
+  #     VSCODE_MIXIN_PASSWORD="$(github-distro-mixin-password)" \
+  #       yarn gulp vscode-reh-linux-$(VSCODE_ARCH)-min-ci
+  #     VSCODE_MIXIN_PASSWORD="$(github-distro-mixin-password)" \
+  #       yarn gulp vscode-reh-web-linux-$(VSCODE_ARCH)-min-ci
+  #   displayName: Build Server
 
   - script: |
       set -e

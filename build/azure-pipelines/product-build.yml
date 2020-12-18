@@ -120,6 +120,8 @@ stages:
       - job: LinuxSnap
         dependsOn:
           - Linux
+          - LinuxBrowserTests
+          - LinuxElectronTests
         condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
         container: snapcraft
         variables:
