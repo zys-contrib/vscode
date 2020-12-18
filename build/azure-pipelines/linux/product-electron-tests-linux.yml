@@ -24,6 +24,18 @@ steps:
       tar -xzf $(Build.ArtifactStagingDirectory)/compilation.tar.gz
     displayName: Extract compilation output
 
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifact: LinuxBuild
+      path: $(Build.ArtifactStagingDirectory)
+    displayName: Download build output
+
+  - script: |
+      set -e
+      tar -xzf $(Build.ArtifactStagingDirectory)/linux.tar.gz
+    workingDirectory: $(Agent.BuildDirectory)
+    displayName: Extract build output
+
   - script: |
       set -e
       cat << EOF > ~/.netrc
@@ -58,12 +70,12 @@ steps:
       targetfolder: "**/node_modules, !**/node_modules/**/node_modules"
       vstsFeed: "npm-vscode"
 
-  - script: |
-      set -e
-      npm install -g node-gyp@latest
-      node-gyp --version
-    displayName: Update node-gyp
-    condition: and(succeeded(), eq(variables['VSCODE_ARCH'], 'x64'))
+  # - script: |
+  #     set -e
+  #     npm install -g node-gyp@latest
+  #     node-gyp --version
+  #   displayName: Update node-gyp
+  #   condition: and(succeeded(), eq(variables['VSCODE_ARCH'], 'x64'))
 
   - script: |
       set -e
@@ -101,24 +113,24 @@ steps:
       vstsFeed: "npm-vscode"
     condition: and(succeeded(), ne(variables['CacheRestored'], 'true'))
 
-  - script: |
-      set -e
-      node build/azure-pipelines/mixin
-    displayName: Mix in quality
+  # - script: |
+  #     set -e
+  #     node build/azure-pipelines/mixin
+  #   displayName: Mix in quality
 
-  - script: |
-      set -e
-      VSCODE_MIXIN_PASSWORD="$(github-distro-mixin-password)" \
-        yarn gulp vscode-linux-$(VSCODE_ARCH)-min-ci
-    displayName: Build
+  # - script: |
+  #     set -e
+  #     VSCODE_MIXIN_PASSWORD="$(github-distro-mixin-password)" \
+  #       yarn gulp vscode-linux-$(VSCODE_ARCH)-min-ci
+  #   displayName: Build
 
-  - script: |
-      set -e
-      VSCODE_MIXIN_PASSWORD="$(github-distro-mixin-password)" \
-        yarn gulp vscode-reh-linux-$(VSCODE_ARCH)-min-ci
-      VSCODE_MIXIN_PASSWORD="$(github-distro-mixin-password)" \
-        yarn gulp vscode-reh-web-linux-$(VSCODE_ARCH)-min-ci
-    displayName: Build Server
+  # - script: |
+  #     set -e
+  #     VSCODE_MIXIN_PASSWORD="$(github-distro-mixin-password)" \
+  #       yarn gulp vscode-reh-linux-$(VSCODE_ARCH)-min-ci
+  #     VSCODE_MIXIN_PASSWORD="$(github-distro-mixin-password)" \
+  #       yarn gulp vscode-reh-web-linux-$(VSCODE_ARCH)-min-ci
+  #   displayName: Build Server
 
   - script: |
       set -e
