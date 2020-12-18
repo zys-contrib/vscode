@@ -93,7 +93,7 @@ stages:
         steps:
           - template: linux/product-build-linux.yml
 
-      - job: Linux
+      - job: LinuxBrowserTests
         displayName: Linux (Browser Test)
         condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX'], 'true'))
         container: vscode-x64
@@ -103,7 +103,7 @@ stages:
         steps:
           - template: linux/product-browser-tests-linux.yml
 
-      - job: Linux
+      - job: LinuxElectronTests
         displayName: Linux (Electron Test)
         condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX'], 'true'))
         container: vscode-x64
