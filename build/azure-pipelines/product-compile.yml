@@ -42,6 +42,12 @@ steps:
       echo -n $ENABLE_TERRAPIN > .build/terrapin
     displayName: Prepare yarn cache flags
 
+  - task: Cache@2
+    inputs:
+      key: "node_modules | .build/arch, .build/terrapin, build/.cachesalt, .yarnrc, remote/.yarnrc, **/yarn.lock, !**/node_modules/**/yarn.lock, !**/.*/**/yarn.lock"
+      path: $(Build.SourcesDirectory)
+    displayName: Cache node_modules
+
   - task: 1ESLighthouseEng.PipelineArtifactCaching.RestoreCacheV1.RestoreCache@1
     inputs:
       keyfile: ".build/arch, .build/terrapin, build/.cachesalt, .yarnrc, remote/.yarnrc, **/yarn.lock, !**/node_modules/**/yarn.lock, !**/.*/**/yarn.lock"
