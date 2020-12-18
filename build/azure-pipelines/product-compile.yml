@@ -44,7 +44,7 @@ steps:
 
   - task: Cache@2
     inputs:
-      key: "node_modules | .build/arch, .build/terrapin, build/.cachesalt, .yarnrc, remote/.yarnrc, **/yarn.lock, !**/node_modules/**/yarn.lock, !**/.*/**/yarn.lock"
+      key: "node_modules99 | .build/arch, .build/terrapin, build/.cachesalt, .yarnrc, remote/.yarnrc, **/yarn.lock, !**/node_modules/**/yarn.lock, !**/.*/**/yarn.lock"
       path: $(Build.SourcesDirectory)/node_modules
       cacheHitVar: CacheRestored
     displayName: Cache node_modules
