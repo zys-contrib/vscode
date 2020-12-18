@@ -61,6 +61,24 @@ stages:
         steps:
           - template: win32/product-build-win32.yml
 
+      - job: WindowsBrowserTests
+        displayName: Windows (Browser Tests)
+        condition: and(succeeded(), eq(variables['VSCODE_BUILD_WIN32'], 'true'))
+        timeoutInMinutes: 90
+        variables:
+          VSCODE_ARCH: x64
+        steps:
+          - template: win32/product-browser-tests-win32.yml
+
+      - job: WindowsElectronTests
+        displayName: Windows (Electron Tests)
+        condition: and(succeeded(), eq(variables['VSCODE_BUILD_WIN32'], 'true'))
+        timeoutInMinutes: 90
+        variables:
+          VSCODE_ARCH: x64
+        steps:
+          - template: win32/product-electron-tests-win32.yml
+
       - job: Windows32
         condition: and(succeeded(), eq(variables['VSCODE_BUILD_WIN32_32BIT'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
         timeoutInMinutes: 90
