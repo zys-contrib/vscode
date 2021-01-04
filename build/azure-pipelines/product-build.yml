@@ -177,14 +177,14 @@ stages:
         parameters:
           JOB_PREFIX: macOS
           VSCODE_ARCH: x64
-          VSCODE_BUILD: ${{ variables.VSCODE_BUILD_MACOS }}
+          VSCODE_BUILD: $[variables.VSCODE_BUILD_MACOS]
 
       - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
         - template: darwin/product-build-darwin.yml
           parameters:
             JOB_PREFIX: macOSARM64
             VSCODE_ARCH: arm64
-            VSCODE_BUILD: ${{ variables.VSCODE_BUILD_MACOS_ARM64 }}
+            VSCODE_BUILD: $[variables.VSCODE_BUILD_MACOS_ARM64]
 
   - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
     - stage: Publish
