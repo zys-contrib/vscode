@@ -115,6 +115,18 @@ stages:
         steps:
           - template: linux/product-electron-tests-linux.yml
 
+      - job: LinuxCodeSign
+        dependsOn:
+          - Linux
+        displayName: Linux (CodeSign)
+        condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
+        container: vscode-x64
+        variables:
+          VSCODE_ARCH: x64
+          NPM_ARCH: x64
+        steps:
+          - template: linux/product-codesign-linux.yml
+
       - job: LinuxSnap
         dependsOn:
           - Linux

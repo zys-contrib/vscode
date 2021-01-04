@@ -16,7 +16,6 @@ steps:
     displayName: "Install .NET Core SDK 2.x"
     inputs:
       version: 2.x
-    condition: and(succeeded(), ne(variables['VSCODE_PUBLISH'], 'false'))
 
   - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@1
     inputs:
@@ -36,7 +35,6 @@ steps:
         ]
       SessionTimeout: 120
     displayName: Codesign rpm
-    condition: and(succeeded(), ne(variables['VSCODE_PUBLISH'], 'false'))
 
   - script: |
       set -e
@@ -46,11 +44,9 @@ steps:
       VSCODE_ARCH="$(VSCODE_ARCH)" \
       ./build/azure-pipelines/linux/publish.sh
     displayName: Publish
-    condition: and(succeeded(), ne(variables['VSCODE_PUBLISH'], 'false'))
 
   - task: PublishPipelineArtifact@0
     displayName: "Publish Pipeline Artifact"
     inputs:
       artifactName: "snap-$(VSCODE_ARCH)"
       targetPath: .build/linux/snap-tarball
-    condition: and(succeeded(), ne(variables['VSCODE_PUBLISH'], 'false'))
