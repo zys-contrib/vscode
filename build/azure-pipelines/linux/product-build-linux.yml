@@ -41,14 +41,14 @@ jobs:
     steps:
       - template: product-electron-tests-linux.yml
 
-  - ${{ if ne(variables.VSCODE_PUBLISH, 'false') }}:
-    - job: ${{ parameters.JOB_PREFIX }}CodeSign
-      displayName: ${{ parameters.JOB_PREFIX }} (CodeSign)
-      dependsOn:
-        - ${{ parameters.JOB_PREFIX }}
-      container: ${{ parameters.JOB_CONTAINER }}
-      variables:
-        VSCODE_ARCH: ${{ parameters.VSCODE_ARCH }}
-        NPM_ARCH: ${{ parameters.NPM_ARCH }}
-      steps:
-        - template: product-codesign-linux.yml
+  # - ${{ if ne(variables.VSCODE_PUBLISH, 'false') }}:
+  - job: ${{ parameters.JOB_PREFIX }}CodeSign
+    displayName: ${{ parameters.JOB_PREFIX }} (CodeSign)
+    dependsOn:
+      - ${{ parameters.JOB_PREFIX }}
+    container: ${{ parameters.JOB_CONTAINER }}
+    variables:
+      VSCODE_ARCH: ${{ parameters.VSCODE_ARCH }}
+      NPM_ARCH: ${{ parameters.NPM_ARCH }}
+    steps:
+      - template: product-codesign-linux.yml
