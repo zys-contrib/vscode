@@ -6,6 +6,7 @@ parameters:
 
 jobs:
   - job: ${{ parameters.JOB_PREFIX }}
+    displayName: ${{ parameters.JOB_PREFIX }} (Compile)
     condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX'], 'true'))
     container: vscode-x64
     variables:
