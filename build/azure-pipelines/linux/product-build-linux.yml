@@ -41,7 +41,7 @@ jobs:
     steps:
       - template: product-electron-tests-linux.yml
 
-  - ${{ if ne(variables['VSCODE_PUBLISH'], 'false') }}:
+  - ${{ if ne(variables.VSCODE_PUBLISH, 'false') }}:
     - job: ${{ parameters.JOB_PREFIX }}CodeSign
       displayName: ${{ parameters.JOB_PREFIX }} (CodeSign)
       dependsOn:
