@@ -39,14 +39,15 @@ jobs:
     steps:
       - template: product-electron-tests-linux.yml
 
-  - job: ${{ parameters.JOB_PREFIX }}CodeSign
-    displayName: ${{ parameters.JOB_PREFIX }} (CodeSign)
-    dependsOn:
-      - ${{ parameters.JOB_PREFIX }}
-    condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
-    container: vscode-x64
-    variables:
-      VSCODE_ARCH: ${{ parameters.VSCODE_ARCH }}
-      NPM_ARCH: ${{ parameters.NPM_ARCH }}
-    steps:
-      - template: product-codesign-linux.yml
+  - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
+    - job: ${{ parameters.JOB_PREFIX }}CodeSign
+      displayName: ${{ parameters.JOB_PREFIX }} (CodeSign)
+      dependsOn:
+        - ${{ parameters.JOB_PREFIX }}
+      condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
+      container: vscode-x64
+      variables:
+        VSCODE_ARCH: ${{ parameters.VSCODE_ARCH }}
+        NPM_ARCH: ${{ parameters.NPM_ARCH }}
+      steps:
+        - template: product-codesign-linux.yml
