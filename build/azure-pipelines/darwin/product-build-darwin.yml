@@ -2,6 +2,7 @@ parameters:
   JOB_PREFIX: ''
   VSCODE_ARCH: ''
   VSCODE_BUILD: true
+  VSCODE_CIBUILD: true
   VSCODE_TEST: true
 
 jobs:
@@ -19,6 +20,7 @@ jobs:
     timeoutInMinutes: 30
     dependsOn:
       - ${{ parameters.JOB_PREFIX }}
+    condition: and(succeeded(), eq('${{ parameters.VSCODE_TEST }}', 'true'))
     variables:
       VSCODE_ARCH: ${{ parameters.VSCODE_ARCH }}
     steps:
@@ -29,6 +31,7 @@ jobs:
     timeoutInMinutes: 30
     dependsOn:
       - ${{ parameters.JOB_PREFIX }}
+    condition: and(succeeded(), eq('${{ parameters.VSCODE_TEST }}', 'true'))
     variables:
       VSCODE_ARCH: ${{ parameters.VSCODE_ARCH }}
     steps:
