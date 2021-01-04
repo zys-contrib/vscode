@@ -90,81 +90,81 @@ stages:
           JOB_CONTAINER: vscode-x64
           NPM_ARCH: x64
           VSCODE_ARCH: x64
-          VSCODE_BUILD: ${{ variables.VSCODE_BUILD_LINUX }}
+          VSCODE_BUILD: $(VSCODE_BUILD_LINUX)
           VSCODE_TEST: true
 
-      - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
-        - job: LinuxSnap
-          dependsOn:
-            - Linux
-            - LinuxBrowserTests
-            - LinuxElectronTests
-          condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
-          container: snapcraft
-          variables:
-            VSCODE_ARCH: x64
-          steps:
-            - template: linux/snap-build-linux.yml
+      # - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
+      #   - job: LinuxSnap
+      #     dependsOn:
+      #       - Linux
+      #       - LinuxBrowserTests
+      #       - LinuxElectronTests
+      #     condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
+      #     container: snapcraft
+      #     variables:
+      #       VSCODE_ARCH: x64
+      #     steps:
+      #       - template: linux/snap-build-linux.yml
 
-      - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
-        - template: linux/product-build-linux.yml
-          parameters:
-            JOB_PREFIX: LinuxArmhf
-            JOB_CONTAINER: vscode-armhf
-            NPM_ARCH: armv7l
-            VSCODE_ARCH: armhf
-            VSCODE_BUILD: ${{ variables.VSCODE_BUILD_LINUX_ARMHF }}
-            VSCODE_TEST: false
+      # - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
+      #   - template: linux/product-build-linux.yml
+      #     parameters:
+      #       JOB_PREFIX: LinuxArmhf
+      #       JOB_CONTAINER: vscode-armhf
+      #       NPM_ARCH: armv7l
+      #       VSCODE_ARCH: armhf
+      #       VSCODE_BUILD: ${{ variables.VSCODE_BUILD_LINUX_ARMHF }}
+      #       VSCODE_TEST: false
 
-      - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
-        - job: LinuxSnapArmhf
-          dependsOn:
-            - LinuxArmhf
-            - LinuxArmhfBrowserTests
-            - LinuxArmhfElectronTests
-          condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX_ARMHF'], 'true'))
-          container: snapcraft
-          variables:
-            VSCODE_ARCH: armhf
-          steps:
-            - template: linux/snap-build-linux.yml
+      # - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
+      #   - job: LinuxSnapArmhf
+      #     dependsOn:
+      #       - LinuxArmhf
+      #       - LinuxArmhfBrowserTests
+      #       - LinuxArmhfElectronTests
+      #     condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX_ARMHF'], 'true'))
+      #     container: snapcraft
+      #     variables:
+      #       VSCODE_ARCH: armhf
+      #     steps:
+      #       - template: linux/snap-build-linux.yml
 
-      - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
-        - template: linux/product-build-linux.yml
-          parameters:
-            JOB_PREFIX: LinuxArm64
-            JOB_CONTAINER: vscode-arm64
-            NPM_ARCH: arm64
-            VSCODE_ARCH: arm64
-            VSCODE_BUILD: ${{ variables.VSCODE_BUILD_LINUX_ARMHF }}
-            VSCODE_TEST: false
+      # - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
+      #   - template: linux/product-build-linux.yml
+      #     parameters:
+      #       JOB_PREFIX: LinuxArm64
+      #       JOB_CONTAINER: vscode-arm64
+      #       NPM_ARCH: arm64
+      #       VSCODE_ARCH: arm64
+      #       VSCODE_BUILD: ${{ variables.VSCODE_BUILD_LINUX_ARMHF }}
+      #       VSCODE_TEST: false
 
-      - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
-        - job: LinuxSnapArm64
-          dependsOn:
-            - LinuxArm64
-            - LinuxArm64BrowserTests
-            - LinuxArm64ElectronTests
-          condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX_ARM64'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
-          container: snapcraft
-          variables:
-            VSCODE_ARCH: arm64
-          steps:
-            - template: linux/snap-build-linux.yml
+      # - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
+      #   - job: LinuxSnapArm64
+      #     dependsOn:
+      #       - LinuxArm64
+      #       - LinuxArm64BrowserTests
+      #       - LinuxArm64ElectronTests
+      #     condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX_ARM64'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
+      #     container: snapcraft
+      #     variables:
+      #       VSCODE_ARCH: arm64
+      #     steps:
+      #       - template: linux/snap-build-linux.yml
 
-      - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
-        - job: LinuxAlpine
-          condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX_ALPINE'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
-          steps:
-            - template: linux/product-build-alpine.yml
+      # - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
+      #   - job: LinuxAlpine
+      #     condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX_ALPINE'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
+      #     steps:
+      #       - template: linux/product-build-alpine.yml
 
-      - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
-        - job: LinuxWeb
-          condition: and(succeeded(), eq(variables['VSCODE_BUILD_WEB'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
-          variables:
-            VSCODE_ARCH: x64
-          steps:
-            - template: web/product-build-web.yml
+      # - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
+      #   - job: LinuxWeb
+      #     condition: and(succeeded(), eq(variables['VSCODE_BUILD_WEB'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
+      #     variables:
+      #       VSCODE_ARCH: x64
+      #     steps:
+      #       - template: web/product-build-web.yml
 
   - stage: macOS
     dependsOn:
@@ -177,14 +177,14 @@ stages:
         parameters:
           JOB_PREFIX: macOS
           VSCODE_ARCH: x64
-          VSCODE_BUILD: $[variables.VSCODE_BUILD_MACOS]
+          VSCODE_BUILD: $(VSCODE_BUILD_MACOS)
 
       - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
         - template: darwin/product-build-darwin.yml
           parameters:
             JOB_PREFIX: macOSARM64
             VSCODE_ARCH: arm64
-            VSCODE_BUILD: $[variables.VSCODE_BUILD_MACOS_ARM64]
+            VSCODE_BUILD: $(VSCODE_BUILD_MACOS_ARM64)
 
   - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
     - stage: Publish

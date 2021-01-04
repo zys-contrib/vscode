@@ -1,7 +1,8 @@
 parameters:
   JOB_PREFIX: ''
   VSCODE_ARCH: ''
-  VSCODE_BUILD: false
+  VSCODE_BUILD: true
+  VSCODE_TEST: true
 
 jobs:
   - job: ${{ parameters.JOB_PREFIX }}
