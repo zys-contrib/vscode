@@ -82,50 +82,12 @@ stages:
     pool:
       vmImage: "Ubuntu-18.04"
     jobs:
-      - job: Linux
-        condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX'], 'true'))
-        container: vscode-x64
-        variables:
+      - template: linux/product-build-linux.yml
+        parameters:
+          JOB_PREFIX: Linux
+          JOB_CONTAINER: vscode-x64
           VSCODE_ARCH: x64
           NPM_ARCH: x64
-        steps:
-          - template: linux/product-build-linux.yml
-
-      - job: LinuxBrowserTests
-        displayName: Linux (Browser Test)
-        dependsOn:
-          - Linux
-        condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX'], 'true'))
-        container: vscode-x64
-        variables:
-          VSCODE_ARCH: x64
-          NPM_ARCH: x64
-        steps:
-          - template: linux/product-browser-tests-linux.yml
-
-      - job: LinuxElectronTests
-        dependsOn:
-          - Linux
-        displayName: Linux (Electron Test)
-        condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX'], 'true'))
-        container: vscode-x64
-        variables:
-          VSCODE_ARCH: x64
-          NPM_ARCH: x64
-        steps:
-          - template: linux/product-electron-tests-linux.yml
-
-      - job: LinuxCodeSign
-        dependsOn:
-          - Linux
-        displayName: Linux (CodeSign)
-        condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
-        container: vscode-x64
-        variables:
-          VSCODE_ARCH: x64
-          NPM_ARCH: x64
-        steps:
-          - template: linux/product-codesign-linux.yml
 
       - job: LinuxSnap
         dependsOn:
@@ -139,14 +101,14 @@ stages:
         steps:
           - template: linux/snap-build-linux.yml
 
-      - job: LinuxArmhf
-        condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX_ARMHF'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
-        container: vscode-armhf
-        variables:
-          VSCODE_ARCH: armhf
-          NPM_ARCH: armv7l
-        steps:
-          - template: linux/product-build-linux.yml
+      # - job: LinuxArmhf
+      #   condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX_ARMHF'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
+      #   container: vscode-armhf
+      #   variables:
+      #     VSCODE_ARCH: armhf
+      #     NPM_ARCH: armv7l
+      #   steps:
+      #     - template: linux/product-build-linux.yml
 
       - job: LinuxSnapArmhf
         dependsOn:
@@ -158,14 +120,14 @@ stages:
         steps:
           - template: linux/snap-build-linux.yml
 
-      - job: LinuxArm64
-        condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX_ARM64'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
-        container: vscode-arm64
-        variables:
-          VSCODE_ARCH: arm64
-          NPM_ARCH: arm64
-        steps:
-          - template: linux/product-build-linux.yml
+      # - job: LinuxArm64
+      #   condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX_ARM64'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
+      #   container: vscode-arm64
+      #   variables:
+      #     VSCODE_ARCH: arm64
+      #     NPM_ARCH: arm64
+      #   steps:
+      #     - template: linux/product-build-linux.yml
 
       - job: LinuxSnapArm64
         dependsOn:
