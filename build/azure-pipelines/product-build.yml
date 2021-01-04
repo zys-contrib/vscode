@@ -88,8 +88,10 @@ stages:
         parameters:
           JOB_PREFIX: Linux
           JOB_CONTAINER: vscode-x64
-          VSCODE_ARCH: x64
           NPM_ARCH: x64
+          VSCODE_ARCH: x64
+          VSCODE_BUILD: ${{ variables.VSCODE_BUILD_LINUX }}
+          VSCODE_TEST: true
 
       - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
         - job: LinuxSnap
@@ -106,12 +108,13 @@ stages:
 
       - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
         - template: linux/product-build-linux.yml
-          condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX_ARMHF'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
           parameters:
             JOB_PREFIX: LinuxArmhf
             JOB_CONTAINER: vscode-armhf
-            VSCODE_ARCH: armhf
             NPM_ARCH: armv7l
+            VSCODE_ARCH: armhf
+            VSCODE_BUILD: ${{ variables.VSCODE_BUILD_LINUX_ARMHF }}
+            VSCODE_TEST: false
 
       - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
         - job: LinuxSnapArmhf
@@ -119,7 +122,7 @@ stages:
             - LinuxArmhf
             - LinuxArmhfBrowserTests
             - LinuxArmhfElectronTests
-          condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX_ARMHF'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
+          condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX_ARMHF'], 'true'))
           container: snapcraft
           variables:
             VSCODE_ARCH: armhf
@@ -128,12 +131,13 @@ stages:
 
       - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
         - template: linux/product-build-linux.yml
-          condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX_ARMHF'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
           parameters:
             JOB_PREFIX: LinuxArm64
             JOB_CONTAINER: vscode-arm64
-            VSCODE_ARCH: arm64
             NPM_ARCH: arm64
+            VSCODE_ARCH: arm64
+            VSCODE_BUILD: ${{ variables.VSCODE_BUILD_LINUX_ARMHF }}
+            VSCODE_TEST: false
 
       - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
         - job: LinuxSnapArm64

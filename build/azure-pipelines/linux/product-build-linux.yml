@@ -1,13 +1,15 @@
 parameters:
   JOB_PREFIX: ''
   JOB_CONTAINER: ''
-  VSCODE_ARCH: ''
   NPM_ARCH: ''
+  VSCODE_ARCH: ''
+  VSCODE_BUILD: true
+  VSCODE_TEST: true
 
 jobs:
   - job: ${{ parameters.JOB_PREFIX }}
     displayName: ${{ parameters.JOB_PREFIX }} (Compile)
-    # condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX'], 'true'))
+    condition: and(succeeded(), eq('${{ parameters.VSCODE_BUILD }}', 'true'))
     container: ${{ parameters.JOB_CONTAINER }}
     variables:
       VSCODE_ARCH: ${{ parameters.VSCODE_ARCH }}
@@ -19,7 +21,7 @@ jobs:
     displayName: ${{ parameters.JOB_PREFIX }} (Browser Test)
     dependsOn:
       - ${{ parameters.JOB_PREFIX }}
-    # condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX'], 'true'))
+    condition: and(succeeded(), eq('${{ parameters.VSCODE_TEST }}', 'true'))
     container: ${{ parameters.JOB_CONTAINER }}
     variables:
       VSCODE_ARCH: ${{ parameters.VSCODE_ARCH }}
@@ -31,7 +33,7 @@ jobs:
     displayName: ${{ parameters.JOB_PREFIX }} (Electron Test)
     dependsOn:
       - ${{ parameters.JOB_PREFIX }}
-    # condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX'], 'true'))
+    condition: and(succeeded(), eq('${{ parameters.VSCODE_TEST }}', 'true'))
     container: ${{ parameters.JOB_CONTAINER }}
     variables:
       VSCODE_ARCH: ${{ parameters.VSCODE_ARCH }}
@@ -44,7 +46,7 @@ jobs:
       displayName: ${{ parameters.JOB_PREFIX }} (CodeSign)
       dependsOn:
         - ${{ parameters.JOB_PREFIX }}
-      # condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
+      condition: and(succeeded(), ne(variables['VSCODE_PUBLISH'], 'false'))
       container: ${{ parameters.JOB_CONTAINER }}
       variables:
         VSCODE_ARCH: ${{ parameters.VSCODE_ARCH }}
