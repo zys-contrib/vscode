@@ -8,7 +8,8 @@ schedules:
         - master
 
 variables:
-  VSCODE_CIBUILD: $[in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI')]
+  - name: VSCODE_CIBUILD
+    value: ${{ in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}
 
 resources:
   containers:
@@ -58,7 +59,7 @@ stages:
         steps:
           - template: win32/product-build-win32.yml
 
-      - ${{ if ne(variables['VSCODE_PUBLISH'], 'false') }}:
+      - ${{ if eq(variables['VSCODE_CIBUILD'], false) }}:
         - job: Windows32
           condition: and(succeeded(), eq(variables['VSCODE_BUILD_WIN32_32BIT'], 'true'))
           timeoutInMinutes: 90
@@ -67,7 +68,7 @@ stages:
           steps:
             - template: win32/product-build-win32.yml
 
-      - ${{ if ne(variables['VSCODE_PUBLISH'], 'false') }}:
+      - ${{ if eq(variables['VSCODE_CIBUILD'], false) }}:
         - job: WindowsARM64
           condition: and(succeeded(), eq(variables['VSCODE_BUILD_WIN32_ARM64'], 'true'))
           timeoutInMinutes: 90
@@ -179,14 +180,14 @@ stages:
           VSCODE_ARCH: x64
           VSCODE_BUILD: $(VSCODE_BUILD_MACOS)
 
-      - ${{ if ne(variables['VSCODE_PUBLISH'], 'false') }}:
+      - ${{ if eq(variables['VSCODE_CIBUILD'], false) }}:
         - template: darwin/product-build-darwin.yml
           parameters:
             JOB_PREFIX: macOSARM64
             VSCODE_ARCH: arm64
             VSCODE_BUILD: $(VSCODE_BUILD_MACOS_ARM64)
 
-  - ${{ if ne(variables['VSCODE_PUBLISH'], 'false') }}:
+  - ${{ if eq(variables['VSCODE_CIBUILD'], false) }}:
     - stage: Publish
       dependsOn:
         - Windows
