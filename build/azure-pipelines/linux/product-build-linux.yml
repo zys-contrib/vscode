@@ -4,6 +4,7 @@ parameters:
   NPM_ARCH: ''
   VSCODE_ARCH: ''
   VSCODE_BUILD: true
+  VSCODE_PUBLISH: true
   VSCODE_TEST: true
 
 jobs:
@@ -41,7 +42,7 @@ jobs:
     steps:
       - template: product-electron-tests-linux.yml
 
-  # - ${{ if ne(variables.VSCODE_PUBLISH, 'false') }}:
+  # - ${{ if ne(parameters.VSCODE_PUBLISH, 'false') }}:
   - job: ${{ parameters.JOB_PREFIX }}CodeSign
     displayName: ${{ parameters.JOB_PREFIX }} (CodeSign)
     dependsOn:

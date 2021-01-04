@@ -86,10 +86,11 @@ stages:
     jobs:
       - template: linux/product-build-linux.yml
         parameters:
-          JOB_PREFIX: Linux
           JOB_CONTAINER: vscode-x64
+          JOB_PREFIX: Linux
           NPM_ARCH: x64
           VSCODE_ARCH: x64
+          VSCODE_PUBLISH: ${{ variables.VSCODE_PUBLISH }}
           # VSCODE_BUILD: $(VSCODE_BUILD_LINUX)
           # VSCODE_TEST: true
 
