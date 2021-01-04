@@ -130,7 +130,20 @@ steps:
 
   - script: |
       set -e
-      tar -czf $(Build.ArtifactStagingDirectory)/linux.tar.gz ../VSCode-* ../vscode-reh-*
+      yarn gulp "vscode-linux-$(VSCODE_ARCH)-build-deb"
+      yarn gulp "vscode-linux-$(VSCODE_ARCH)-build-rpm"
+    displayName: Build deb, rpm packages
+    # condition: and(succeeded(), ne(variables['VSCODE_PUBLISH'], 'false'))
+
+  - script: |
+      set -e
+      yarn gulp "vscode-linux-$(VSCODE_ARCH)-prepare-snap"
+    displayName: Prepare snap package
+    # condition: and(succeeded(), ne(variables['VSCODE_PUBLISH'], 'false'))
+
+  - script: |
+      set -e
+      tar -czf $(Build.ArtifactStagingDirectory)/linux.tar.gz .build ../VSCode-* ../vscode-reh-*
     displayName: Compress build artifact
 
   - task: PublishPipelineArtifact@1
@@ -138,19 +151,6 @@ steps:
       targetPath: $(Build.ArtifactStagingDirectory)/linux.tar.gz
       artifactName: LinuxBuild
     displayName: Publish build artifact
-
-  - script: |
-      set -e
-      yarn gulp "vscode-linux-$(VSCODE_ARCH)-build-deb"
-      yarn gulp "vscode-linux-$(VSCODE_ARCH)-build-rpm"
-    displayName: Build deb, rpm packages
-    condition: and(succeeded(), ne(variables['VSCODE_PUBLISH'], 'false'))
-
-  - script: |
-      set -e
-      yarn gulp "vscode-linux-$(VSCODE_ARCH)-prepare-snap"
-    displayName: Prepare snap package
-    condition: and(succeeded(), ne(variables['VSCODE_PUBLISH'], 'false'))
 
   - task: ms.vss-governance-buildtask.governance-build-task-component-detection.ComponentGovernanceComponentDetection@0
     displayName: "Component Detection"
