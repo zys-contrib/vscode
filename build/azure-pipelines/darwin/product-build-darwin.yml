@@ -1,10 +1,12 @@
 parameters:
   JOB_PREFIX: ''
   VSCODE_ARCH: ''
+  VSCODE_BUILD: false
 
 jobs:
   - job: ${{ parameters.JOB_PREFIX }}
     displayName: ${{ parameters.JOB_PREFIX }} (Compile)
+    condition: and(succeeded(), eq(parameters['VSCODE_BUILD'], 'true'))
     timeoutInMinutes: 30
     variables:
       VSCODE_ARCH: ${{ parameters.VSCODE_ARCH }}
