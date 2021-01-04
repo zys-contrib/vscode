@@ -8,8 +8,7 @@ schedules:
         - master
 
 variables:
-  ${{ if and(eq(variables['VSCODE_PUBLISH'], ''), or(eq(variables['Build.Reason'], 'IndividualCI'), eq(variables['Build.Reason'], 'BatchedCI'))) }}:
-    VSCODE_PUBLISH: "false"
+  VSCODE_CIBUILD: $[in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI')]
 
 resources:
   containers:
@@ -90,7 +89,7 @@ stages:
           JOB_PREFIX: Linux
           NPM_ARCH: x64
           VSCODE_ARCH: x64
-          VSCODE_PUBLISH: ${{ variables.VSCODE_PUBLISH }}
+          VSCODE_CIBUILD: ${{ variables.VSCODE_CIBUILD }}
           # VSCODE_BUILD: $(VSCODE_BUILD_LINUX)
           # VSCODE_TEST: true
 
