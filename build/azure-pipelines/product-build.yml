@@ -104,43 +104,49 @@ stages:
           steps:
             - template: linux/snap-build-linux.yml
 
-      # - job: LinuxArmhf
-      #   condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX_ARMHF'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
-      #   container: vscode-armhf
-      #   variables:
-      #     VSCODE_ARCH: armhf
-      #     NPM_ARCH: armv7l
-      #   steps:
-      #     - template: linux/product-build-linux.yml
+      - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
+        - template: linux/product-build-linux.yml
+          condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX_ARMHF'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
+          parameters:
+            JOB_PREFIX: LinuxArmhf
+            JOB_CONTAINER: vscode-armhf
+            VSCODE_ARCH: armhf
+            NPM_ARCH: armv7l
 
-      # - job: LinuxSnapArmhf
-      #   dependsOn:
-      #     - LinuxArmhf
-      #   condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX_ARMHF'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
-      #   container: snapcraft
-      #   variables:
-      #     VSCODE_ARCH: armhf
-      #   steps:
-      #     - template: linux/snap-build-linux.yml
+      - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
+        - job: LinuxSnapArmhf
+          dependsOn:
+            - LinuxArmhf
+            - LinuxArmhfBrowserTests
+            - LinuxArmhfElectronTests
+          condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX_ARMHF'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
+          container: snapcraft
+          variables:
+            VSCODE_ARCH: armhf
+          steps:
+            - template: linux/snap-build-linux.yml
 
-      # - job: LinuxArm64
-      #   condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX_ARM64'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
-      #   container: vscode-arm64
-      #   variables:
-      #     VSCODE_ARCH: arm64
-      #     NPM_ARCH: arm64
-      #   steps:
-      #     - template: linux/product-build-linux.yml
+      - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
+        - template: linux/product-build-linux.yml
+          condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX_ARMHF'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
+          parameters:
+            JOB_PREFIX: LinuxArm64
+            JOB_CONTAINER: vscode-arm64
+            VSCODE_ARCH: arm64
+            NPM_ARCH: arm64
 
-      # - job: LinuxSnapArm64
-      #   dependsOn:
-      #     - LinuxArm64
-      #   condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX_ARM64'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
-      #   container: snapcraft
-      #   variables:
-      #     VSCODE_ARCH: arm64
-      #   steps:
-      #     - template: linux/snap-build-linux.yml
+      - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
+        - job: LinuxSnapArm64
+          dependsOn:
+            - LinuxArm64
+            - LinuxArm64BrowserTests
+            - LinuxArm64ElectronTests
+          condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX_ARM64'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
+          container: snapcraft
+          variables:
+            VSCODE_ARCH: arm64
+          steps:
+            - template: linux/snap-build-linux.yml
 
       - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
         - job: LinuxAlpine
@@ -180,21 +186,22 @@ stages:
           steps:
             - template: darwin/product-build-darwin.yml
 
-  - stage: Publish
-    dependsOn:
-      - Windows
-      - Linux
-      - macOS
-    condition: and(succeededOrFailed(), eq(variables['VSCODE_COMPILE_ONLY'], 'false'), ne(variables['VSCODE_PUBLISH'], 'false'))
-    pool:
-      vmImage: "Ubuntu-18.04"
-    jobs:
-      - job: SyncMooncake
-        displayName: Sync Mooncake
-        steps:
-          - template: sync-mooncake.yml
-      - job: ReleaseBuild
-        condition: and(succeeded(), or(eq(variables['VSCODE_RELEASE'], 'true'), and(or(eq(variables['VSCODE_QUALITY'], 'insider'), eq(variables['VSCODE_QUALITY'], 'exploration')), eq(variables['Build.Reason'], 'Schedule'))))
-        displayName: Release Build
-        steps:
-          - template: release.yml
+  - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
+    - stage: Publish
+      dependsOn:
+        - Windows
+        - Linux
+        - macOS
+      condition: and(succeededOrFailed(), eq(variables['VSCODE_COMPILE_ONLY'], 'false'), ne(variables['VSCODE_PUBLISH'], 'false'))
+      pool:
+        vmImage: "Ubuntu-18.04"
+      jobs:
+        - job: SyncMooncake
+          displayName: Sync Mooncake
+          steps:
+            - template: sync-mooncake.yml
+        - job: ReleaseBuild
+          condition: and(succeeded(), or(eq(variables['VSCODE_RELEASE'], 'true'), and(or(eq(variables['VSCODE_QUALITY'], 'insider'), eq(variables['VSCODE_QUALITY'], 'exploration')), eq(variables['Build.Reason'], 'Schedule'))))
+          displayName: Release Build
+          steps:
+            - template: release.yml
