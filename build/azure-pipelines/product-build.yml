@@ -169,22 +169,18 @@ stages:
     pool:
       vmImage: macOS-latest
     jobs:
-      - job: macOS
+      - template: darwin/product-build-darwin.yml
         condition: and(succeeded(), eq(variables['VSCODE_BUILD_MACOS'], 'true'))
-        timeoutInMinutes: 90
-        variables:
+        parameters:
+          JOB_PREFIX: macOS
           VSCODE_ARCH: x64
-        steps:
-          - template: darwin/product-build-darwin.yml
 
       - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
-        - job: macOSARM64
+        - template: darwin/product-build-darwin.yml
           condition: and(succeeded(), eq(variables['VSCODE_BUILD_MACOS_ARM64'], 'true'), ne(variables['VSCODE_PUBLISH'], 'false'))
-          timeoutInMinutes: 90
-          variables:
+          parameters:
+            JOB_PREFIX: macOSARM64
             VSCODE_ARCH: arm64
-          steps:
-            - template: darwin/product-build-darwin.yml
 
   - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
     - stage: Publish
