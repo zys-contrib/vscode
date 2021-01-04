@@ -42,7 +42,7 @@ jobs:
     steps:
       - template: product-electron-tests-linux.yml
 
-  - ${{ if ne(variables['VSCODE_CIBUILD'], 'false') }}:
+  - ${{ if ne(parameters.VSCODE_CIBUILD, true) }}:
     - job: ${{ parameters.JOB_PREFIX }}CodeSign
       displayName: ${{ parameters.JOB_PREFIX }} (CodeSign)
       dependsOn:
