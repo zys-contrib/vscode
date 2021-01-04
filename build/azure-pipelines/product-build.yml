@@ -162,24 +162,24 @@ stages:
           steps:
             - template: web/product-build-web.yml
 
-  - stage: macOS
-    dependsOn:
-      - Compile
-    condition: and(succeeded(), eq(variables['VSCODE_COMPILE_ONLY'], 'false'))
-    pool:
-      vmImage: macOS-latest
-    jobs:
-      - ${{ if eq(variables['VSCODE_BUILD_MACOS'], 'true') }}:
-        - template: darwin/product-build-darwin.yml
-          parameters:
-            JOB_PREFIX: macOS
-            VSCODE_ARCH: x64
+  # - stage: macOS
+  #   dependsOn:
+  #     - Compile
+  #   condition: and(succeeded(), eq(variables['VSCODE_COMPILE_ONLY'], 'false'))
+  #   pool:
+  #     vmImage: macOS-latest
+  #   jobs:
+  #     - ${{ if eq(variables['VSCODE_BUILD_MACOS'], 'true') }}:
+  #       - template: darwin/product-build-darwin.yml
+  #         parameters:
+  #           JOB_PREFIX: macOS
+  #           VSCODE_ARCH: x64
 
-      - ${{ if and(eq(variables['VSCODE_BUILD_MACOS_ARM64'], 'true'), notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI')) }}:
-        - template: darwin/product-build-darwin.yml
-          parameters:
-            JOB_PREFIX: macOSARM64
-            VSCODE_ARCH: arm64
+  #     - ${{ if and(eq(variables['VSCODE_BUILD_MACOS_ARM64'], 'true'), notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI')) }}:
+  #       - template: darwin/product-build-darwin.yml
+  #         parameters:
+  #           JOB_PREFIX: macOSARM64
+  #           VSCODE_ARCH: arm64
 
   - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
     - stage: Publish
