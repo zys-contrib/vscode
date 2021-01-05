@@ -138,6 +138,17 @@ steps:
     displayName: Build Server
     condition: and(succeeded(), eq(variables['VSCODE_ARCH'], 'x64'))
 
+  - script: |
+      set -e
+      tar -czf $(Build.ArtifactStagingDirectory)/macOS.tar.gz ../VSCode-* ../vscode-reh-*
+    displayName: Compress build artifact
+
+  - task: PublishPipelineArtifact@1
+    inputs:
+      targetPath: $(Build.ArtifactStagingDirectory)/macOS.tar.gz
+      artifactName: macOSBuild
+    displayName: Publish build artifact
+
   # - script: |
   #     set -e
   #     yarn npm-run-all -lp "electron $(VSCODE_ARCH)" "playwright-install"
