@@ -146,11 +146,23 @@ steps:
       tar -czf $(Build.ArtifactStagingDirectory)/linux.tar.gz .build/linux/rpm ../VSCode-* ../vscode-reh-*
     displayName: Compress build artifact
 
+  - script: |
+      set -e
+      tar -czf $(Build.ArtifactStagingDirectory)/linux2.tar.gz VSCode-* vscode-reh-*
+    displayName: Compress build artifact 2
+    workingDirectory: $(Agent.BuildDirectory)
+
   - task: PublishPipelineArtifact@1
     inputs:
       targetPath: $(Build.ArtifactStagingDirectory)/linux.tar.gz
       artifactName: LinuxBuild
     displayName: Publish build artifact
+
+  - task: PublishPipelineArtifact@1
+    inputs:
+      targetPath: $(Build.ArtifactStagingDirectory)/linux2.tar.gz
+      artifactName: LinuxBuild
+    displayName: Publish build artifact 2
 
   - task: ms.vss-governance-buildtask.governance-build-task-component-detection.ComponentGovernanceComponentDetection@0
     displayName: "Component Detection"
