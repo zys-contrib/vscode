@@ -149,67 +149,63 @@ stages:
           steps:
             - template: linux/snap-build-linux.yml
 
-      # - ${{ if eq(variables['VSCODE_CIBUILD'], 'false') }}:
-      - template: linux/product-build-linux.yml
-        parameters:
-          JOB_PREFIX: LinuxArmhf
-          JOB_CONTAINER: vscode-armhf
-          NPM_ARCH: armv7l
-          VSCODE_ARCH: armhf
-          VSCODE_BUILD: ${{ eq(parameters.VSCODE_BUILD_LINUX_ARMHF, 'true') }}
-          VSCODE_CIBUILD: ${{ eq(variables.VSCODE_CIBUILD, 'true') }}
-          VSCODE_TEST: false
+      - ${{ if eq(variables['VSCODE_CIBUILD'], 'false') }}:
+        - template: linux/product-build-linux.yml
+          parameters:
+            JOB_PREFIX: LinuxArmhf
+            JOB_CONTAINER: vscode-armhf
+            NPM_ARCH: armv7l
+            VSCODE_ARCH: armhf
+            VSCODE_BUILD: ${{ eq(parameters.VSCODE_BUILD_LINUX_ARMHF, 'true') }}
+            VSCODE_CIBUILD: ${{ eq(variables.VSCODE_CIBUILD, 'true') }}
+            VSCODE_TEST: false
 
-      # - ${{ if eq(variables['VSCODE_CIBUILD'], 'false') }}:
-      #   - job: LinuxSnapArmhf
-      #     dependsOn:
-      #       - LinuxArmhf
-      #       - LinuxArmhfBrowserTests
-      #       - LinuxArmhfElectronTests
-      #     condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX_ARMHF'], 'true'))
-      #     container: snapcraft
-      #     variables:
-      #       VSCODE_ARCH: armhf
-      #     steps:
-      #       - template: linux/snap-build-linux.yml
+      - ${{ if eq(variables['VSCODE_CIBUILD'], 'false') }}:
+        - job: LinuxSnapArmhf
+          dependsOn:
+            - LinuxArmhf
+          condition: and(succeeded(), eq('${{ parameters.VSCODE_BUILD_LINUX_ARMHF }}', 'true'))
+          container: snapcraft
+          variables:
+            VSCODE_ARCH: armhf
+          steps:
+            - template: linux/snap-build-linux.yml
 
-      # - ${{ if eq(variables['VSCODE_CIBUILD'], 'false') }}:
-      #   - template: linux/product-build-linux.yml
-      #     parameters:
-      #       JOB_PREFIX: LinuxArm64
-      #       JOB_CONTAINER: vscode-arm64
-      #       NPM_ARCH: arm64
-      #       VSCODE_ARCH: arm64
-      #       VSCODE_BUILD: ${{ eq(variables['VSCODE_BUILD_LINUX_ARMHF'], 'true') }}
-      #       VSCODE_CIBUILD: ${{ variables.VSCODE_CIBUILD }}
-      #       VSCODE_TEST: false
+      - ${{ if eq(variables['VSCODE_CIBUILD'], 'false') }}:
+        - template: linux/product-build-linux.yml
+          parameters:
+            JOB_PREFIX: LinuxArm64
+            JOB_CONTAINER: vscode-arm64
+            NPM_ARCH: arm64
+            VSCODE_ARCH: arm64
+            VSCODE_BUILD: ${{ eq(parameters.VSCODE_BUILD_LINUX_ARMHF, 'true') }}
+            VSCODE_CIBUILD: ${{ eq(variables.VSCODE_CIBUILD, 'true') }}
+            VSCODE_TEST: false
 
-      # - ${{ if eq(variables['VSCODE_CIBUILD'], 'false') }}:
-      #   - job: LinuxSnapArm64
-      #     dependsOn:
-      #       - LinuxArm64
-      #       - LinuxArm64BrowserTests
-      #       - LinuxArm64ElectronTests
-      #     condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX_ARM64'], 'true'))
-      #     container: snapcraft
-      #     variables:
-      #       VSCODE_ARCH: arm64
-      #     steps:
-      #       - template: linux/snap-build-linux.yml
+      - ${{ if eq(variables['VSCODE_CIBUILD'], 'false') }}:
+        - job: LinuxSnapArm64
+          dependsOn:
+            - LinuxArm64
+          condition: and(succeeded(), eq('${{ parameters.VSCODE_BUILD_LINUX_ARM64 }}', 'true'))
+          container: snapcraft
+          variables:
+            VSCODE_ARCH: arm64
+          steps:
+            - template: linux/snap-build-linux.yml
 
-      # - ${{ if eq(variables['VSCODE_CIBUILD'], 'false') }}:
-      #   - job: LinuxAlpine
-      #     condition: and(succeeded(), eq(variables['VSCODE_BUILD_LINUX_ALPINE'], 'true'))
-      #     steps:
-      #       - template: linux/product-build-alpine.yml
+      - ${{ if eq(variables['VSCODE_CIBUILD'], 'false') }}:
+        - job: LinuxAlpine
+          condition: and(succeeded(), eq('${{ parameters.VSCODE_BUILD_LINUX_ALPINE }}', 'true'))
+          steps:
+            - template: linux/product-build-alpine.yml
 
-      # - ${{ if eq(variables['VSCODE_CIBUILD'], 'false') }}:
-      #   - job: LinuxWeb
-      #     condition: and(succeeded(), eq(variables['VSCODE_BUILD_WEB'], 'true'))
-      #     variables:
-      #       VSCODE_ARCH: x64
-      #     steps:
-      #       - template: web/product-build-web.yml
+      - ${{ if eq(variables['VSCODE_CIBUILD'], 'false') }}:
+        - job: LinuxWeb
+          condition: and(succeeded(), eq('${{ parameters.VSCODE_BUILD_WEB }}', 'true'))
+          variables:
+            VSCODE_ARCH: x64
+          steps:
+            - template: web/product-build-web.yml
 
   - stage: macOS
     dependsOn:
