@@ -10,7 +10,7 @@ schedules:
 parameters:
   - name: VSCODE_BUILD_LINUX
     type: boolean
-    value: true
+    default: true
 
 variables:
   - name: VSCODE_CIBUILD
