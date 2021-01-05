@@ -8,7 +8,41 @@ schedules:
         - master
 
 parameters:
+  - name: VSCODE_QUALITY
+    type: string
+    default: insiders
+    values:
+      - exploration
+      - insiders
+      - stable
+  - name: VSCODE_BUILD_WIN32
+    type: boolean
+    default: true
+  - name: VSCODE_BUILD_WIN32_32BIT
+    type: boolean
+    default: true
+  - name: VSCODE_BUILD_WIN32_ARM64
+    type: boolean
+    default: true
   - name: VSCODE_BUILD_LINUX
+    type: boolean
+    default: true
+  - name: VSCODE_BUILD_LINUX_ALPINE
+    type: boolean
+    default: true
+  - name: VSCODE_BUILD_LINUX_ARM64
+    type: boolean
+    default: true
+  - name: VSCODE_BUILD_LINUX_ARMHF
+    type: boolean
+    default: true
+  - name: VSCODE_BUILD_MACOS
+    type: boolean
+    default: true
+  - name: VSCODE_BUILD_MACOS_ARM64
+    type: boolean
+    default: true
+  - name: VSCODE_BUILD_WEB
     type: boolean
     default: true
 
