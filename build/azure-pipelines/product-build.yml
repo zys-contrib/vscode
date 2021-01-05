@@ -48,10 +48,21 @@ parameters:
   - name: VSCODE_COMPILE_ONLY
     type: boolean
     default: false
+  - name: VSCODE_STEP_ON_IT
+    type: boolean
+    default: false
+  - name: VSCODE_PUBLISH
+    type: boolean
+    default: true
+  - name: VSCODE_RELEASE
+    type: boolean
+    default: false
 
 variables:
   - name: VSCODE_CIBUILD
     value: ${{ in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}
+  - name: VSCODE_SCHEDULEDBUILD
+    value: ${{ eq(variables['Build.Reason'], 'Schedule') }}
 
 resources:
   containers:
