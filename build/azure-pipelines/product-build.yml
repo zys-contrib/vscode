@@ -7,6 +7,11 @@ schedules:
       include:
         - master
 
+parameters:
+  - name: VSCODE_BUILD_LINUX
+    type: boolean
+    value: true
+
 variables:
   - name: VSCODE_CIBUILD
     value: ${{ in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}
@@ -90,8 +95,8 @@ stages:
           JOB_PREFIX: Linux
           NPM_ARCH: x64
           VSCODE_ARCH: x64
-          VSCODE_BUILD: ${{ eq(variables['VSCODE_BUILD_LINUX'], 'true') }}
-          VSCODE_CIBUILD: ${{ variables.VSCODE_CIBUILD }}
+          VSCODE_BUILD: ${{ eq(parameters.VSCODE_BUILD_LINUX, 'true') }}
+          VSCODE_CIBUILD: ${{ eq(variables.VSCODE_CIBUILD, 'true') }}
           VSCODE_TEST: true
 
       - ${{ if eq(variables['VSCODE_CIBUILD'], 'false') }}:

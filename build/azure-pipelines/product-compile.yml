@@ -81,14 +81,14 @@ steps:
       node build/azure-pipelines/mixin
     displayName: Mix in quality
 
-  - script: |
-      set -e
-      yarn gulp compile-build
-      yarn gulp compile-extensions-build
-      yarn gulp minify-vscode
-      yarn gulp minify-vscode-reh
-      yarn gulp minify-vscode-reh-web
-    displayName: Compile
+  # - script: |
+  #     set -e
+  #     yarn gulp compile-build
+  #     yarn gulp compile-extensions-build
+  #     yarn gulp minify-vscode
+  #     yarn gulp minify-vscode-reh
+  #     yarn gulp minify-vscode-reh-web
+  #   displayName: Compile
 
   - script: |
       set -e

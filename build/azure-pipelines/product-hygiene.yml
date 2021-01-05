@@ -81,13 +81,13 @@ steps:
       node build/azure-pipelines/mixin
     displayName: Mix in quality
 
-  - script: |
-      set -e
-      yarn gulp hygiene
-      yarn monaco-compile-check
-      yarn valid-layers-check
-    displayName: Run hygiene, monaco compile & valid layers checks
-    condition: and(succeeded(), eq(variables['VSCODE_STEP_ON_IT'], 'false'))
+  # - script: |
+  #     set -e
+  #     yarn gulp hygiene
+  #     yarn monaco-compile-check
+  #     yarn valid-layers-check
+  #   displayName: Run hygiene, monaco compile & valid layers checks
+  #   condition: and(succeeded(), eq(variables['VSCODE_STEP_ON_IT'], 'false'))
 
   - script: |
       set -
