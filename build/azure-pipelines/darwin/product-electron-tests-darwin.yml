@@ -32,7 +32,7 @@ steps:
 
   - script: |
       set -e
-      tar -xzf $(Build.ArtifactStagingDirectory)/macOS.tar.gz
+      tar -Pxzf $(Build.ArtifactStagingDirectory)/macOS.tar.gz
     workingDirectory: $(Agent.BuildDirectory)
     displayName: Extract build output
 
