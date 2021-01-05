@@ -18,29 +18,29 @@ jobs:
     steps:
       - template: product-compile-linux.yml
 
-  - job: ${{ parameters.JOB_PREFIX }}BrowserTests
-    displayName: ${{ parameters.JOB_PREFIX }} (Browser Test)
-    dependsOn:
-      - ${{ parameters.JOB_PREFIX }}
-    condition: and(succeeded(), eq('${{ parameters.VSCODE_TEST }}', 'true'))
-    container: ${{ parameters.JOB_CONTAINER }}
-    variables:
-      VSCODE_ARCH: ${{ parameters.VSCODE_ARCH }}
-      NPM_ARCH: ${{ parameters.NPM_ARCH }}
-    steps:
-      - template: product-browser-tests-linux.yml
+  - ${{ if eq(parameters.VSCODE_TEST, 'true') }}:
+    - job: ${{ parameters.JOB_PREFIX }}BrowserTests
+      displayName: ${{ parameters.JOB_PREFIX }} (Browser Test)
+      dependsOn:
+        - ${{ parameters.JOB_PREFIX }}
+      container: ${{ parameters.JOB_CONTAINER }}
+      variables:
+        VSCODE_ARCH: ${{ parameters.VSCODE_ARCH }}
+        NPM_ARCH: ${{ parameters.NPM_ARCH }}
+      steps:
+        - template: product-browser-tests-linux.yml
 
-  - job: ${{ parameters.JOB_PREFIX }}ElectronTests
-    displayName: ${{ parameters.JOB_PREFIX }} (Electron Test)
-    dependsOn:
-      - ${{ parameters.JOB_PREFIX }}
-    condition: and(succeeded(), eq('${{ parameters.VSCODE_TEST }}', 'true'))
-    container: ${{ parameters.JOB_CONTAINER }}
-    variables:
-      VSCODE_ARCH: ${{ parameters.VSCODE_ARCH }}
-      NPM_ARCH: ${{ parameters.NPM_ARCH }}
-    steps:
-      - template: product-electron-tests-linux.yml
+  - ${{ if eq(parameters.VSCODE_TEST, 'true') }}:
+    - job: ${{ parameters.JOB_PREFIX }}ElectronTests
+      displayName: ${{ parameters.JOB_PREFIX }} (Electron Test)
+      dependsOn:
+        - ${{ parameters.JOB_PREFIX }}
+      container: ${{ parameters.JOB_CONTAINER }}
+      variables:
+        VSCODE_ARCH: ${{ parameters.VSCODE_ARCH }}
+        NPM_ARCH: ${{ parameters.NPM_ARCH }}
+      steps:
+        - template: product-electron-tests-linux.yml
 
   - ${{ if eq(parameters.VSCODE_CIBUILD, 'false') }}:
     - job: ${{ parameters.JOB_PREFIX }}CodeSign
