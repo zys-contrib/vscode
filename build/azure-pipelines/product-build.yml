@@ -211,46 +211,46 @@ stages:
       #     steps:
       #       - template: web/product-build-web.yml
 
-  # - stage: macOS
-  #   dependsOn:
-  #     - Compile
-  #   condition: and(succeeded(), eq(variables['VSCODE_COMPILE_ONLY'], 'false'))
-  #   pool:
-  #     vmImage: macOS-latest
-  #   jobs:
-  #     - template: darwin/product-build-darwin.yml
-  #       parameters:
-  #         JOB_PREFIX: macOS
-  #         VSCODE_ARCH: x64
-  #         VSCODE_BUILD: ${{ eq(variables['VSCODE_BUILD_MACOS'], 'true') }}
-  #         VSCODE_CIBUILD: ${{ variables.VSCODE_CIBUILD }}
-  #         VSCODE_TEST: true
+  - stage: macOS
+    dependsOn:
+      - Compile
+    condition: and(succeeded(), eq('${{ parameters.VSCODE_COMPILE_ONLY }}', 'false'))
+    pool:
+      vmImage: macOS-latest
+    jobs:
+      - template: darwin/product-build-darwin.yml
+        parameters:
+          JOB_PREFIX: macOS
+          VSCODE_ARCH: x64
+          VSCODE_BUILD: ${{ eq(parameters.VSCODE_BUILD_MACOS, 'true') }}
+          VSCODE_CIBUILD: ${{ eq(variables.VSCODE_CIBUILD, 'true') }}
+          VSCODE_TEST: true
 
-  #     - ${{ if eq(variables['VSCODE_CIBUILD'], false) }}:
-  #       - template: darwin/product-build-darwin.yml
-  #         parameters:
-  #           JOB_PREFIX: macOSARM64
-  #           VSCODE_ARCH: arm64
-  #           VSCODE_BUILD: ${{ eq(variables['VSCODE_BUILD_MACOS_ARM64'], 'true') }}
-  #           VSCODE_CIBUILD: ${{ variables.VSCODE_CIBUILD }}
-  #           VSCODE_TEST: false
+      - ${{ if eq(variables['VSCODE_CIBUILD'], 'false') }}:
+        - template: darwin/product-build-darwin.yml
+          parameters:
+            JOB_PREFIX: macOSARM64
+            VSCODE_ARCH: arm64
+            VSCODE_BUILD: ${{ eq(parameters.VSCODE_BUILD_MACOS_ARM64, 'true') }}
+            VSCODE_CIBUILD: ${{ eq(variables.VSCODE_CIBUILD, 'true') }}
+            VSCODE_TEST: false
 
-  # - ${{ if eq(variables['VSCODE_CIBUILD'], false) }}:
-  #   - stage: Publish
-  #     dependsOn:
-  #       - Windows
-  #       - Linux
-  #       - macOS
-  #     condition: and(succeededOrFailed(), eq(variables['VSCODE_COMPILE_ONLY'], 'false'))
-  #     pool:
-  #       vmImage: "Ubuntu-18.04"
-  #     jobs:
-  #       - job: SyncMooncake
-  #         displayName: Sync Mooncake
-  #         steps:
-  #           - template: sync-mooncake.yml
-  #       - job: ReleaseBuild
-  #         condition: and(succeeded(), or(eq(variables['VSCODE_RELEASE'], 'true'), and(or(eq(variables['VSCODE_QUALITY'], 'insider'), eq(variables['VSCODE_QUALITY'], 'exploration')), eq(variables['Build.Reason'], 'Schedule'))))
-  #         displayName: Release Build
-  #         steps:
-  #           - template: release.yml
+  - ${{ if eq(variables['VSCODE_CIBUILD'], false) }}:
+    - stage: Publish
+      dependsOn:
+        - Windows
+        - Linux
+        - macOS
+      condition: and(succeededOrFailed(), eq('${{ parameters.VSCODE_COMPILE_ONLY }}', 'false'))
+      pool:
+        vmImage: "Ubuntu-18.04"
+      jobs:
+        - job: SyncMooncake
+          displayName: Sync Mooncake
+          steps:
+            - template: sync-mooncake.yml
+        - job: ReleaseBuild
+          condition: and(succeeded(), or(eq(variables['VSCODE_RELEASE'], 'true'), and(or(eq(variables['VSCODE_QUALITY'], 'insider'), eq(variables['VSCODE_QUALITY'], 'exploration')), eq(variables['Build.Reason'], 'Schedule'))))
+          displayName: Release Build
+          steps:
+            - template: release.yml
