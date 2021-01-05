@@ -140,7 +140,7 @@ steps:
 
   - script: |
       set -e
-      tar -czf $(Build.ArtifactStagingDirectory)/macOS.tar.gz ../VSCode-* ../vscode-reh-*
+      tar -Pczf $(Build.ArtifactStagingDirectory)/macOS.tar.gz ../VSCode-* ../vscode-reh-*
     displayName: Compress build artifact
 
   - task: PublishPipelineArtifact@1
