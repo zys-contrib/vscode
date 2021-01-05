@@ -5,6 +5,7 @@ parameters:
   VSCODE_ARCH: ''
   VSCODE_BUILD: true
   VSCODE_CIBUILD: true
+  VSCODE_PUBLISH: true
   VSCODE_TEST: true
 
 jobs:
@@ -15,6 +16,7 @@ jobs:
     variables:
       NPM_ARCH: ${{ parameters.NPM_ARCH }}
       VSCODE_ARCH: ${{ parameters.VSCODE_ARCH }}
+      VSCODE_PUBLISH: ${{ parameters.VSCODE_PUBLISH }}
     steps:
       - template: product-compile-linux.yml
 

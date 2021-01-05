@@ -143,6 +143,7 @@ stages:
           VSCODE_ARCH: x64
           VSCODE_BUILD: ${{ eq(parameters.VSCODE_BUILD_LINUX, 'true') }}
           VSCODE_CIBUILD: ${{ eq(variables.VSCODE_CIBUILD, 'true') }}
+          VSCODE_PUBLISH: ${{ eq(parameters.VSCODE_PUBLISH, 'true') }}
           VSCODE_TEST: true
 
       - ${{ if eq(variables['VSCODE_CIBUILD'], 'false') }}:
