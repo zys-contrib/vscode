@@ -152,6 +152,7 @@ stages:
 
         - ${{ if eq(parameters.VSCODE_BUILD_LINUX, true) }}:
           - job: Linux
+            displayName: Linux (Compile)
             container: vscode-x64
             variables:
               VSCODE_ARCH: x64
@@ -159,10 +160,36 @@ stages:
             steps:
               - template: linux/product-build-linux.yml
 
+        - ${{ if eq(parameters.VSCODE_BUILD_LINUX, true) }}:
+          - job: LinuxBrowserTests
+            displayName: Linux (Browser Tests)
+            dependsOn:
+              - Linux
+            container: vscode-x64
+            variables:
+              VSCODE_ARCH: x64
+              NPM_ARCH: x64
+            steps:
+              - template: linux/product-browser-tests-linux.yml
+
+        - ${{ if eq(parameters.VSCODE_BUILD_LINUX, true) }}:
+          - job: LinuxElectronTests
+            displayName: Linux (Electron Tests)
+            dependsOn:
+              - Linux
+            container: vscode-x64
+            variables:
+              VSCODE_ARCH: x64
+              NPM_ARCH: x64
+            steps:
+              - template: linux/product-electron-tests-linux.yml
+
         - ${{ if and(eq(variables['VSCODE_CIBUILD'], false), eq(parameters.VSCODE_BUILD_LINUX, true)) }}:
           - job: LinuxSnap
             dependsOn:
               - Linux
+              - LinuxBrowserTests
+              - LinuxElectronTests
             container: snapcraft
             variables:
               VSCODE_ARCH: x64
