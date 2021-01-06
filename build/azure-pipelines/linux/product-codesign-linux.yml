@@ -1,0 +1,52 @@
+steps:
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifact: LinuxBuild
+      path: $(Build.ArtifactStagingDirectory)
+    displayName: Download build output
+
+  - script: |
+      set -e
+      tar -xzf $(Build.ArtifactStagingDirectory)/linux.tar.gz
+    workingDirectory: $(Agent.BuildDirectory)
+    displayName: Extract build output
+
+  # needed for code signing
+  - task: UseDotNet@2
+    displayName: "Install .NET Core SDK 2.x"
+    inputs:
+      version: 2.x
+
+  - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@1
+    inputs:
+      ConnectedServiceName: "ESRP CodeSign"
+      FolderPath: ".build/linux/rpm"
+      Pattern: "*.rpm"
+      signConfigType: inlineSignParams
+      inlineOperation: |
+        [
+          {
+            "keyCode": "CP-450779-Pgp",
+            "operationSetCode": "LinuxSign",
+            "parameters": [ ],
+            "toolName": "sign",
+            "toolVersion": "1.0"
+          }
+        ]
+      SessionTimeout: 120
+    displayName: Codesign rpm
+
+  - script: |
+      set -e
+      AZURE_DOCUMENTDB_MASTERKEY="$(builds-docdb-key-readwrite)" \
+      AZURE_STORAGE_ACCESS_KEY_2="$(vscode-storage-key)" \
+      VSCODE_MIXIN_PASSWORD="$(github-distro-mixin-password)" \
+      VSCODE_ARCH="$(VSCODE_ARCH)" \
+      ./build/azure-pipelines/linux/publish.sh
+    displayName: Publish
+
+  - task: PublishPipelineArtifact@0
+    displayName: "Publish Pipeline Artifact"
+    inputs:
+      artifactName: "snap-$(VSCODE_ARCH)"
+      targetPath: .build/linux/snap-tarball

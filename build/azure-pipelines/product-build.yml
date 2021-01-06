@@ -184,6 +184,17 @@ stages:
             steps:
               - template: linux/product-electron-tests-linux.yml
 
+        - ${{ if and(eq(parameters.VSCODE_BUILD_LINUX, true), eq(variables['VSCODE_PUBLISH'], true)) }}:
+          - job: LinuxCodeSign
+            displayName: Linux (CodeSign)
+            dependsOn:
+              - Linux
+            container: vscode-x64
+            variables:
+              VSCODE_ARCH: x64
+            steps:
+              - template: linux/product-codesign-linux.yml
+
         - ${{ if and(eq(variables['VSCODE_CIBUILD'], false), eq(parameters.VSCODE_BUILD_LINUX, true)) }}:
           - job: LinuxSnap
             dependsOn:
