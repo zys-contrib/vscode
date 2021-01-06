@@ -165,7 +165,7 @@ stages:
             displayName: Linux (Browser Tests)
             dependsOn:
               - Linux
-            container: vscode-x64
+            # container: vscode-x64
             variables:
               VSCODE_ARCH: x64
               NPM_ARCH: x64
@@ -177,7 +177,7 @@ stages:
             displayName: Linux (Electron Tests)
             dependsOn:
               - Linux
-            container: vscode-x64
+            # container: vscode-x64
             variables:
               VSCODE_ARCH: x64
               NPM_ARCH: x64
