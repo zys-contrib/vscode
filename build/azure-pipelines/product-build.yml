@@ -184,7 +184,7 @@ stages:
             steps:
               - template: linux/product-electron-tests-linux.yml
 
-        - ${{ if and(eq(parameters.VSCODE_BUILD_LINUX, true), eq(variables['VSCODE_PUBLISH'], true)) }}:
+        - ${{ if eq(parameters.VSCODE_BUILD_LINUX, true) }}:
           - job: LinuxCodeSign
             displayName: Linux (CodeSign)
             dependsOn:

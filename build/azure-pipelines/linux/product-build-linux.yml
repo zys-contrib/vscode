@@ -133,17 +133,17 @@ steps:
       yarn gulp "vscode-linux-$(VSCODE_ARCH)-build-deb"
       yarn gulp "vscode-linux-$(VSCODE_ARCH)-build-rpm"
     displayName: Build deb, rpm packages
-    condition: and(succeeded(), ne(variables['VSCODE_PUBLISH'], 'false'))
+    # condition: and(succeeded(), ne(variables['VSCODE_PUBLISH'], 'false'))
 
   - script: |
       set -e
       yarn gulp "vscode-linux-$(VSCODE_ARCH)-prepare-snap"
     displayName: Prepare snap package
-    condition: and(succeeded(), ne(variables['VSCODE_PUBLISH'], 'false'))
+    # condition: and(succeeded(), ne(variables['VSCODE_PUBLISH'], 'false'))
 
   - script: |
       set -e
-      tar -czf $(Build.ArtifactStagingDirectory)/linux.tar.gz VSCode-linux-$(VSCODE_ARCH) vscode-reh-linux-$(VSCODE_ARCH) vscode-reh-web-linux-$(VSCODE_ARCH)
+      tar -czf $(Build.ArtifactStagingDirectory)/linux.tar.gz VSCode-linux-$(VSCODE_ARCH) vscode-reh-linux-$(VSCODE_ARCH) vscode-reh-web-linux-$(VSCODE_ARCH) s/.build/linux/rpm
     workingDirectory: $(Agent.BuildDirectory)
     displayName: Compress compilation artifact
 
