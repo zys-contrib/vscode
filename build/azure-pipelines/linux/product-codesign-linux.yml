@@ -7,6 +7,17 @@ steps:
 
   - task: DownloadPipelineArtifact@2
     inputs:
+      artifact: Compilation
+      path: $(Build.ArtifactStagingDirectory)
+    displayName: Download compilation output
+
+  - script: |
+      set -e
+      tar -xzf $(Build.ArtifactStagingDirectory)/compilation.tar.gz
+    displayName: Extract compilation output
+
+  - task: DownloadPipelineArtifact@2
+    inputs:
       artifact: Linux-$(VSCODE_ARCH)
       path: $(Build.ArtifactStagingDirectory)
     displayName: Download build output
