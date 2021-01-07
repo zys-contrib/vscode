@@ -130,11 +130,29 @@ stages:
 
         - ${{ if eq(parameters.VSCODE_BUILD_WIN32, true) }}:
           - job: Windows
-            timeoutInMinutes: 90
+            timeoutInMinutes: 30
             variables:
               VSCODE_ARCH: x64
             steps:
               - template: win32/product-build-win32.yml
+
+        - ${{ if eq(parameters.VSCODE_BUILD_WIN32, true) }}:
+          - job: WindowsBrowserTests
+            displayName: Windows (Browser Tests)
+            timeoutInMinutes: 30
+            variables:
+              VSCODE_ARCH: x64
+            steps:
+              - template: win32/product-browser-tests-win32.yml
+
+        - ${{ if eq(parameters.VSCODE_BUILD_WIN32, true) }}:
+          - job: WindowsBrowserTests
+            displayName: Windows (Electron Tests)
+            timeoutInMinutes: 30
+            variables:
+              VSCODE_ARCH: x64
+            steps:
+              - template: win32/product-electron-tests-win32.yml
 
         - ${{ if and(eq(variables['VSCODE_CIBUILD'], false), eq(parameters.VSCODE_BUILD_WIN32_32BIT, true)) }}:
           - job: Windows32
