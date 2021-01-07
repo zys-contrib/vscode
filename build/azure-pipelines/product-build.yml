@@ -146,7 +146,7 @@ stages:
               - template: win32/product-browser-tests-win32.yml
 
         - ${{ if eq(parameters.VSCODE_BUILD_WIN32, true) }}:
-          - job: WindowsBrowserTests
+          - job: WindowsElectronTests
             displayName: Windows (Electron Tests)
             timeoutInMinutes: 30
             variables:
