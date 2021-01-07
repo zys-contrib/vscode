@@ -139,6 +139,8 @@ stages:
         - ${{ if eq(parameters.VSCODE_BUILD_WIN32, true) }}:
           - job: WindowsBrowserTests
             displayName: Windows (Browser Tests)
+            dependsOn:
+              - Windows
             timeoutInMinutes: 30
             variables:
               VSCODE_ARCH: x64
@@ -148,6 +150,8 @@ stages:
         - ${{ if eq(parameters.VSCODE_BUILD_WIN32, true) }}:
           - job: WindowsElectronTests
             displayName: Windows (Electron Tests)
+            dependsOn:
+              - Windows
             timeoutInMinutes: 30
             variables:
               VSCODE_ARCH: x64
