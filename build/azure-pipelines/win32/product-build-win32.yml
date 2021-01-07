@@ -129,12 +129,11 @@ steps:
   - powershell: |
       . build/azure-pipelines/win32/exec.ps1
       $ErrorActionPreference = "Stop"
-      exec { tar --force-local -czf $(Build.ArtifactStagingDirectory)/windows.tar.gz VSCode-* vscode-reh-* s/.build }
-    workingDirectory: $(Agent.BuildDirectory)
-    displayName: Compress compilation artifact
+      exec { tar --force-local -czf $(Build.ArtifactStagingDirectory)/windows.tar.gz .build $(Agent.BuildDirectory)/VSCode-* $(Agent.BuildDirectory)/vscode-reh-* }
+    displayName: Compress build artifact
 
   - task: PublishPipelineArtifact@1
     inputs:
       targetPath: $(Build.ArtifactStagingDirectory)/windows.tar.gz
       artifactName: Windows-$(VSCODE_ARCH)
-    displayName: Publish compilation artifact
+    displayName: Publish build artifact
