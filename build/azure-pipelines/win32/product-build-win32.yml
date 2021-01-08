@@ -136,7 +136,7 @@ steps:
   - powershell: |
       . s/build/azure-pipelines/win32/exec.ps1
       $ErrorActionPreference = "Stop"
-      exec { tar --force-local -czf $(Build.ArtifactStagingDirectory)/windows.tar.gz s/.build VSCode-* vscode-reh-* }
+      exec { tar --force-local -czf $(Build.ArtifactStagingDirectory)/windows.tar.gz s/.build/win32-$(VSCODE_ARCH) VSCode-* vscode-reh-* }
     workingDirectory: $(Agent.BuildDirectory)
     displayName: Compress build artifact
 
