@@ -114,7 +114,7 @@ steps:
       exec { yarn gulp "vscode-win32-$(VSCODE_ARCH)-code-helper" }
       exec { yarn gulp "vscode-win32-$(VSCODE_ARCH)-inno-updater" }
     displayName: Prepare Package
-    condition: and(succeeded(), ne(variables['VSCODE_PUBLISH'], 'false'))
+    # condition: and(succeeded(), ne(variables['VSCODE_PUBLISH'], 'false'))
 
   - powershell: |
       . build/azure-pipelines/win32/exec.ps1
