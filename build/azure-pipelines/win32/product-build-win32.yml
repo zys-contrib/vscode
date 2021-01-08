@@ -127,6 +127,13 @@ steps:
     condition: and(succeeded(), ne(variables['VSCODE_ARCH'], 'arm64'))
 
   - powershell: |
+      . build/azure-pipelines/win32/exec.ps1
+      $ErrorActionPreference = "Stop"
+      exec { yarn electron $(VSCODE_ARCH) }
+    displayName: Download Electron
+    condition: and(succeeded(), eq(variables['VSCODE_STEP_ON_IT'], 'false'), ne(variables['VSCODE_ARCH'], 'arm64'))
+
+  - powershell: |
       . s/build/azure-pipelines/win32/exec.ps1
       $ErrorActionPreference = "Stop"
       exec { tar --force-local -czf $(Build.ArtifactStagingDirectory)/windows.tar.gz s/.build VSCode-* vscode-reh-* }
@@ -138,3 +145,7 @@ steps:
       targetPath: $(Build.ArtifactStagingDirectory)/windows.tar.gz
       artifactName: Windows-$(VSCODE_ARCH)
     displayName: Publish build artifact
+
+  - task: ms.vss-governance-buildtask.governance-build-task-component-detection.ComponentGovernanceComponentDetection@0
+    displayName: "Component Detection"
+    continueOnError: true
