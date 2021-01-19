@@ -11,20 +11,8 @@ import * as util from '../lib/util';
 import * as product from '../../product.json';
 
 async function main(): Promise<void> {
-	const buildDir = process.env['AGENT_BUILDDIRECTORY'];
-	const tempDir = process.env['AGENT_TEMPDIRECTORY'];
-	const arch = process.env['VSCODE_ARCH'];
-
-	if (!buildDir) {
-		throw new Error('$AGENT_BUILDDIRECTORY not set');
-	}
-
-	if (!tempDir) {
-		throw new Error('$AGENT_TEMPDIRECTORY not set');
-	}
-
 	const baseDir = path.dirname(__dirname);
-	const appRoot = path.join(buildDir, `VSCode-darwin-${arch}`);
+	const appRoot = path.join(baseDir, '..', '.build', 'electron');
 	const appName = product.nameLong + '.app';
 	const appFrameworkPath = path.join(appRoot, appName, 'Contents', 'Frameworks');
 	const helperAppBaseName = product.nameShort;
@@ -39,9 +27,8 @@ async function main(): Promise<void> {
 		hardenedRuntime: true,
 		'pre-auto-entitlements': false,
 		'pre-embed-provisioning-profile': false,
-		keychain: path.join(tempDir, 'buildagent.keychain'),
 		version: util.getElectronVersion(),
-		identity: '99FM488X57',
+		identity: 'codesignoss',
 		'gatekeeper-assess': false
 	};
 
