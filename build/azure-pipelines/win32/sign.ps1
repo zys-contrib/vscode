@@ -70,8 +70,8 @@ $Output = [System.IO.Path]::GetTempFileName()
 $ScriptPath = Split-Path -Path $MyInvocation.MyCommand.Definition -Parent
 & "$ScriptPath\ESRPClient\packages\Microsoft.ESRPClient.*\tools\ESRPClient.exe" Sign -a $Auth -p $Policy -i $Input -o $Output
 
-if ($LastExitCode -ne 0) {
-	Get-Content $Output
+Get-Content $Output
 
+if ($LastExitCode -ne 0) {
 	throw "Failed to sign"
 }
