@@ -49,6 +49,12 @@
         "command": "imagePreview.zoomOut",
         "title": "%command.zoomOut%",
         "category": "Image Preview"
+      },
+      {
+        "command": "imagePreview.edit",
+        "title": "Edit",
+        "category": "Image Preview",
+				"icon": "$(edit)"
       }
     ],
     "menus": {
@@ -63,6 +69,12 @@
           "when": "imagePreviewFocus",
           "group": "1_imagePreview"
         }
+      ],
+			"editor/title": [
+				{
+					"command": "imagePreview.edit",
+					"group": "navigation"
+				}
       ]
     }
   },

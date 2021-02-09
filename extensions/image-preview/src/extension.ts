@@ -32,4 +32,8 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.commands.registerCommand('imagePreview.zoomOut', () => {
 		previewManager.activePreview?.zoomOut();
 	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('imagePreview.edit', () => {
+		vscode.window.showInformationMessage('Do you want to install the recommended extension for editing images?', ...['Install', 'Show Recommendation']);
+	}));
 }
