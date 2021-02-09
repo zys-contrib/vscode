@@ -34,12 +34,9 @@ export class WebUserDataAutoSyncEnablementService extends UserDataAutoSyncEnable
 		}
 		if (this.enabled !== enabled) {
 			this.enabled = enabled;
-			if (this.workbenchEnvironmentService.options?.settingsSyncOptions) {
-				if (this.workbenchEnvironmentService.options.settingsSyncOptions?.enablementHandler) {
-					this.workbenchEnvironmentService.options.settingsSyncOptions.enablementHandler(this.enabled);
-				}
-			} else {
-				super.setEnablement(enabled);
+			super.setEnablement(enabled);
+			if (this.workbenchEnvironmentService.options?.settingsSyncOptions?.enablementHandler) {
+				this.workbenchEnvironmentService.options.settingsSyncOptions.enablementHandler(this.enabled);
 			}
 		}
 	}

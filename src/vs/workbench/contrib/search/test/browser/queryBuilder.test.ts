@@ -10,7 +10,8 @@ import { URI as uri } from 'vs/base/common/uri';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
 import { TestConfigurationService } from 'vs/platform/configuration/test/common/testConfigurationService';
 import { TestInstantiationService } from 'vs/platform/instantiation/test/common/instantiationServiceMock';
-import { IWorkspaceContextService, toWorkspaceFolder, toWorkspaceFolders } from 'vs/platform/workspace/common/workspace';
+import { IWorkspaceContextService, toWorkspaceFolder } from 'vs/platform/workspace/common/workspace';
+import { toWorkspaceFolders } from 'vs/platform/workspaces/common/workspaces';
 import { ISearchPathsInfo, QueryBuilder } from 'vs/workbench/contrib/search/common/queryBuilder';
 import { IPathService } from 'vs/workbench/services/path/common/pathService';
 import { IFileQuery, IFolderQuery, IPatternInfo, ITextQuery, QueryType } from 'vs/workbench/services/search/common/search';
@@ -571,42 +572,15 @@ suite('QueryBuilder', () => {
 			].forEach(([includePattern, expectedPatterns]) => testSimpleIncludes(<string>includePattern, <string[]>expectedPatterns));
 		});
 
-		test('strict includes', () => {
-			function testSimpleIncludes(includePattern: string, expectedPatterns: string[]): void {
-				assert.deepEqual(
-					queryBuilder.parseSearchPaths(includePattern, true),
-					{
-						pattern: patternsToIExpression(...expectedPatterns)
-					},
-					includePattern);
-			}
-
-			[
-				['a', ['a']],
-				['a/b', ['a/b']],
-				['a/b,  c', ['a/b', 'c']],
-				['a,.txt', ['a', '.txt']],
-				['a,,,b', ['a', 'b']],
-				['**/a,b/**', ['**/a', 'b/**']]
-			].forEach(([includePattern, expectedPatterns]) => testSimpleIncludes(<string>includePattern, <string[]>expectedPatterns));
-		});
-
-		function testIncludes(includePattern: string, expectedResultLoose: ISearchPathsInfo, expectedResultStrict?: ISearchPathsInfo): void {
+		function testIncludes(includePattern: string, expectedResult: ISearchPathsInfo): void {
 			assertEqualSearchPathResults(
 				queryBuilder.parseSearchPaths(includePattern),
-				expectedResultLoose,
+				expectedResult,
 				includePattern);
-
-			if (expectedResultStrict) {
-				assertEqualSearchPathResults(
-					queryBuilder.parseSearchPaths(includePattern, true),
-					expectedResultStrict,
-					includePattern);
-			}
 		}
 
-		function testIncludesDataItem([includePattern, expectedResultLoose, expectedResultStrict]: [string, ISearchPathsInfo, ISearchPathsInfo] | [string, ISearchPathsInfo]): void {
-			testIncludes(includePattern, expectedResultLoose, expectedResultStrict);
+		function testIncludesDataItem([includePattern, expectedResult]: [string, ISearchPathsInfo]): void {
+			testIncludes(includePattern, expectedResult);
 		}
 
 		test('absolute includes', () => {
@@ -679,19 +653,13 @@ suite('QueryBuilder', () => {
 		});
 
 		test('relative includes w/single root folder', () => {
-			const cases: ([string, ISearchPathsInfo] | [string, ISearchPathsInfo, ISearchPathsInfo])[] = [
+			const cases: [string, ISearchPathsInfo][] = [
 				[
 					'./a',
 					{
 						searchPaths: [{
 							searchPath: ROOT_1_URI,
 							pattern: patternsToIExpression('a', 'a/**')
-						}]
-					},
-					{
-						searchPaths: [{
-							searchPath: ROOT_1_URI,
-							pattern: patternsToIExpression('a')
 						}]
 					}
 				],
@@ -701,12 +669,6 @@ suite('QueryBuilder', () => {
 						searchPaths: [{
 							searchPath: ROOT_1_URI,
 							pattern: patternsToIExpression('a', 'a/**')
-						}]
-					},
-					{
-						searchPaths: [{
-							searchPath: ROOT_1_URI,
-							pattern: patternsToIExpression('a')
 						}]
 					}
 				],
@@ -738,12 +700,6 @@ suite('QueryBuilder', () => {
 						searchPaths: [{
 							searchPath: ROOT_1_URI,
 							pattern: patternsToIExpression('a/b', 'a/b/**', 'c/d', 'c/d/**')
-						}]
-					},
-					{
-						searchPaths: [{
-							searchPath: ROOT_1_URI,
-							pattern: patternsToIExpression('a/b', 'c/d',)
 						}]
 					}
 				],
@@ -780,14 +736,9 @@ suite('QueryBuilder', () => {
 			mockWorkspace.folders = toWorkspaceFolders([{ path: ROOT_1_URI.fsPath }, { path: getUri(ROOT_2).fsPath }], WS_CONFIG_PATH, extUriBiasedIgnorePathCase);
 			mockWorkspace.configuration = uri.file(fixPath('config'));
 
-			const cases: ([string, ISearchPathsInfo] | [string, ISearchPathsInfo, ISearchPathsInfo])[] = [
+			const cases: [string, ISearchPathsInfo][] = [
 				[
 					'./root1',
-					{
-						searchPaths: [{
-							searchPath: getUri(ROOT_1)
-						}]
-					},
 					{
 						searchPaths: [{
 							searchPath: getUri(ROOT_1)
@@ -800,36 +751,6 @@ suite('QueryBuilder', () => {
 						searchPaths: [{
 							searchPath: getUri(ROOT_2),
 						}]
-					},
-					{
-						searchPaths: [{
-							searchPath: getUri(ROOT_2),
-						}]
-					}
-				],
-				[
-					'./root1/a/b, ./root2/a.txt',
-					{
-						searchPaths: [
-							{
-								searchPath: ROOT_1_URI,
-								pattern: patternsToIExpression('a/b', 'a/b/**')
-							},
-							{
-								searchPath: getUri(ROOT_2),
-								pattern: patternsToIExpression('a.txt', 'a.txt/**')
-							}]
-					},
-					{
-						searchPaths: [
-							{
-								searchPath: ROOT_1_URI,
-								pattern: patternsToIExpression('a/b')
-							},
-							{
-								searchPath: getUri(ROOT_2),
-								pattern: patternsToIExpression('a.txt')
-							}]
 					}
 				],
 				[
@@ -856,7 +777,7 @@ suite('QueryBuilder', () => {
 			mockWorkspace.folders = toWorkspaceFolders([{ path: ROOT_1_URI.fsPath, name: ROOT_1_FOLDERNAME }, { path: getUri(ROOT_2).fsPath }], WS_CONFIG_PATH, extUriBiasedIgnorePathCase);
 			mockWorkspace.configuration = uri.file(fixPath('config'));
 
-			const cases: ([string, ISearchPathsInfo] | [string, ISearchPathsInfo, ISearchPathsInfo])[] = [
+			const cases: [string, ISearchPathsInfo][] = [
 				[
 					'./foldername',
 					{
@@ -872,12 +793,6 @@ suite('QueryBuilder', () => {
 							searchPath: ROOT_1_URI,
 							pattern: patternsToIExpression('foo', 'foo/**')
 						}]
-					},
-					{
-						searchPaths: [{
-							searchPath: ROOT_1_URI,
-							pattern: patternsToIExpression('foo', 'foo')
-						}]
 					}
 				]
 			];
@@ -890,7 +805,7 @@ suite('QueryBuilder', () => {
 			mockWorkspace.folders = toWorkspaceFolders([{ path: ROOT_1_URI.fsPath }, { path: getUri(ROOT_2).fsPath }, { path: getUri(ROOT_3).fsPath }], WS_CONFIG_PATH, extUriBiasedIgnorePathCase);
 			mockWorkspace.configuration = uri.file(fixPath('/config'));
 
-			const cases: ([string, ISearchPathsInfo] | [string, ISearchPathsInfo, ISearchPathsInfo])[] = [
+			const cases: [string, ISearchPathsInfo][] = [
 				[
 					'',
 					{
@@ -905,11 +820,6 @@ suite('QueryBuilder', () => {
 				],
 				[
 					'./root1',
-					{
-						searchPaths: [{
-							searchPath: getUri(ROOT_1)
-						}]
-					},
 					{
 						searchPaths: [{
 							searchPath: getUri(ROOT_1)

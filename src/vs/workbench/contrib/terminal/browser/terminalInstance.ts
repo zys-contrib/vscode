@@ -238,7 +238,7 @@ export class TerminalInstance extends Disposable implements ITerminalInstance {
 		});
 
 		this.addDisposable(this._configurationService.onDidChangeConfiguration(e => {
-			if (e.affectsConfiguration('terminal.integrated') || e.affectsConfiguration('editor.fastScrollSensitivity') || e.affectsConfiguration('editor.mouseWheelScrollSensitivity')) {
+			if (e.affectsConfiguration('terminal.integrated') || e.affectsConfiguration('editor.fastScrollSensitivity') || e.affectsConfiguration('editor.mouseWheelScrollSensitivity') || e.affectsConfiguration('editor.multiCursorModifier')) {
 				this.updateConfig();
 				// HACK: Trigger another async layout to ensure xterm's CharMeasure is ready to use,
 				// this hack can be removed when https://github.com/xtermjs/xterm.js/issues/702 is
@@ -1166,6 +1166,7 @@ export class TerminalInstance extends Disposable implements ITerminalInstance {
 		}
 	}
 
+	@debounce(500)
 	public reuseTerminal(shell: IShellLaunchConfig, reset: boolean = false): void {
 		// Unsubscribe any key listener we may have.
 		this._pressAnyKeyToCloseListener?.dispose();
@@ -1302,6 +1303,8 @@ export class TerminalInstance extends Disposable implements ITerminalInstance {
 		this._safeSetOption('fastScrollSensitivity', config.fastScrollSensitivity);
 		this._safeSetOption('scrollSensitivity', config.mouseWheelScrollSensitivity);
 		this._safeSetOption('macOptionIsMeta', config.macOptionIsMeta);
+		const editorOptions = this._configurationService.getValue<IEditorOptions>('editor');
+		this._safeSetOption('altClickMovesCursor', config.altClickMovesCursor && editorOptions.multiCursorModifier === 'alt');
 		this._safeSetOption('macOptionClickForcesSelection', config.macOptionClickForcesSelection);
 		this._safeSetOption('rightClickSelectsWord', config.rightClickBehavior === 'selectWord');
 		this._safeSetOption('wordSeparator', config.wordSeparators);
@@ -1504,10 +1507,17 @@ export class TerminalInstance extends Disposable implements ITerminalInstance {
 		}
 		switch (eventSource) {
 			case TitleEventSource.Process:
-				title = path.basename(title);
 				if (platform.isWindows) {
 					// Remove the .exe extension
+					title = path.basename(title);
 					title = title.split('.exe')[0];
+				} else {
+					const firstSpaceIndex = title.indexOf(' ');
+					if (title.startsWith('/')) {
+						title = path.basename(title);
+					} else if (firstSpaceIndex > -1) {
+						title = title.substring(0, firstSpaceIndex);
+					}
 				}
 				break;
 			case TitleEventSource.Api:
@@ -1571,17 +1581,24 @@ export class TerminalInstance extends Disposable implements ITerminalInstance {
 	}
 
 	private _refreshEnvironmentVariableInfoWidgetState(info?: IEnvironmentVariableInfo): void {
-		this._environmentInfo?.disposable.dispose();
-
 		// Check if the widget should not exist
 		if (!info ||
 			this._configHelper.config.environmentChangesIndicator === 'off' ||
 			this._configHelper.config.environmentChangesIndicator === 'warnonly' && !info.requiresAction) {
+			this._environmentInfo?.disposable.dispose();
 			this._environmentInfo = undefined;
 			return;
 		}
 
+		// Recreate the process if the terminal has not yet been interacted with and it's not a
+		// special terminal (eg. task, extension terminal)
+		if (info.requiresAction && !this._processManager.hasWrittenData && !this._shellLaunchConfig.isFeatureTerminal && !this._shellLaunchConfig.isExtensionTerminal) {
+			this.relaunch();
+			return;
+		}
+
 		// (Re-)create the widget
+		this._environmentInfo?.disposable.dispose();
 		const widget = this._instantiationService.createInstance(EnvironmentVariableInfoWidget, info);
 		const disposable = this._widgetManager.attachWidget(widget);
 		if (disposable) {

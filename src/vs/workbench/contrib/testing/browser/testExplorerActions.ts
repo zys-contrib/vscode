@@ -6,24 +6,26 @@
 
 import { Action } from 'vs/base/common/actions';
 import { Codicon } from 'vs/base/common/codicons';
+import { KeyCode, KeyMod } from 'vs/base/common/keyCodes';
+import { isDefined } from 'vs/base/common/types';
 import { localize } from 'vs/nls';
 import { Action2, MenuId } from 'vs/platform/actions/common/actions';
 import { ContextKeyAndExpr, ContextKeyEqualsExpr } from 'vs/platform/contextkey/common/contextkey';
 import { ServicesAccessor } from 'vs/platform/instantiation/common/instantiation';
+import { KeybindingWeight } from 'vs/platform/keybinding/common/keybindingsRegistry';
+import { INotificationService } from 'vs/platform/notification/common/notification';
 import { ThemeIcon } from 'vs/platform/theme/common/themeService';
 import { IWorkspaceContextService } from 'vs/platform/workspace/common/workspace';
 import { ExtHostTestingResource } from 'vs/workbench/api/common/extHost.protocol';
 import { ViewAction } from 'vs/workbench/browser/parts/views/viewPane';
-import { ShowViewletAction2 } from 'vs/workbench/browser/viewlet';
-import { CATEGORIES } from 'vs/workbench/common/actions';
+import { FocusedViewContext } from 'vs/workbench/common/views';
 import * as icons from 'vs/workbench/contrib/testing/browser/icons';
 import { TestingExplorerView, TestingExplorerViewModel } from 'vs/workbench/contrib/testing/browser/testingExplorerView';
 import { TestExplorerViewGrouping, TestExplorerViewMode, Testing } from 'vs/workbench/contrib/testing/common/constants';
 import { EMPTY_TEST_RESULT, InternalTestItem, RunTestsResult, TestIdWithProvider } from 'vs/workbench/contrib/testing/common/testCollection';
-import { IWorkspaceTestCollectionService } from 'vs/workbench/contrib/testing/common/workspaceTestCollectionService';
 import { TestingContextKeys } from 'vs/workbench/contrib/testing/common/testingContextKeys';
 import { ITestService, waitForAllRoots } from 'vs/workbench/contrib/testing/common/testService';
-import { INotificationService } from 'vs/platform/notification/common/notification';
+import { IWorkspaceTestCollectionService } from 'vs/workbench/contrib/testing/common/workspaceTestCollectionService';
 
 const category = localize('testing.category', 'Test');
 
@@ -197,18 +199,18 @@ abstract class RunOrDebugAllAllAction extends Action2 {
 
 		const tests: TestIdWithProvider[] = [];
 		await Promise.all(workspace.getWorkspace().folders.map(async (folder) => {
-			const handle = testService.subscribeToDiffs(ExtHostTestingResource.Workspace, folder.uri);
+			const ref = testService.subscribeToDiffs(ExtHostTestingResource.Workspace, folder.uri);
 			try {
-				await waitForAllRoots(handle.collection);
+				await waitForAllRoots(ref.object);
 
-				for (const root of handle.collection.rootIds) {
-					const node = handle.collection.getNodeById(root);
+				for (const root of ref.object.rootIds) {
+					const node = ref.object.getNodeById(root);
 					if (node && (this.debug ? node.item.debuggable : node.item.runnable)) {
 						tests.push({ testId: node.id, providerId: node.providerId });
 					}
 				}
 			} finally {
-				handle.dispose();
+				ref.dispose();
 			}
 		}));
 
@@ -425,18 +427,28 @@ export class RefreshTestsAction extends Action2 {
 	}
 }
 
-export class ShowTestView extends ShowViewletAction2 {
+export class EditFocusedTest extends ViewAction<TestingExplorerView> {
 	constructor() {
 		super({
-			// matches old test action for back-compat
-			id: 'workbench.view.extension.test',
-			title: localize('showTestViewley', "Show Test"),
-			category: CATEGORIES.View.value,
-			f1: true,
+			id: 'testing.editFocusedTest',
+			viewId: Testing.ExplorerViewId,
+			title: localize('testing.editFocusedTest', "Open Focused Test in Editor"),
+			f1: false,
+			keybinding: {
+				weight: KeybindingWeight.EditorContrib - 10,
+				when: FocusedViewContext.isEqualTo(Testing.ExplorerViewId),
+				primary: KeyCode.Enter | KeyMod.Alt,
+			},
 		});
 	}
 
-	protected viewletId() {
-		return Testing.ViewletId;
+	/**
+	 * @override
+	 */
+	public runInView(_accessor: ServicesAccessor, view: TestingExplorerView) {
+		const selected = view.viewModel.tree.getFocus().find(isDefined);
+		if (selected) {
+			view.viewModel.openEditorForItem(selected, false);
+		}
 	}
 }

@@ -23,7 +23,7 @@ type GettingStartedItem = {
 	| { title: string, command: string, link?: never },
 	doneOn: { commandExecuted: string, eventFired?: never } | { eventFired: string, commandExecuted?: never, }
 	when?: string,
-	media: { type: 'image', path: string, altText: string },
+	media: { type: 'image', path: string | { hc: string, light: string, dark: string }, altText: string },
 };
 
 type GettingStartedCategory = {
@@ -42,7 +42,7 @@ type GettingStartedContent = GettingStartedCategory[];
 export const content: GettingStartedContent = [
 	{
 		id: 'Codespaces',
-		title: localize('gettingStarted.codespaces.title', "Primer on GitHub Codespaces"),
+		title: localize('gettingStarted.codespaces.title', "Primer on Codespaces"),
 		icon: codespacesIcon,
 		when: 'remoteName == codespaces',
 		description: localize('gettingStarted.codespaces.description', "Get up and running with your instant code environment."),
@@ -52,13 +52,13 @@ export const content: GettingStartedContent = [
 				{
 					id: 'runProjectTask',
 					title: localize('gettingStarted.runProject.title', "Build & run your app"),
-					description: localize('gettingStarted.runProject.description', "Build, run & debug your code right from the browser."),
+					description: localize('gettingStarted.runProject.description', "Build, run & debug your code in the cloud, right from the browser."),
 					button: {
-						title: localize('gettingStarted.runProject.button', "Run Code"),
+						title: localize('gettingStarted.runProject.button', "Start Debugging (F5)"),
 						command: 'workbench.action.debug.selectandstart'
 					},
 					doneOn: { commandExecuted: 'workbench.action.debug.selectandstart' },
-					media: { type: 'image', altText: 'Node.js project running debug mode and paused.', path: 'runProject.jpg' },
+					media: { type: 'image', altText: 'Node.js project running debug mode and paused.', path: 'runProject.png' },
 				},
 				{
 					id: 'forwardPortsTask',
@@ -69,7 +69,7 @@ export const content: GettingStartedContent = [
 						command: '~remote.forwardedPorts.focus'
 					},
 					doneOn: { commandExecuted: '~remote.forwardedPorts.focus' },
-					media: { type: 'image', altText: 'Ports panel.', path: 'forwardPorts.jpg' },
+					media: { type: 'image', altText: 'Ports panel.', path: 'forwardPorts.png' },
 				},
 				{
 					id: 'pullRequests',
@@ -80,7 +80,7 @@ export const content: GettingStartedContent = [
 						command: 'workbench.view.extension.github-pull-requests'
 					},
 					doneOn: { commandExecuted: 'workbench.view.extension.github-pull-requests' },
-					media: { type: 'image', altText: 'Preview for reviewing a pull request.', path: 'pullRequests.jpg' },
+					media: { type: 'image', altText: 'Preview for reviewing a pull request.', path: 'pullRequests.png' },
 				},
 				{
 					id: 'remoteTerminal',
@@ -91,7 +91,7 @@ export const content: GettingStartedContent = [
 						command: 'terminal.focus'
 					},
 					doneOn: { commandExecuted: 'terminal.focus' },
-					media: { type: 'image', altText: 'Remote terminal showing npm commands.', path: 'remoteTerminal.jpg' },
+					media: { type: 'image', altText: 'Remote terminal showing npm commands.', path: 'remoteTerminal.png' },
 				},
 				{
 					id: 'openVSC',
@@ -103,7 +103,7 @@ export const content: GettingStartedContent = [
 					},
 					when: 'isWeb',
 					doneOn: { commandExecuted: 'github.codespaces.openInStable' },
-					media: { type: 'image', altText: 'Preview of the Open in VS Code command.', path: 'openVSC.jpg' },
+					media: { type: 'image', altText: 'Preview of the Open in VS Code command.', path: 'openVSC.png' },
 				}
 			]
 		}
@@ -114,6 +114,7 @@ export const content: GettingStartedContent = [
 		title: localize('gettingStarted.setup.title', "Quick Setup"),
 		description: localize('gettingStarted.setup.description', "Extend and customize VS Code to make it yours."),
 		icon: setupIcon,
+		when: 'remoteName != codespaces',
 		content: {
 			type: 'items',
 			items: [
@@ -123,7 +124,7 @@ export const content: GettingStartedContent = [
 					description: localize('gettingStarted.pickColor.description', "Pick a color theme to match your taste and mood while coding."),
 					button: { title: localize('gettingStarted.pickColor.button', "Pick a Theme"), command: 'workbench.action.selectTheme' },
 					doneOn: { eventFired: 'themeSelected' },
-					media: { type: 'image', altText: 'Color theme preview for dark and light theme.', path: 'colorTheme.jpg', }
+					media: { type: 'image', altText: 'Color theme preview for dark and light theme.', path: 'colorTheme.png', }
 				},
 				{
 					id: 'findLanguageExtensions',
@@ -134,7 +135,7 @@ export const content: GettingStartedContent = [
 						command: 'workbench.extensions.action.showLanguageExtensions',
 					},
 					doneOn: { commandExecuted: 'workbench.extensions.action.showLanguageExtensions' },
-					media: { type: 'image', altText: 'Language extensions', path: 'languageExtensions.jpg', }
+					media: { type: 'image', altText: 'Language extensions', path: 'languageExtensions.png', }
 				},
 				{
 					id: 'settingsSync',
@@ -146,7 +147,7 @@ export const content: GettingStartedContent = [
 						command: 'workbench.userDataSync.actions.turnOn',
 					},
 					doneOn: { eventFired: 'sync-enabled' },
-					media: { type: 'image', altText: 'The "Turn on Sync" entry in the settings gear menu.', path: 'settingsSync.jpg', }
+					media: { type: 'image', altText: 'The "Turn on Sync" entry in the settings gear menu.', path: 'settingsSync.png', }
 				},
 				{
 					id: 'pickAFolderTask-Mac',
@@ -158,7 +159,7 @@ export const content: GettingStartedContent = [
 						command: 'workbench.action.files.openFileFolder'
 					},
 					doneOn: { commandExecuted: 'workbench.action.files.openFileFolder' },
-					media: { type: 'image', altText: 'Explorer view showing buttons for opening folder and cloning repository.', path: 'openFolder.jpg' }
+					media: { type: 'image', altText: 'Explorer view showing buttons for opening folder and cloning repository.', path: 'openFolder.png' }
 				},
 				{
 					id: 'pickAFolderTask-Other',
@@ -170,7 +171,7 @@ export const content: GettingStartedContent = [
 						command: 'workbench.action.files.openFolder'
 					},
 					doneOn: { commandExecuted: 'workbench.action.files.openFolder' },
-					media: { type: 'image', altText: 'Explorer view showing buttons for opening folder and cloning repository.', path: 'openFolder.jpg' }
+					media: { type: 'image', altText: 'Explorer view showing buttons for opening folder and cloning repository.', path: 'openFolder.png' }
 				}
 			]
 		}
@@ -193,18 +194,19 @@ export const content: GettingStartedContent = [
 						command: 'workbench.action.showCommands'
 					},
 					doneOn: { commandExecuted: 'workbench.action.showCommands' },
-					media: { type: 'image', altText: 'Command Palette overlay for searching and executing commands.', path: 'commandPalette.jpg' },
+					media: { type: 'image', altText: 'Command Palette overlay for searching and executing commands.', path: 'commandPalette.png' },
 				},
 				{
 					id: 'terminal',
 					title: localize('gettingStarted.terminal.title', "Run tasks in the integrated terminal"),
 					description: localize('gettingStarted.terminal.description', "Quickly run shell commands and monitor build output, right next to your code."),
+					when: 'remoteName != codespaces',
 					button: {
 						title: localize('gettingStarted.terminal.button', "Open Terminal"),
 						command: 'workbench.action.terminal.toggleTerminal'
 					},
 					doneOn: { commandExecuted: 'workbench.action.terminal.toggleTerminal' },
-					media: { type: 'image', altText: 'Integrated terminal running a few npm commands', path: 'terminal.jpg' },
+					media: { type: 'image', altText: 'Integrated terminal running a few npm commands', path: 'terminal.png' },
 				},
 				{
 					id: 'extensions',
@@ -215,7 +217,7 @@ export const content: GettingStartedContent = [
 						command: 'workbench.extensions.action.showRecommendedExtensions'
 					},
 					doneOn: { commandExecuted: 'workbench.extensions.action.showRecommendedExtensions' },
-					media: { type: 'image', altText: 'VS Code extension marketplace with featured language extensions', path: 'extensions.jpg' },
+					media: { type: 'image', altText: 'VS Code extension marketplace with featured language extensions', path: 'extensions.png' },
 				},
 				{
 					id: 'settings',
@@ -226,18 +228,24 @@ export const content: GettingStartedContent = [
 						command: 'workbench.action.openSettings'
 					},
 					doneOn: { commandExecuted: 'workbench.action.openSettings' },
-					media: { type: 'image', altText: 'VS Code Settings', path: 'settings.jpg' },
+					media: {
+						type: 'image', altText: 'VS Code Settings', path: {
+							dark: 'dark/settings.png',
+							light: 'light/settings.png',
+							hc: 'hc/settings.png',
+						}
+					},
 				},
 				{
-					id: 'video',
-					title: localize('gettingStarted.video.title', "Open A Link"),
-					description: localize('gettingStarted.video.description', "Open a link."),
+					id: 'videoTutorial',
+					title: localize('gettingStarted.videoTutorial.title', "Lean back and learn"),
+					description: localize('gettingStarted.videoTutorial.description', "Watch the first in a series of short & practical video tutorials for VS Code's key features."),
 					button: {
-						title: localize('gettingStarted.video.button', "Open"),
-						link: 'https://aka.ms/unknown'
+						title: localize('gettingStarted.videoTutorial.button', "Watch Tutorial"),
+						link: 'https://aka.ms/vscode-getting-started-video'
 					},
-					doneOn: { eventFired: 'linkOpened:https://aka.ms/unknown' },
-					media: { type: 'image', altText: 'VS Code Settings', path: 'settings.jpg' },
+					doneOn: { eventFired: 'linkOpened:https://aka.ms/vscode-getting-started-video' },
+					media: { type: 'image', altText: 'VS Code Settings', path: 'tutorialVideo.png' },
 				}
 			]
 		}

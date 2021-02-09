@@ -82,6 +82,7 @@ export function activate(context: vscode.ExtensionContext) {
 			const commandArgs = ['--port=0', '--disable-telemetry'];
 			const env = getNewEnv();
 			const remoteDataDir = process.env['TESTRESOLVER_DATA_FOLDER'] || path.join(os.homedir(), serverDataFolderName || `${dataFolderName}-testresolver`);
+
 			env['VSCODE_AGENT_FOLDER'] = remoteDataDir;
 			outputChannel.appendLine(`Using data folder at ${remoteDataDir}`);
 
@@ -91,15 +92,21 @@ export function activate(context: vscode.ExtensionContext) {
 				const serverCommandPath = path.join(vscodePath, 'resources', 'server', 'bin-dev', serverCommand);
 				extHostProcess = cp.spawn(serverCommandPath, commandArgs, { env, cwd: vscodePath });
 			} else {
+				const extensionToInstall = process.env['TESTRESOLVER_INSTALL_BUILTIN_EXTENSION'];
+				if (extensionToInstall) {
+					commandArgs.push('--install-builtin-extension', extensionToInstall);
+					commandArgs.push('--start-server');
+				}
 				const serverCommand = process.platform === 'win32' ? 'server.cmd' : 'server.sh';
 				let serverLocation = env['VSCODE_REMOTE_SERVER_PATH']; // support environment variable to specify location of server on disk
 				if (!serverLocation) {
 					const serverBin = path.join(remoteDataDir, 'bin');
 					progress.report({ message: 'Installing VSCode Server' });
-					serverLocation = await downloadAndUnzipVSCodeServer(updateUrl, commit, quality, serverBin);
+					serverLocation = await downloadAndUnzipVSCodeServer(updateUrl, commit, quality, serverBin, m => outputChannel.appendLine(m));
 				}
 
 				outputChannel.appendLine(`Using server build at ${serverLocation}`);
+				outputChannel.appendLine(`Server arguments ${commandArgs.join(' ')}`);
 
 				extHostProcess = cp.spawn(path.join(serverLocation, serverCommand), commandArgs, { env, cwd: serverLocation });
 			}
@@ -216,7 +223,7 @@ export function activate(context: vscode.ExtensionContext) {
 			}, (progress) => doResolve(_authority, progress));
 		},
 		tunnelFactory,
-		tunnelFeatures: { elevation: true, public: false },
+		tunnelFeatures: { elevation: true, public: !!vscode.workspace.getConfiguration('testresolver').get('supportPublicPorts') },
 		showCandidatePort
 	});
 	context.subscriptions.push(authorityResolverDisposable);
@@ -358,7 +365,7 @@ async function tunnelFactory(tunnelOptions: vscode.TunnelOptions, tunnelCreation
 		return {
 			localAddress,
 			remoteAddress: tunnelOptions.remoteAddress,
-			public: tunnelOptions.public,
+			public: !!vscode.workspace.getConfiguration('testresolver').get('supportPublicPorts') && tunnelOptions.public,
 			onDidDispose: onDidDispose.event,
 			dispose: () => {
 				if (!isDisposed) {
