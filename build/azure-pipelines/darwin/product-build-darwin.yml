@@ -284,6 +284,13 @@ steps:
     displayName: Archive build
     condition: and(succeeded(), ne(variables['VSCODE_PUBLISH'], 'false'))
 
+  - script: |
+      set -e
+      mv $(agent.builddirectory)/vscode-reh-darwin $(agent.builddirectory)/vscode-server-darwin
+      pushd $(agent.builddirectory)/vscode-server-darwin && zip -r -X -y $(agent.builddirectory)/vscode-server-darwin.zip * && popd
+    displayName: Archive server build
+    condition: and(succeeded(), eq(variables['VSCODE_ARCH'], 'x64'), ne(variables['VSCODE_PUBLISH'], 'false'))
+
   - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@1
     inputs:
       ConnectedServiceName: "ESRP CodeSign"
@@ -346,6 +353,31 @@ steps:
       SessionTimeout: 60
     displayName: Notarization
     condition: and(succeeded(), ne(variables['VSCODE_PUBLISH'], 'false'))
+
+  - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@1
+    inputs:
+      ConnectedServiceName: "ESRP CodeSign"
+      FolderPath: "$(agent.builddirectory)"
+      Pattern: "vscode-server-darwin.zip"
+      signConfigType: inlineSignParams
+      inlineOperation: |
+        [
+          {
+            "keyCode": "CP-401337-Apple",
+            "operationSetCode": "MacAppNotarize",
+            "parameters": [
+              {
+                "parameterName": "BundleId",
+                "parameterValue": "com.microsoft.VSCodeServer"
+              }
+            ],
+            "toolName": "sign",
+            "toolVersion": "1.0"
+          }
+        ]
+      SessionTimeout: 60
+    displayName: Reh Server Notarization
+    condition: and(succeeded(), eq(variables['VSCODE_ARCH'], 'x64'), ne(variables['VSCODE_PUBLISH'], 'false'))
 
   - script: |
       set -e
