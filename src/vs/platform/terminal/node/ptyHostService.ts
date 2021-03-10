@@ -90,7 +90,8 @@ export class PtyHostService extends Disposable implements IPtyService {
 					VSCODE_AMD_ENTRYPOINT: 'vs/platform/terminal/node/ptyHostMain',
 					VSCODE_PIPE_LOGGING: 'true',
 					VSCODE_VERBOSE_LOGGING: 'true' // transmit console logs from server to client
-				}
+				},
+				debugBrk: 7366
 			}
 		);
 		this._onPtyHostStart.fire();
