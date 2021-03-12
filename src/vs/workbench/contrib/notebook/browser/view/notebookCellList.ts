@@ -225,6 +225,10 @@ export class NotebookCellList extends WorkbenchList<CellViewModel> implements ID
 		}));
 	}
 
+	move(fromIndex: number, toIndex: number): void {
+		this.view.move(fromIndex, toIndex);
+	}
+
 	elementAt(position: number): ICellViewModel | undefined {
 		if (!this.view.length) {
 			return undefined;

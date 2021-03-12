@@ -672,6 +672,8 @@ export interface INotebookCellList {
 
 	// TODO@roblourens resolve differences between List<CellViewModel> and INotebookCellList<ICellViewModel>
 	getFocus(): number[];
+
+	move(fromIndex: number, toIndex: number): void;
 }
 
 export interface BaseCellRenderTemplate {

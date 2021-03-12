@@ -415,6 +415,31 @@ export class ListView<T> implements ISpliceable<T>, IDisposable {
 		}
 	}
 
+	move(fromIndex: number, toIndex: number): void {
+
+		const previousHeight = this.items[fromIndex].size;
+
+		this.rangeMap.splice(fromIndex, 1, [{ size: this.items[toIndex].size }]);
+		this.rangeMap.splice(toIndex, 1, [{ size: previousHeight }]);
+
+		const lastRenderRange = this.getRenderRange(this.lastRenderTop, this.lastRenderHeight);
+
+		// Swap items
+		const fromItem = this.items[fromIndex];
+		const toItem = this.items[toIndex];
+
+		this.items[fromIndex] = toItem;
+		this.items[toIndex] = fromItem;
+
+		this.render(lastRenderRange, Math.max(0, this.lastRenderTop + 0), this.lastRenderHeight, undefined, undefined, true);
+
+		// this.eventuallyUpdateScrollDimensions();
+
+		if (this.supportDynamicHeights) {
+			this._rerender(this.lastRenderTop, this.lastRenderHeight);
+		}
+	}
+
 	splice(start: number, deleteCount: number, elements: T[] = []): T[] {
 		if (this.splicing) {
 			throw new Error('Can\'t run recursive splices.');
