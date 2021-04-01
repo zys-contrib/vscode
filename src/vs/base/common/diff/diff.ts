@@ -249,6 +249,9 @@ export class LcsDiff {
 		const [originalStringElements, originalElementsOrHash, originalHasStrings] = LcsDiff._getElements(originalSequence);
 		const [modifiedStringElements, modifiedElementsOrHash, modifiedHasStrings] = LcsDiff._getElements(modifiedSequence);
 
+		console.log('original sequence', originalStringElements);
+		console.log('modified sequence', modifiedStringElements);
+
 		this._hasStrings = (originalHasStrings && modifiedHasStrings);
 		this._originalStringElements = originalStringElements;
 		this._originalElementsOrHash = originalElementsOrHash;

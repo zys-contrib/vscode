@@ -147,6 +147,7 @@ export class IndexTreeModel<T extends Exclude<any, undefined>, TFilterData = voi
 		}
 
 		if (options.diffIdentityProvider) {
+			console.log('smart splice');
 			this.spliceSmart(options.diffIdentityProvider, location, deleteCount, toInsert, options);
 		} else {
 			this.spliceSimple(location, deleteCount, toInsert, options);
@@ -174,6 +175,8 @@ export class IndexTreeModel<T extends Exclude<any, undefined>, TFilterData = voi
 				].map(e => identity.getId(e.element).toString())
 			},
 		).ComputeDiff(false);
+
+		console.log('diff', diff);
 
 		// if we were given a 'best effort' diff, use default behavior
 		if (diff.quitEarly) {

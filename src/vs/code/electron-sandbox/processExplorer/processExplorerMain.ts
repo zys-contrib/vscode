@@ -76,6 +76,7 @@ class ProcessTreeDataSource implements IDataSource<ProcessTree, ProcessInformati
 	}
 
 	getChildren(element: ProcessTree | ProcessInformation | MachineProcessInformation | ProcessItem | IRemoteDiagnosticError) {
+		console.log('getChildren');
 		if (isProcessItem(element)) {
 			return element.children ? element.children : [];
 		}
@@ -221,6 +222,8 @@ function isProcessItem(item: any): item is ProcessItem {
 	return !!item.pid;
 }
 
+type ProcessTreeNode = ProcessTree | MachineProcessInformation | ProcessItem | ProcessInformation | IRemoteDiagnosticError;
+
 class ProcessExplorer {
 	private lastRequestTime: number;
 
@@ -230,7 +233,7 @@ class ProcessExplorer {
 
 	private nativeHostService: INativeHostService;
 
-	private tree: DataTree<any, ProcessTree | MachineProcessInformation | ProcessItem | ProcessInformation | IRemoteDiagnosticError, any> | undefined;
+	private tree: DataTree<ProcessTreeNode, ProcessTreeNode, any> | undefined;
 
 	constructor(windowId: number, private data: ProcessExplorerData) {
 		const mainProcessService = new ElectronIPCMainProcessService(windowId);
@@ -255,7 +258,9 @@ class ProcessExplorer {
 			if (!this.tree) {
 				await this.createProcessTree(processRoots);
 			} else {
-				this.tree.setInput({ processes: { processRoots } });
+				// console.log('updateChildren');
+				this.updateProcessTree(this.tree, processRoots);
+				// this.tree.setInput({ processes: { processRoots } });
 			}
 
 			this.requestProcessList(0);
@@ -264,8 +269,26 @@ class ProcessExplorer {
 		this.lastRequestTime = Date.now();
 		ipcRenderer.send('vscode:windowsInfoRequest');
 		ipcRenderer.send('vscode:listProcesses');
+	}
 
+	private updateProcessTree(
+		tree: DataTree<ProcessTreeNode, ProcessTreeNode, any>,
+		newProcessRoots: MachineProcessInformation[]
+	) {
+		const input = tree.getInput();
+		if (!input || !('processes' in input)) {
+			return;
+		}
+		(input.processes.processRoots[0].rootProcess as any).load++;
+		console.log('proc load', (input.processes.processRoots[0].rootProcess as any).load);
+		// tree.refresh();
+		tree.setInput({ processes: { processRoots: newProcessRoots } });
+		// tree.updateChildren();
+		// process
 
+		// tree.refresh();
+		// tree.updateChildren();
+		// tree.refresh();
 	}
 
 	private setEventHandlers(data: ProcessExplorerData): void {
@@ -318,7 +341,9 @@ class ProcessExplorer {
 				{
 					getId: (element: ProcessTree | ProcessItem | MachineProcessInformation | ProcessInformation | IRemoteDiagnosticError) => {
 						if (isProcessItem(element)) {
-							return element.pid.toString();
+							// console.log('id: ' + element.pid.toString() + '#' + element.load.toString());
+							return element.pid.toString() + '#' + element.load.toString();
+							// return element.pid.toString();
 						}
 
 						if (isRemoteDiagnosticError(element)) {
