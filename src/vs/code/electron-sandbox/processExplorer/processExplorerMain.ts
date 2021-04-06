@@ -276,16 +276,10 @@ class ProcessExplorer {
 		if (!input || !('processes' in input)) {
 			return;
 		}
-		(input.processes.processRoots[0].rootProcess as any).load++;
-		console.log('proc load', (input.processes.processRoots[0].rootProcess as any).load);
-		// tree.refresh();
-		tree.setInput({ processes: { processRoots: newProcessRoots } });
-		// tree.updateChildren();
-		// process
 
-		// tree.refresh();
-		// tree.updateChildren();
-		// tree.refresh();
+		// TODO: Update the process tree information and fire updates on each node
+		(input.processes.processRoots[0].rootProcess as any).load++;
+		tree.refresh(input.processes.processRoots[0].rootProcess);
 	}
 
 	private setEventHandlers(data: ProcessExplorerData): void {
