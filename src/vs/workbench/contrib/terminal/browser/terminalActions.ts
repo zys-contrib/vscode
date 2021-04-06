@@ -76,7 +76,7 @@ async function getCwdForSplit(configHelper: ITerminalConfigHelper, instance: ITe
 }
 
 export const terminalSendSequenceCommand = (accessor: ServicesAccessor, args: { text?: string } | undefined) => {
-	accessor.get(ITerminalService).doWithActiveInstance(t => {
+	accessor.get(ITerminalService).doWithActiveInstance(async t => {
 		if (!args?.text) {
 			return;
 		}
@@ -85,7 +85,7 @@ export const terminalSendSequenceCommand = (accessor: ServicesAccessor, args: { 
 		const historyService = accessor.get(IHistoryService);
 		const activeWorkspaceRootUri = historyService.getLastActiveWorkspaceRoot(Schemas.file);
 		const lastActiveWorkspaceRoot = activeWorkspaceRootUri ? withNullAsUndefined(workspaceContextService.getWorkspaceFolder(activeWorkspaceRootUri)) : undefined;
-		const resolvedText = configurationResolverService.resolve(lastActiveWorkspaceRoot, args.text);
+		const resolvedText = await configurationResolverService.resolveAsync(lastActiveWorkspaceRoot, args.text);
 		t.sendText(resolvedText, false);
 	});
 };
@@ -683,9 +683,13 @@ export function registerTerminalActions() {
 			const labelService = accessor.get(ILabelService);
 			const remoteAgentService = accessor.get(IRemoteAgentService);
 			const notificationService = accessor.get(INotificationService);
-			const offProcTerminalService = remoteAgentService.getConnection() ? accessor.get(IRemoteTerminalService) : accessor.get(ILocalTerminalService);
-			const remoteTerms = await offProcTerminalService.listProcesses();
-			const unattachedTerms = remoteTerms.filter(term => !terminalService.isAttachedToTerminal(term));
+			let offProcTerminalService = remoteAgentService.getConnection() ? accessor.get(IRemoteTerminalService) : accessor.get(ILocalTerminalService);
+
+			const terms = await offProcTerminalService.listProcesses();
+
+			offProcTerminalService.reduceConnectionGraceTime();
+
+			const unattachedTerms = terms.filter(term => !terminalService.isAttachedToTerminal(term));
 			const items = unattachedTerms.map(term => {
 				const cwdLabel = labelService.getUriLabel(URI.file(term.cwd));
 				return {
@@ -1509,11 +1513,11 @@ export function registerTerminalActions() {
 			// Remove 'New ' from the selected item to get the profile name
 			const profileSelection = item.substring(4);
 			if (quickSelectProfiles) {
-				const launchConfig = quickSelectProfiles.find(profile => profile.profileName === profileSelection);
-				if (launchConfig) {
-					const workspaceShellAllowed = terminalService.configHelper.checkIsProcessLaunchSafe(undefined, launchConfig);
+				const profile = quickSelectProfiles.find(profile => profile.profileName === profileSelection);
+				if (profile) {
+					const workspaceShellAllowed = terminalService.configHelper.checkIsProcessLaunchSafe(undefined, profile);
 					if (workspaceShellAllowed) {
-						const instance = terminalService.createTerminal({ executable: launchConfig.path, args: launchConfig.args, name: launchConfig.overrideName ? launchConfig.profileName : undefined });
+						const instance = terminalService.createTerminal(profile);
 						terminalService.setActiveInstance(instance);
 					}
 				} else {

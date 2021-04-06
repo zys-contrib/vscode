@@ -155,10 +155,12 @@ export class PtyHostService extends Disposable implements IPtyService {
 	detachFromProcess(id: number): Promise<void> {
 		return this._proxy.detachFromProcess(id);
 	}
-	listProcesses(reduceGraceTime: boolean): Promise<IProcessDetails[]> {
-		return this._proxy.listProcesses(reduceGraceTime);
+	listProcesses(): Promise<IProcessDetails[]> {
+		return this._proxy.listProcesses();
 	}
-
+	reduceConnectionGraceTime(): Promise<void> {
+		return this._proxy.reduceConnectionGraceTime();
+	}
 	start(id: number): Promise<ITerminalLaunchError | undefined> {
 		return this._proxy.start(id);
 	}
@@ -186,12 +188,11 @@ export class PtyHostService extends Disposable implements IPtyService {
 	orphanQuestionReply(id: number): Promise<void> {
 		return this._proxy.orphanQuestionReply(id);
 	}
-
 	setTerminalLayoutInfo(args: ISetTerminalLayoutInfoArgs): Promise<void> {
 		return this._proxy.setTerminalLayoutInfo(args);
 	}
-	processBinary(id: number, data: string): void {
-		this._proxy.processBinary(id, data);
+	processBinary(id: number, data: string): Promise<void> {
+		return this._proxy.processBinary(id, data);
 	}
 	async getTerminalLayoutInfo(args: IGetTerminalLayoutInfoArgs): Promise<ITerminalsLayoutInfo | undefined> {
 		return await this._proxy.getTerminalLayoutInfo(args);

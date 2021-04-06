@@ -116,13 +116,13 @@ export class PtyService extends Disposable implements IPtyService {
 		this._throwIfNoPty(id).detach();
 	}
 
-	async listProcesses(reduceGraceTime: boolean): Promise<IProcessDetails[]> {
-		if (reduceGraceTime) {
-			for (const pty of this._ptys.values()) {
-				pty.reduceGraceTime();
-			}
+	async reduceConnectionGraceTime(): Promise<void> {
+		for (const pty of this._ptys.values()) {
+			pty.reduceGraceTime();
 		}
+	}
 
+	async listProcesses(): Promise<IProcessDetails[]> {
 		const persistentProcesses = Array.from(this._ptys.entries()).filter(([_, pty]) => pty.shouldPersistTerminal);
 
 		this._logService.info(`Listing ${persistentProcesses.length} persistent terminals, ${this._ptys.size} total terminals`);
@@ -135,7 +135,8 @@ export class PtyService extends Disposable implements IPtyService {
 		return this._throwIfNoPty(id).start();
 	}
 	async shutdown(id: number, immediate: boolean): Promise<void> {
-		return this._throwIfNoPty(id).shutdown(immediate);
+		// Don't throw if the pty is already shutdown
+		return this._ptys.get(id)?.shutdown(immediate);
 	}
 	async input(id: number, data: string): Promise<void> {
 		return this._throwIfNoPty(id).input(data);
@@ -159,7 +160,7 @@ export class PtyService extends Disposable implements IPtyService {
 		return this._throwIfNoPty(id).orphanQuestionReply();
 	}
 
-	processBinary(id: number, data: string): void {
+	async processBinary(id: number, data: string): Promise<void> {
 		return this._throwIfNoPty(id).writeBinary(data);
 	}
 
@@ -343,7 +344,7 @@ export class PersistentTerminalProcess extends Disposable {
 		}
 		return this._terminalProcess.input(data);
 	}
-	writeBinary(data: string): void {
+	writeBinary(data: string): Promise<void> {
 		return this._terminalProcess.processBinary(data);
 	}
 	resize(cols: number, rows: number): void {
