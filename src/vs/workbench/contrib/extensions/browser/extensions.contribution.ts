@@ -458,7 +458,8 @@ class ExtensionsContributions extends Disposable implements IWorkbenchContributi
 				id: MenuId.CommandPalette,
 				when: CONTEXT_HAS_GALLERY
 			},
-			run: () => runAction(this.instantiationService.createInstance(SearchExtensionsAction, '@category:"programming languages" @sort:installs '))
+			// TODO Experiment flag would go here
+			run: () => runAction(this.instantiationService.createInstance(SearchExtensionsAction, '@recommended:languages '))
 		});
 
 		this.registerExtensionAction({
