@@ -619,7 +619,7 @@ class TextEditElementTemplate {
 			}
 		}
 
-		this._label.set(value, [selectHighlight, insertHighlight], title, true);
+		this._label.set(value, [selectHighlight, insertHighlight], title, undefined, true);
 		this._icon.title = title || '';
 	}
 }

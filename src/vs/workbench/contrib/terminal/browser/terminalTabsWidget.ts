@@ -16,7 +16,8 @@ import { ITerminalInstance, ITerminalService, ITerminalTab } from 'vs/workbench/
 import { localize } from 'vs/nls';
 import * as dom from 'vs/base/browser/dom';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
-import { IconLabel, IIconLabelValueOptions } from 'vs/base/browser/ui/iconLabel/iconLabel';
+import { IconLabel } from 'vs/base/browser/ui/iconLabel/iconLabel';
+import { TerminalStatus } from 'vs/workbench/contrib/terminal/browser/terminalStatusList';
 
 const $ = dom.$;
 
@@ -126,18 +127,39 @@ class TerminalTabsRenderer implements ITreeRenderer<ITabTreeNode, never, ITermin
 	renderElement(node: ITreeNode<ITabTreeNode>, index: number, template: ITerminalTabEntryTemplate): void {
 		let label = '';
 		let item = node.element;
+		let secondaryIconId: string | undefined;
 		if ('terminalInstances' in item) {
 			if (item.terminalInstances.length === 1) {
 				const instance = item.terminalInstances[0];
 				label = `$(${instance.icon.id}) ${instance.title}`;
+				const primaryStatus = instance.statusList.primary;
+				console.log('instance ' + (instance as any)._instanceId);
+				console.log('  primary', primaryStatus);
+				if (primaryStatus) {
+					secondaryIconId = primaryStatus.id === TerminalStatus.Bell ? 'bell' : 'warning';
+				}
+				instance.statusList.onDidChangePrimaryStatus(e => {
+					let secondaryIconId: string | undefined;
+					if (e) {
+						secondaryIconId = e.id === TerminalStatus.Bell ? 'bell' : 'warning';
+					}
+					template.label.setLabel(label, 'desc2', { secondaryIconId });
+				});
 			} else if (item.terminalInstances.length > 1) {
 				label = `Terminals (${item.terminalInstances.length})`;
 			}
 		} else {
 			label = `$(${item.icon.id}) ${item.title}`;
+			// const primaryStatus = item.statusList.primary;
+			// console.log('item primary', primaryStatus);
+			// if (primaryStatus) {
+			// 	// secondaryIconId = primaryStatus.id === TerminalStatus.Bell ? 'bell' : 'warning';
+			// }
+			// secondaryIconId = 'bell';
 		}
-		const options: IIconLabelValueOptions = Object.create(null);
-		template.label.setLabel(label, 'desc', options);
+		console.log('secondaryIconId', secondaryIconId);
+		template.label.setLabel(label, 'desc', { secondaryIconId });
+		// TODO: Dispose of listeners
 	}
 
 	disposeTemplate(templateData: ITerminalTabEntryTemplate): void {

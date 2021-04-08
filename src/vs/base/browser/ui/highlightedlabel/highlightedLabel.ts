@@ -21,7 +21,7 @@ export class HighlightedLabel {
 	private highlights: IHighlight[] = [];
 	private didEverRender: boolean = false;
 
-	constructor(container: HTMLElement, private supportIcons: boolean) {
+	constructor(container: HTMLElement, private supportIcons: boolean, private secondaryIconId?: string) {
 		this.domNode = document.createElement('span');
 		this.domNode.className = 'monaco-highlighted-label';
 
@@ -32,7 +32,7 @@ export class HighlightedLabel {
 		return this.domNode;
 	}
 
-	set(text: string | undefined, highlights: IHighlight[] = [], title: string = '', escapeNewLines?: boolean) {
+	set(text: string | undefined, highlights: IHighlight[] = [], title: string = '', secondaryIconId?: string, escapeNewLines?: boolean) {
 		if (!text) {
 			text = '';
 		}
@@ -40,12 +40,13 @@ export class HighlightedLabel {
 			// adjusts highlights inplace
 			text = HighlightedLabel.escapeNewLines(text, highlights);
 		}
-		if (this.didEverRender && this.text === text && this.title === title && objects.equals(this.highlights, highlights)) {
+		if (this.didEverRender && this.text === text && this.title === title && objects.equals(this.highlights, highlights) && this.secondaryIconId === secondaryIconId) {
 			return;
 		}
 
 		this.text = text;
 		this.title = title;
+		this.secondaryIconId = secondaryIconId;
 		this.highlights = highlights;
 		this.render();
 	}
@@ -61,12 +62,12 @@ export class HighlightedLabel {
 			}
 			if (pos < highlight.start) {
 				const substring = this.text.substring(pos, highlight.start);
-				children.push(dom.$('span', undefined, ...this.supportIcons ? renderLabelWithIcons(substring) : [substring]));
+				children.push(dom.$('span', undefined, ...this.supportIcons ? renderLabelWithIcons(substring, this.secondaryIconId) : [substring]));
 				pos = highlight.end;
 			}
 
 			const substring = this.text.substring(highlight.start, highlight.end);
-			const element = dom.$('span.highlight', undefined, ...this.supportIcons ? renderLabelWithIcons(substring) : [substring]);
+			const element = dom.$('span.highlight', undefined, ...this.supportIcons ? renderLabelWithIcons(substring, this.secondaryIconId) : [substring]);
 			if (highlight.extraClasses) {
 				element.classList.add(highlight.extraClasses);
 			}
@@ -76,7 +77,7 @@ export class HighlightedLabel {
 
 		if (pos < this.text.length) {
 			const substring = this.text.substring(pos,);
-			children.push(dom.$('span', undefined, ...this.supportIcons ? renderLabelWithIcons(substring) : [substring]));
+			children.push(dom.$('span', undefined, ...this.supportIcons ? renderLabelWithIcons(substring, this.secondaryIconId) : [substring]));
 		}
 
 		dom.reset(this.domNode, ...children);

@@ -90,6 +90,7 @@ export class TerminalStatusList extends Disposable implements ITerminalStatusLis
 				this._onDidChangePrimaryStatus.fire(newPrimary);
 			}
 		}
+		console.log('added status, new primary', this.primary);
 	}
 
 	remove(status: ITerminalStatus): void;
