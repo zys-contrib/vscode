@@ -17,7 +17,6 @@ import { localize } from 'vs/nls';
 import * as dom from 'vs/base/browser/dom';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
 import { IconLabel } from 'vs/base/browser/ui/iconLabel/iconLabel';
-import { TerminalStatus } from 'vs/workbench/contrib/terminal/browser/terminalStatusList';
 
 const $ = dom.$;
 
@@ -143,14 +142,14 @@ class TerminalTabsRenderer implements ITreeRenderer<ITabTreeNode, never, ITermin
 				label = `$(${instance.icon.id}) ${instance.title}`;
 				const primaryStatus = instance.statusList.primary;
 				if (primaryStatus) {
-					secondaryIconId = primaryStatus.id === TerminalStatus.Bell ? 'bell' : 'warning';
+					secondaryIconId = primaryStatus.icon?.id;
 				}
 				instance.statusList.onDidChangePrimaryStatus(e => {
 					let secondaryIconId: string | undefined;
 					if (e) {
-						secondaryIconId = e.id === TerminalStatus.Bell ? 'bell' : 'warning';
+						secondaryIconId = e.icon?.id;
 					}
-					template.label.setLabel(label, 'desc2', { secondaryIconId });
+					template.label.setLabel(label, undefined, { secondaryIconId });
 				});
 			} else if (item.terminalInstances.length > 1) {
 				label = `Terminals (${item.terminalInstances.length})`;
@@ -159,17 +158,17 @@ class TerminalTabsRenderer implements ITreeRenderer<ITabTreeNode, never, ITermin
 			label = `$(${item.icon.id}) ${item.title}`;
 			const primaryStatus = item.statusList.primary;
 			if (primaryStatus) {
-				secondaryIconId = primaryStatus.id === TerminalStatus.Bell ? 'bell' : 'warning';
+				secondaryIconId = primaryStatus.icon?.id;
 			}
 			item.statusList.onDidChangePrimaryStatus(e => {
 				let secondaryIconId: string | undefined;
 				if (e) {
-					secondaryIconId = e.id === TerminalStatus.Bell ? 'bell' : 'warning';
+					secondaryIconId = e.icon?.id;
 				}
-				template.label.setLabel(label, 'desc2', { secondaryIconId });
+				template.label.setLabel(label, undefined, { secondaryIconId });
 			});
 		}
-		template.label.setLabel(label, 'desc', { secondaryIconId });
+		template.label.setLabel(label, undefined, { secondaryIconId });
 		// TODO: Dispose of listeners
 	}
 
