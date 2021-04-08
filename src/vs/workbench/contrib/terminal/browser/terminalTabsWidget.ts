@@ -36,7 +36,7 @@ export class TerminalTabsWidget extends WorkbenchObjectTree<ITabTreeNode>  {
 	) {
 		super('TerminalTabsTree', container,
 			{
-				getHeight: () => 24,
+				getHeight: () => 22,
 				getTemplateId: () => 'terminal.tabs'
 			},
 			[new TerminalTabsRenderer()],
@@ -142,8 +142,6 @@ class TerminalTabsRenderer implements ITreeRenderer<ITabTreeNode, never, ITermin
 				const instance = item.terminalInstances[0];
 				label = `$(${instance.icon.id}) ${instance.title}`;
 				const primaryStatus = instance.statusList.primary;
-				console.log('instance ' + (instance as any)._instanceId);
-				console.log('  primary', primaryStatus);
 				if (primaryStatus) {
 					secondaryIconId = primaryStatus.id === TerminalStatus.Bell ? 'bell' : 'warning';
 				}
@@ -159,14 +157,18 @@ class TerminalTabsRenderer implements ITreeRenderer<ITabTreeNode, never, ITermin
 			}
 		} else {
 			label = `$(${item.icon.id}) ${item.title}`;
-			// const primaryStatus = item.statusList.primary;
-			// console.log('item primary', primaryStatus);
-			// if (primaryStatus) {
-			// 	// secondaryIconId = primaryStatus.id === TerminalStatus.Bell ? 'bell' : 'warning';
-			// }
-			// secondaryIconId = 'bell';
+			const primaryStatus = item.statusList.primary;
+			if (primaryStatus) {
+				secondaryIconId = primaryStatus.id === TerminalStatus.Bell ? 'bell' : 'warning';
+			}
+			item.statusList.onDidChangePrimaryStatus(e => {
+				let secondaryIconId: string | undefined;
+				if (e) {
+					secondaryIconId = e.id === TerminalStatus.Bell ? 'bell' : 'warning';
+				}
+				template.label.setLabel(label, 'desc2', { secondaryIconId });
+			});
 		}
-		console.log('secondaryIconId', secondaryIconId);
 		template.label.setLabel(label, 'desc', { secondaryIconId });
 		// TODO: Dispose of listeners
 	}
