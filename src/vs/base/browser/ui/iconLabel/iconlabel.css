@@ -40,6 +40,7 @@
 
 .monaco-icon-label > .monaco-icon-label-container > .monaco-icon-name-container > .label-name {
 	color: inherit;
+	position: relative;
 	white-space: pre; /* enable to show labels that include multiple whitespaces */
 }
 

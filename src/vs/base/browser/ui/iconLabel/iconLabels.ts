@@ -19,6 +19,15 @@ export function renderLabelWithIcons(text: string): Array<HTMLSpanElement | stri
 
 		const [, escaped, codicon] = match;
 		elements.push(escaped ? `$(${codicon})` : renderIcon({ id: codicon }));
+		if (codicon === 'terminal') {
+			const secondaryIcon = renderIcon({ id: 'warning' });
+			secondaryIcon.style.position = 'absolute';
+			secondaryIcon.style.top = '10px';
+			secondaryIcon.style.left = '10px';
+			secondaryIcon.style.fontSize = '8px';
+			secondaryIcon.style.color = '#990';
+			elements.push(secondaryIcon);
+		}
 	}
 
 	if (textStart < text.length) {
@@ -30,5 +39,10 @@ export function renderLabelWithIcons(text: string): Array<HTMLSpanElement | stri
 export function renderIcon(icon: CSSIcon): HTMLSpanElement {
 	const node = dom.$(`span`);
 	node.classList.add(...CSSIcon.asClassNameArray(icon));
+	if (icon.id === 'terminal') {
+		node.style.verticalAlign = 'text-bottom';
+		node.style.clipPath = 'polygon(0% 0%, 100% 0%, 100% 60%, 60% 60%, 60% 100%, 0% 100%)';
+		node.style.marginRight = '2px';
+	}
 	return node;
 }

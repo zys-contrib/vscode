@@ -32,6 +32,7 @@ export interface IIconLabelMarkdownString {
 
 export interface IIconLabelValueOptions {
 	title?: string | IIconLabelMarkdownString;
+	annotatedIcon?: string;
 	descriptionTitle?: string;
 	hideIcon?: boolean;
 	extraClasses?: string[];
