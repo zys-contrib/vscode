@@ -287,7 +287,10 @@ export class TerminalTab extends Disposable implements ITerminalTab {
 			return;
 		}
 
+		console.log('splice', index);
 		this._terminalInstances.splice(index, 1);
+		console.log('count after', this._terminalInstances.length);
+		instance.detachFromElement();
 		this._splitPaneContainer?.remove(instance);
 
 		// TODO: Remove listeners
@@ -297,6 +300,7 @@ export class TerminalTab extends Disposable implements ITerminalTab {
 	}
 
 	public override dispose(): void {
+		this._onDisposed.fire(this);
 		super.dispose();
 		if (this._container && this._tabElement) {
 			this._container.removeChild(this._tabElement);
@@ -359,7 +363,6 @@ export class TerminalTab extends Disposable implements ITerminalTab {
 
 		// Fire events and dispose tab if it was the last instance
 		if (this._terminalInstances.length === 0) {
-			this._onDisposed.fire(this);
 			this.dispose();
 		} else {
 			this._onInstancesChanged.fire();

@@ -453,6 +453,7 @@ export class TerminalService implements ITerminalService {
 		// Hide the panel if there are no more instances, provided that VS Code is not shutting
 		// down. When shutting down the panel is locked in place so that it is restored upon next
 		// launch.
+		console.log('_remoteTab tab count', this._terminalTabs.length);
 		if (this._terminalTabs.length === 0 && !this._isShuttingDown) {
 			this.hidePanel();
 			this._onActiveInstanceChanged.fire(undefined);

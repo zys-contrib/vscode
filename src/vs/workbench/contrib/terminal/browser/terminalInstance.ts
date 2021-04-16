@@ -722,6 +722,16 @@ export class TerminalInstance extends Disposable implements ITerminalInstance {
 		}
 	}
 
+	detachFromElement(): void {
+		if (!this._wrapperElement) {
+			return;
+		}
+		this._container?.removeChild(this._wrapperElement);
+		this._wrapperElement = undefined;
+
+		// TODO: Don't allow reattach init of xterm
+	}
+
 	private async _measureRenderTime(): Promise<void> {
 		await this._xtermReadyPromise;
 		const frameTimes: number[] = [];
