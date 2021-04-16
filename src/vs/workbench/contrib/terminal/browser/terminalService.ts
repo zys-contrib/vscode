@@ -626,6 +626,41 @@ export class TerminalService implements ITerminalService {
 		return instance;
 	}
 
+	public unsplitInstance(instance: ITerminalInstance): void {
+		const oldTab = this.getTabForInstance(instance);
+		if (!oldTab || oldTab.terminalInstances.length < 2) {
+			return;
+		}
+
+		oldTab.removeInstance(instance);
+
+		const newTab = this._instantiationService.createInstance(TerminalTab, this._terminalContainer, instance);
+		this._terminalTabs.push(newTab);
+
+		newTab.addDisposable(newTab.onDisposed(this._onTabDisposed.fire, this._onTabDisposed));
+		newTab.addDisposable(newTab.onInstancesChanged(this._onInstancesChanged.fire, this._onInstancesChanged));
+		this._onInstancesChanged.fire();
+	}
+
+	public moveInstance(instance: ITerminalInstance, target: ITerminalInstance): void {
+		const oldTab = this.getTabForInstance(instance);
+		const newTab = this.getTabForInstance(target);
+		if (!oldTab || !newTab) {
+			return;
+		}
+
+		// Remove from old tab, disposing of it if now empty
+		oldTab.removeInstance(instance);
+		if (oldTab.terminalInstances.length === 0) {
+			console.log('dispose oldTab');
+			oldTab.dispose();
+		}
+
+		newTab.addInstance(instance, target);
+
+		this._onInstancesChanged.fire();
+	}
+
 	protected _initInstanceListeners(instance: ITerminalInstance): void {
 		instance.addDisposable(instance.onDisposed(this._onInstanceDisposed.fire, this._onInstanceDisposed));
 		instance.addDisposable(instance.onTitleChanged(this._onInstanceTitleChanged.fire, this._onInstanceTitleChanged));

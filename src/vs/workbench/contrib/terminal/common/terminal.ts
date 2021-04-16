@@ -97,7 +97,7 @@ export interface IShellLaunchConfigResolveOptions {
 	allowAutomationShell?: boolean;
 }
 
-export const TERMINAL_DECORATIONS_SCHEME = 'vscode-terminal';
+export const terminalUrlScheme = 'vscode-terminal';
 
 export type FontWeight = 'normal' | 'bold' | number;
 
@@ -429,6 +429,7 @@ export const enum TERMINAL_COMMAND_ID {
 	NEW_WITH_PROFILE = 'workbench.action.terminal.newWithProfile',
 	SPLIT = 'workbench.action.terminal.split',
 	SPLIT_IN_ACTIVE_WORKSPACE = 'workbench.action.terminal.splitInActiveWorkspace',
+	UNSPLIT = 'workbench.action.terminal.unsplit',
 	RELAUNCH = 'workbench.action.terminal.relaunch',
 	FOCUS_PREVIOUS_PANE = 'workbench.action.terminal.focusPreviousPane',
 	FOCUS_NEXT_PANE = 'workbench.action.terminal.focusNextPane',

@@ -1235,6 +1235,21 @@ export function registerTerminalActions() {
 	registerAction2(class extends Action2 {
 		constructor() {
 			super({
+				id: TERMINAL_COMMAND_ID.UNSPLIT,
+				title: { value: localize('workbench.action.terminal.unsplit', "Unsplit Terminal"), original: 'Unsplit Terminal' },
+				f1: true,
+				category,
+				precondition: KEYBINDING_CONTEXT_TERMINAL_PROCESS_SUPPORTED
+			});
+		}
+		async run(accessor: ServicesAccessor) {
+			const terminalService = accessor.get(ITerminalService);
+			terminalService.doWithActiveInstance(t => terminalService.unsplitInstance(t));
+		}
+	});
+	registerAction2(class extends Action2 {
+		constructor() {
+			super({
 				id: TERMINAL_COMMAND_ID.SELECT_ALL,
 				title: { value: localize('workbench.action.terminal.selectAll', "Select All"), original: 'Select All' },
 				f1: true,

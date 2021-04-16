@@ -51,7 +51,7 @@ export const enum Direction {
 	Down = 3
 }
 
-export interface ITerminalTab {
+export interface ITerminalTab extends IDisposable {
 	activeInstance: ITerminalInstance | null;
 	terminalInstances: ITerminalInstance[];
 	title: string;
@@ -68,6 +68,8 @@ export interface ITerminalTab {
 	addDisposable(disposable: IDisposable): void;
 	split(shellLaunchConfig: IShellLaunchConfig): ITerminalInstance;
 	getLayoutInfo(isActive: boolean): ITerminalTabLayoutInfoById;
+	addInstance(instance: ITerminalInstance, targetPosition?: ITerminalInstance): void;
+	removeInstance(instance: ITerminalInstance): void;
 }
 
 export const enum TerminalConnectionState {
@@ -128,6 +130,17 @@ export interface ITerminalService {
 	getActiveOrCreateInstance(): ITerminalInstance;
 	splitInstance(instance: ITerminalInstance, shell?: IShellLaunchConfig): ITerminalInstance | null;
 	splitInstance(instance: ITerminalInstance, profile: ITerminalProfile): ITerminalInstance | null;
+
+	/**
+	 * Unsplits an instance, moving it into its own tab.
+	 */
+	unsplitInstance(instance: ITerminalInstance): void;
+
+	/**
+	 * Moves a terminal instance to the position of another, pushing the target instance to the
+	 * right.
+	 */
+	moveInstance(instance: ITerminalInstance, target: ITerminalInstance): void;
 
 	/**
 	 * Perform an action with the active terminal instance, if the terminal does

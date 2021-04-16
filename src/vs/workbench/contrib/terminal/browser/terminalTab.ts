@@ -264,7 +264,7 @@ export class TerminalTab extends Disposable implements ITerminalTab {
 		}
 	}
 
-	public addInstance(shellLaunchConfigOrInstance: IShellLaunchConfig | ITerminalInstance): void {
+	public addInstance(shellLaunchConfigOrInstance: IShellLaunchConfig | ITerminalInstance, targetPosition?: ITerminalInstance): void {
 		let instance: ITerminalInstance;
 		if ('instanceId' in shellLaunchConfigOrInstance) {
 			instance = shellLaunchConfigOrInstance;
@@ -278,6 +278,21 @@ export class TerminalTab extends Disposable implements ITerminalTab {
 			this._splitPaneContainer!.split(instance);
 		}
 
+		this._onInstancesChanged.fire();
+	}
+
+	public removeInstance(instance: ITerminalInstance): void {
+		const index = this._terminalInstances.indexOf(instance);
+		if (index === -1) {
+			return;
+		}
+
+		this._terminalInstances.splice(index, 1);
+		this._splitPaneContainer?.remove(instance);
+
+		// TODO: Remove listeners
+
+		// TODO: Call from ITerminalService.moveInstance
 		this._onInstancesChanged.fire();
 	}
 

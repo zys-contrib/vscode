@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { IListService, WorkbenchObjectTree } from 'vs/platform/list/browser/listService';
-import { ITreeNode, ITreeRenderer } from 'vs/base/browser/ui/tree/tree';
+import { ITreeDragOverReaction, ITreeNode, ITreeRenderer } from 'vs/base/browser/ui/tree/tree';
 import { DefaultStyleController } from 'vs/base/browser/ui/list/listWidget';
 import { IAccessibilityService } from 'vs/platform/accessibility/common/accessibility';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
@@ -18,7 +18,7 @@ import { IInstantiationService } from 'vs/platform/instantiation/common/instanti
 import { ActionBar } from 'vs/base/browser/ui/actionbar/actionbar';
 import { MenuItemAction } from 'vs/platform/actions/common/actions';
 import { MenuEntryActionViewItem } from 'vs/platform/actions/browser/menuEntryActionViewItem';
-import { TERMINAL_COMMAND_ID, TERMINAL_DECORATIONS_SCHEME } from 'vs/workbench/contrib/terminal/common/terminal';
+import { TERMINAL_COMMAND_ID, terminalUrlScheme } from 'vs/workbench/contrib/terminal/common/terminal';
 import { Codicon } from 'vs/base/common/codicons';
 import { Action } from 'vs/base/common/actions';
 import { MarkdownString } from 'vs/base/common/htmlContent';
@@ -28,11 +28,13 @@ import { IDecorationsService } from 'vs/workbench/services/decorations/browser/d
 import { IHoverService } from 'vs/workbench/services/hover/browser/hover';
 import { URI } from 'vs/base/common/uri';
 import Severity from 'vs/base/common/severity';
+import { ListDragOverEffect } from 'vs/base/browser/ui/list/list';
 
 const $ = DOM.$;
 export const MIN_TABS_WIDGET_WIDTH = 46;
 export const DEFAULT_TABS_WIDGET_WIDTH = 80;
 export const MIDPOINT_WIDGET_WIDTH = (MIN_TABS_WIDGET_WIDTH + DEFAULT_TABS_WIDGET_WIDTH) / 2;
+const TAB_HEIGHT = 22;
 
 export class TerminalTabsWidget extends WorkbenchObjectTree<ITerminalInstance>  {
 	private _decorationsProvider: TerminalDecorationsProvider | undefined;
@@ -51,7 +53,7 @@ export class TerminalTabsWidget extends WorkbenchObjectTree<ITerminalInstance>  
 	) {
 		super('TerminalTabsTree', container,
 			{
-				getHeight: () => 22,
+				getHeight: () => TAB_HEIGHT,
 				getTemplateId: () => 'terminal.tabs'
 			},
 			[instantiationService.createInstance(TerminalTabsRenderer, container, instantiationService.createInstance(ResourceLabels, DEFAULT_LABELS_CONTAINER))],
@@ -70,7 +72,43 @@ export class TerminalTabsWidget extends WorkbenchObjectTree<ITerminalInstance>  
 				smoothScrolling: configurationService.getValue<boolean>('workbench.list.smoothScrolling'),
 				multipleSelectionSupport: false,
 				expandOnlyOnTwistieClick: true,
-				selectionNavigation: true
+				selectionNavigation: true,
+				dnd: {
+					drop: (data, targetElement) => {
+						if (!targetElement) {
+							return;
+						}
+						const draggedElement = data.getData();
+						if (!draggedElement || !Array.isArray(draggedElement)) {
+							return;
+						}
+						let focused = false;
+						for (const e of draggedElement) {
+							if ('instanceId' in e) {
+								const instance = e as ITerminalInstance;
+								this._terminalService.moveInstance(instance, targetElement);
+								if (!focused) {
+									this._terminalService.setActiveInstance(instance);
+									focused = true;
+								}
+							}
+						}
+					},
+					getDragURI: (instance) => {
+						return URI.from({
+							scheme: terminalUrlScheme,
+							path: instance.instanceId.toString()
+						}).path;
+					},
+					onDragOver(data, targetElement, targetIndex, originalEvent): boolean | ITreeDragOverReaction {
+						return {
+							feedback: targetIndex ? [targetIndex] : undefined,
+							accept: true,
+							effect: ListDragOverEffect.Move
+						};
+					}
+				},
+				additionalScrollHeight: TAB_HEIGHT
 			},
 			contextKeyService,
 			listService,
@@ -160,9 +198,7 @@ class TerminalTabsRenderer implements ITreeRenderer<ITerminalInstance, never, IT
 		return this._container ? this._container.clientWidth < MIDPOINT_WIDGET_WIDTH : false;
 	}
 
-
 	renderElement(node: ITreeNode<ITerminalInstance>, index: number, template: ITerminalTabEntryTemplate): void {
-
 		let instance = node.element;
 
 		const tab = this._terminalService.getTabForInstance(instance);
@@ -216,7 +252,7 @@ class TerminalTabsRenderer implements ITreeRenderer<ITerminalInstance, never, IT
 		});
 
 		if (instance.statusList.statuses.length && hasText) {
-			const labelProps: IResourceLabelProps = { resource: URI.from({ scheme: TERMINAL_DECORATIONS_SCHEME, path: instance.instanceId.toString() }), name: label };
+			const labelProps: IResourceLabelProps = { resource: URI.from({ scheme: terminalUrlScheme, path: instance.instanceId.toString() }), name: label };
 			const options: IResourceLabelOptions = { fileDecorations: { colors: true, badges: true } };
 			template.label.setResource(labelProps, options);
 		}

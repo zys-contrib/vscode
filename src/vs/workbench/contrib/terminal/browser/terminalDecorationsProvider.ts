@@ -11,7 +11,7 @@ import { IDecorationData, IDecorationsProvider } from 'vs/workbench/services/dec
 import { Event, Emitter } from 'vs/base/common/event';
 import { Codicon } from 'vs/base/common/codicons';
 import { listErrorForeground, listWarningForeground } from 'vs/platform/theme/common/colorRegistry';
-import { TERMINAL_DECORATIONS_SCHEME } from 'vs/workbench/contrib/terminal/common/terminal';
+import { terminalUrlScheme } from 'vs/workbench/contrib/terminal/common/terminal';
 
 export interface ITerminalDecorationData {
 	tooltip: string,
@@ -33,7 +33,7 @@ export class TerminalDecorationsProvider implements IDecorationsProvider {
 	}
 
 	provideDecorations(resource: URI): IDecorationData | undefined {
-		if (resource.scheme !== TERMINAL_DECORATIONS_SCHEME || !parseInt(resource.path)) {
+		if (resource.scheme !== terminalUrlScheme || !parseInt(resource.path)) {
 			return;
 		}
 
