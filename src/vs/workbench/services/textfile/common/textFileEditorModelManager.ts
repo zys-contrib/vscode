@@ -9,7 +9,7 @@ import { Event, Emitter } from 'vs/base/common/event';
 import { URI } from 'vs/base/common/uri';
 import { TextFileEditorModel } from 'vs/workbench/services/textfile/common/textFileEditorModel';
 import { dispose, IDisposable, Disposable, DisposableStore } from 'vs/base/common/lifecycle';
-import { ITextFileEditorModel, ITextFileEditorModelManager, ITextFileEditorModelResolveOrCreateOptions, ITextFileResolveEvent, ITextFileSaveEvent, ITextFileSaveParticipant } from 'vs/workbench/services/textfile/common/textfiles';
+import { ITextFileEditorModel, ITextFileEditorModelManager, ITextFileEditorModelResolveOrCreateOptions, ITextFileResolveEvent, ITextFileSaveEvent, ITextFileSaveParticipant, ITextFileWillCreateEvent } from 'vs/workbench/services/textfile/common/textfiles';
 import { ILifecycleService } from 'vs/workbench/services/lifecycle/common/lifecycle';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
 import { ResourceMap } from 'vs/base/common/map';
@@ -28,6 +28,9 @@ import { PLAINTEXT_MODE_ID } from 'vs/editor/common/modes/modesRegistry';
 import { IUriIdentityService } from 'vs/workbench/services/uriIdentity/common/uriIdentity';
 
 export class TextFileEditorModelManager extends Disposable implements ITextFileEditorModelManager {
+
+	private readonly _onWillCreate = this._register(new Emitter<ITextFileWillCreateEvent>());
+	readonly onWillCreate = this._onWillCreate.event;
 
 	private readonly _onDidCreate = this._register(new Emitter<TextFileEditorModel>());
 	readonly onDidCreate = this._onDidCreate.event;
@@ -316,6 +319,7 @@ export class TextFileEditorModelManager extends Disposable implements ITextFileE
 
 		// Emit some events if we created the model
 		if (didCreateModel) {
+			await this.handleWillCreate(model);
 			this._onDidCreate.fire(model);
 
 			// If the model is dirty right from the beginning,
@@ -355,6 +359,17 @@ export class TextFileEditorModelManager extends Disposable implements ITextFileE
 
 			throw error;
 		}
+	}
+
+	private async handleWillCreate(model: TextFileEditorModel): Promise<void> {
+		const joiners: Promise<void>[] = [];
+		this._onWillCreate.fire({
+			join(updateWorkspaceTrustStatePromise) {
+				joiners.push(updateWorkspaceTrustStatePromise);
+			},
+			model
+		});
+		try { await Promises.settled(joiners); } catch (error) { /* Ignore */ }
 	}
 
 	private joinPendingResolve(resource: URI): Promise<void> | undefined {

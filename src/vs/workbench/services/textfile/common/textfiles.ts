@@ -295,6 +295,11 @@ export interface ITextFileSaveEvent {
 	reason: SaveReason;
 }
 
+export interface ITextFileWillCreateEvent {
+	join(promise: Promise<void>): void;
+	model: ITextFileEditorModel;
+}
+
 export interface ITextFileResolveEvent {
 	model: ITextFileEditorModel;
 	reason: TextFileResolveReason;
@@ -316,6 +321,7 @@ export interface ITextFileSaveParticipant {
 
 export interface ITextFileEditorModelManager {
 
+	readonly onWillCreate: Event<ITextFileWillCreateEvent>;
 	readonly onDidCreate: Event<ITextFileEditorModel>;
 	readonly onDidResolve: Event<ITextFileResolveEvent>;
 	readonly onDidChangeDirty: Event<ITextFileEditorModel>;

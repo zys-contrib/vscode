@@ -41,6 +41,7 @@ import { FileAccess, Schemas } from 'vs/base/common/network';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
 import { URI } from 'vs/base/common/uri';
 import { MarkdownString } from 'vs/base/common/htmlContent';
+import { ITextFileService } from 'vs/workbench/services/textfile/common/textfiles';
 
 const workspaceTrustIcon = registerIcon('workspace-trust-icon', Codicon.shield, localize('workspaceTrustIcon', "Icon for workspace trust badge."));
 
@@ -55,6 +56,7 @@ export class WorkspaceTrustRequestHandler extends Disposable implements IWorkben
 		@IDialogService private readonly dialogService: IDialogService,
 		@IActivityService private readonly activityService: IActivityService,
 		@ICommandService private readonly commandService: ICommandService,
+		@ITextFileService private readonly textFileService: ITextFileService,
 		@IWorkspaceContextService private readonly workspaceContextService: IWorkspaceContextService,
 		@IWorkspaceTrustManagementService private readonly workspaceTrustManagementService: IWorkspaceTrustManagementService,
 		@IConfigurationService private readonly configurationService: IConfigurationService,
@@ -202,6 +204,45 @@ export class WorkspaceTrustRequestHandler extends Disposable implements IWorkben
 			if (trusted) {
 				this.toggleRequestBadge(false);
 			}
+		}));
+
+		this._register(this.textFileService.files.onWillCreate(e => {
+			if (!isWorkspaceTrustEnabled(this.configurationService)) {
+				return;
+			}
+			if (!this.workspaceTrustManagementService.canSetWorkspaceTrust()) {
+				return;
+			}
+			if (e.model.resource.scheme !== Schemas.file) {
+				return;
+			}
+
+			const workspaceTrusted = this.workspaceTrustManagementService.isWorkpaceTrusted();
+			const { trusted: fileTrusted } = this.workspaceTrustManagementService.getFolderTrustInfo(e.model.resource);
+
+			return e.join(new Promise(async resolve => {
+				// Workspace is trusted and the file is not trusted
+				if (workspaceTrusted && !fileTrusted) {
+					const result = await this.dialogService.show(
+						Severity.Info,
+						localize('addWorkspaceFileMessage', "Do you trust the file(s)?"),
+						[localize('yes', 'Yes'), localize('no', 'No')],
+						{
+							detail: localize('addWorkspaceFileDetail', "You are adding file(s) to a trusted workspace. Do you want to trust the file(s)?"),
+							cancelId: 1,
+							custom: { icon: Codicon.shield }
+						}
+					);
+
+					// Mark the file as trusted
+					const parentFolder = URI.parse(dirname(e.model.resource.fsPath));
+					this.workspaceTrustManagementService.setFoldersTrust([parentFolder], result.choice === 0);
+
+					resolve();
+				}
+
+				resolve();
+			}));
 		}));
 
 		this._register(this.workspaceContextService.onWillChangeWorkspaceFolders(e => {
