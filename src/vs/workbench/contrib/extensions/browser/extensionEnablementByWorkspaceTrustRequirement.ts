@@ -13,24 +13,36 @@ import { IExtensionService } from 'vs/workbench/services/extensions/common/exten
 export class ExtensionEnablementByWorkspaceTrustRequirement extends Disposable implements IWorkbenchContribution {
 
 	constructor(
-		@IWorkspaceTrustManagementService workspaceTrustManagementService: IWorkspaceTrustManagementService,
 		@IExtensionService private readonly extensionService: IExtensionService,
 		@IWorkbenchExtensionEnablementService private readonly extensionEnablementService: IWorkbenchExtensionEnablementService,
+		@IWorkspaceTrustManagementService private readonly workspaceTrustManagementService: IWorkspaceTrustManagementService,
 	) {
 		super();
 
-		this._register(workspaceTrustManagementService.onDidChangeTrust(trusted => this.onDidChangeTrustState(trusted)));
+		this.registerListeners();
 	}
 
-	private async onDidChangeTrustState(trusted: boolean): Promise<void> {
-		if (trusted) {
-			// Untrusted -> Trusted
-			await this.extensionEnablementService.updateEnablementByWorkspaceTrustRequirement();
-		} else {
-			// Trusted -> Untrusted
-			this.extensionService.stopExtensionHosts();
-			await this.extensionEnablementService.updateEnablementByWorkspaceTrustRequirement();
-			this.extensionService.startExtensionHosts();
-		}
+	private registerListeners(): void {
+		this._register(this.workspaceTrustManagementService.onBeforeChangeTrust(e => {
+			if (!e.trusted) {
+				return;
+			}
+
+			return e.join(new Promise(resolve => {
+				// Untrusted -> Trusted
+				// Enable extensions before notifying listeners
+				this.extensionEnablementService.updateEnablementByWorkspaceTrustRequirement().then(() => resolve());
+			}));
+		}));
+
+		this._register(this.workspaceTrustManagementService.onDidChangeTrust(async trusted => {
+			if (!trusted) {
+				// Trusted -> Untrusted
+				// Restart extension host
+				this.extensionService.stopExtensionHosts();
+				await this.extensionEnablementService.updateEnablementByWorkspaceTrustRequirement();
+				this.extensionService.startExtensionHosts();
+			}
+		}));
 	}
 }

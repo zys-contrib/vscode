@@ -3,6 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
+import { Promises } from 'vs/base/common/async';
 import { Emitter } from 'vs/base/common/event';
 import { Disposable } from 'vs/base/common/lifecycle';
 import { Schemas } from 'vs/base/common/network';
@@ -15,7 +16,7 @@ import { IEnvironmentService } from 'vs/platform/environment/common/environment'
 import { registerSingleton } from 'vs/platform/instantiation/common/extensions';
 import { IStorageService, StorageScope, StorageTarget } from 'vs/platform/storage/common/storage';
 import { IWorkspaceContextService, WorkbenchState } from 'vs/platform/workspace/common/workspace';
-import { WorkspaceTrustRequestOptions, IWorkspaceTrustManagementService, IWorkspaceTrustInfo, IWorkspaceTrustUriInfo, IWorkspaceTrustRequestService } from 'vs/platform/workspace/common/workspaceTrust';
+import { WorkspaceTrustRequestOptions, IWorkspaceTrustManagementService, IWorkspaceTrustInfo, IWorkspaceTrustUriInfo, IWorkspaceTrustRequestService, WorkspaceTrustBeforeChangeEvent } from 'vs/platform/workspace/common/workspaceTrust';
 import { isSingleFolderWorkspaceIdentifier, isUntitledWorkspace, toWorkspaceIdentifier } from 'vs/platform/workspaces/common/workspaces';
 import { IUriIdentityService } from 'vs/workbench/services/uriIdentity/common/uriIdentity';
 
@@ -37,6 +38,9 @@ export class WorkspaceTrustManagementService extends Disposable implements IWork
 	_serviceBrand: undefined;
 
 	private readonly storageKey = WORKSPACE_TRUST_STORAGE_KEY;
+
+	private readonly _onBeforeChangeTrust = this._register(new Emitter<WorkspaceTrustBeforeChangeEvent>());
+	readonly onBeforeChangeTrust = this._onBeforeChangeTrust.event;
 
 	private readonly _onDidChangeTrust = this._register(new Emitter<boolean>());
 	readonly onDidChangeTrust = this._onDidChangeTrust.event;
@@ -66,7 +70,22 @@ export class WorkspaceTrustManagementService extends Disposable implements IWork
 		if (this._isWorkspaceTrusted === trusted) { return; }
 		this._isWorkspaceTrusted = trusted;
 
-		this._onDidChangeTrust.fire(trusted);
+		this.handleChangeTrust(trusted);
+	}
+
+	private async handleChangeTrust(trusted: boolean): Promise<void> {
+		const joiners: Promise<void>[] = [];
+		this._onBeforeChangeTrust.fire({
+			join(extensionEnablementPromise) {
+				joiners.push(extensionEnablementPromise);
+			},
+			trusted
+		});
+
+		try {
+			await Promises.settled(joiners);
+			this._onDidChangeTrust.fire(trusted);
+		} catch (error) { /* Ignore */ }
 	}
 
 	private registerListeners(): void {

@@ -32,13 +32,17 @@ export interface WorkspaceTrustRequestOptions {
 	readonly modal: boolean;
 }
 
-export type WorkspaceTrustChangeEvent = Event<boolean>;
+export type WorkspaceTrustBeforeChangeEvent = {
+	join(promise: Promise<void>): void;
+	readonly trusted: boolean;
+};
 export const IWorkspaceTrustManagementService = createDecorator<IWorkspaceTrustManagementService>('workspaceTrustManagementService');
 
 export interface IWorkspaceTrustManagementService {
 	readonly _serviceBrand: undefined;
 
-	onDidChangeTrust: WorkspaceTrustChangeEvent;
+	onBeforeChangeTrust: Event<WorkspaceTrustBeforeChangeEvent>;
+	onDidChangeTrust: Event<boolean>;
 	onDidChangeTrustedFolders: Event<void>;
 
 	isWorkpaceTrusted(): boolean;

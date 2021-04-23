@@ -5,11 +5,14 @@
 
 import { Emitter } from 'vs/base/common/event';
 import { URI } from 'vs/base/common/uri';
-import { IWorkspaceTrustManagementService, IWorkspaceTrustUriInfo } from 'vs/platform/workspace/common/workspaceTrust';
+import { IWorkspaceTrustManagementService, IWorkspaceTrustUriInfo, WorkspaceTrustBeforeChangeEvent } from 'vs/platform/workspace/common/workspaceTrust';
 
 
 export class TestWorkspaceTrustManagementService implements IWorkspaceTrustManagementService {
 	_serviceBrand: undefined;
+
+	private _onBeforeChangeTrust = new Emitter<WorkspaceTrustBeforeChangeEvent>();
+	onBeforeChangeTrust = this._onBeforeChangeTrust.event;
 
 	private _onDidChangeTrust = new Emitter<boolean>();
 	onDidChangeTrust = this._onDidChangeTrust.event;
