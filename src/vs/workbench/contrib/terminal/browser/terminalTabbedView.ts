@@ -7,7 +7,7 @@ import { LayoutPriority, Orientation, Sizing, SplitView } from 'vs/base/browser/
 import { Disposable, dispose, IDisposable } from 'vs/base/common/lifecycle';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
-import { ITerminalService, TerminalConnectionState } from 'vs/workbench/contrib/terminal/browser/terminal';
+import { ITerminalInstance, ITerminalService, TerminalConnectionState } from 'vs/workbench/contrib/terminal/browser/terminal';
 import { TerminalFindWidget } from 'vs/workbench/contrib/terminal/browser/terminalFindWidget';
 import { DEFAULT_TABS_WIDGET_WIDTH, MIDPOINT_WIDGET_WIDTH, MIN_TABS_WIDGET_WIDTH, TerminalTabsWidget } from 'vs/workbench/contrib/terminal/browser/terminalTabsWidget';
 import { IThemeService, IColorTheme } from 'vs/platform/theme/common/themeService';
@@ -66,6 +66,8 @@ export class TerminalTabbedView extends Disposable {
 
 	private _terminalIsTabsNarrowContextKey: IContextKey<boolean>;
 	private _terminalTabsFocusContextKey: IContextKey<boolean>;
+
+	private _horizontalScrolling: boolean | undefined;
 
 	constructor(
 		parentElement: HTMLElement,
@@ -550,4 +552,34 @@ export class TerminalTabbedView extends Disposable {
 	private _focus() {
 		this._terminalService.getActiveInstance()?.focusWhenReady();
 	}
+
+	async renameInstance(instance: ITerminalInstance, isEditing: boolean): Promise<void> {
+		this._tabTreeContainer.classList.add('highlight');
+		// if (isEditing) {
+		// 	this._horizontalScrolling = this._tabsWidget.options.horizontalScrolling;
+
+		// 	if (this._horizontalScrolling) {
+		// 		this._tabsWidget.updateOptions({ horizontalScrolling: false });
+		// 	}
+
+		// 	await this._tabsWidget.expand(instance);
+		// } else {
+		// 	if (this._horizontalScrolling !== undefined) {
+		// this._tabsWidget.updateOptions({ horizontalScrolling: this._horizontalScrolling });
+		this._tabsWidget.expand(instance, false);
+		// this._tabsWidget.reveal(true);
+		this._tabsWidget.rerender();
+	}
+
+	// this._horizontalScrolling = undefined;
+	// this._tabTreeContainer.classList.remove('highlight');
+	// }
+
+
+	// 	if(isEditing) {
+	// 		this._tabTreeContainer.classList.add('highlight');
+	// 		this._tabsWidget.reveal(instance);
+	// 	} else {
+	// 	this._tabsWidget.domFocus();
+	// }
 }

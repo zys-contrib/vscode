@@ -214,6 +214,11 @@ export class TerminalService implements ITerminalService {
 		initPromise.then(() => this._setConnected());
 	}
 
+	public renameInstance(instance?: ITerminalInstance): void {
+		const pane = this._viewsService.getActiveViewWithId(TERMINAL_VIEW_ID) as TerminalViewPane;
+		pane.renameInstance(instance);
+	}
+
 	private _setConnected() {
 		this._connectionState = TerminalConnectionState.Connected;
 		this._onDidChangeConnectionState.fire();

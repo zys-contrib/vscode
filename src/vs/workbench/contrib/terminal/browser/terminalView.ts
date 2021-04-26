@@ -169,6 +169,12 @@ export class TerminalViewPane extends ViewPane {
 		}
 	}
 
+	public renameInstance(instance?: ITerminalInstance): void {
+		if (instance) {
+			this._terminalTabbedView?.renameInstance(instance, true);
+		}
+	}
+
 	public override getActionViewItem(action: Action): IActionViewItem | undefined {
 		switch (action.id) {
 			case TERMINAL_COMMAND_ID.SWITCH_TERMINAL: {

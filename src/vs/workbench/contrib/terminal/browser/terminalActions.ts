@@ -804,7 +804,7 @@ export function registerTerminalActions() {
 			});
 		}
 		async run(accessor: ServicesAccessor) {
-			return getSelectedInstances(accessor)?.[0].rename();
+			return accessor.get(ITerminalService).renameInstance(getSelectedInstances(accessor)?.[0]);
 		}
 	});
 	registerAction2(class extends Action2 {
