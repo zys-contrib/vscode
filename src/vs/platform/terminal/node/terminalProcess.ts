@@ -45,21 +45,39 @@ const enum ShutdownConstants {
 	MaximumShutdownTime = 5000
 }
 
-const enum Constants {
+/**
+ * Constants for dealing with mitigations for the Windows/conpty hang issue.
+ *
+ * See:
+ * - https://github.com/microsoft/vscode/issues/71966
+ * - https://github.com/microsoft/vscode/issues/117956
+ * - https://github.com/microsoft/vscode/issues/121336
+ */
+const enum KillSpawnThrottleConstants {
 	/**
-	 * The minimum duration between kill and spawn calls on Windows/conpty as a mitigation for a
-	 * hang issue. See:
-	 * - https://github.com/microsoft/vscode/issues/71966
-	 * - https://github.com/microsoft/vscode/issues/117956
-	 * - https://github.com/microsoft/vscode/issues/121336
+	 * The minimum duration between spawn calls.
 	 */
-	KillSpawnThrottleInterval = 250,
+	SpawnThrottleInterval = 50,
+	/**
+	 * The minimum duration between kill calls.
+	 */
+	KillThrottleInterval = 2000,
+	/**
+	 * The delay before allowing spawn after a kill has happened, this specifically is the trigger
+	 * this is mitigating.
+	 */
+	SpawnAfterKillDelay = 3000,
 	/**
 	 * The amount of time to wait when a call is throttles beyond the exact amount, this is used to
 	 * try prevent early timeouts causing a kill/spawn call to happen at double the regular
 	 * interval.
 	 */
 	KillSpawnSpacingDuration = 50,
+}
+
+const enum KillSpawnType {
+	Spawn,
+	Kill
 }
 
 interface IWriteObject {
@@ -72,6 +90,8 @@ export class TerminalProcess extends Disposable implements ITerminalChildProcess
 	readonly shouldPersist = false;
 
 	private static _lastKillOrStart = 0;
+	private static _lastKill = 0;
+	private static _lastSpawn = 0;
 
 	private _exitCode: number | undefined;
 	private _exitMessage: string | undefined;
@@ -223,8 +243,8 @@ export class TerminalProcess extends Disposable implements ITerminalChildProcess
 
 	private async setupPtyProcess(shellLaunchConfig: IShellLaunchConfig, options: pty.IPtyForkOptions): Promise<void> {
 		const args = shellLaunchConfig.args || [];
-		await this._throttleKillSpawn();
-		this._logService.trace('IPty#spawn', shellLaunchConfig.executable, args, options);
+		await this._throttleKillSpawn(KillSpawnType.Spawn);
+		this._logService.trace('IPty#spawn', Date.now(), shellLaunchConfig.executable, args, options);
 		const ptyProcess = (await import('node-pty')).spawn(shellLaunchConfig.executable!, args, options);
 		this._ptyProcess = ptyProcess;
 		this._processStartupComplete = new Promise<void>(c => {
@@ -239,13 +259,15 @@ export class TerminalProcess extends Disposable implements ITerminalChildProcess
 				ptyProcess.pause();
 			}
 
-
 			// Refire the data event
 			this._onProcessData.fire(data);
 			if (this._closeTimeout) {
 				this._queueProcessExit();
 			}
 			this._windowsShellHelper?.checkShell();
+
+			TerminalProcess._lastSpawn = Date.now();
+			TerminalProcess._lastKill = Date.now();
 		});
 		ptyProcess.onExit(e => {
 			this._exitCode = e.exitCode;
@@ -300,8 +322,8 @@ export class TerminalProcess extends Disposable implements ITerminalChildProcess
 		// point but we want to make sure
 		try {
 			if (this._ptyProcess) {
-				await this._throttleKillSpawn();
-				this._logService.trace('IPty#kill');
+				await this._throttleKillSpawn(KillSpawnType.Kill);
+				this._logService.trace('IPty#kill', this._ptyProcess, Date.now());
 				this._ptyProcess.kill();
 			}
 		} catch (ex) {
@@ -311,15 +333,43 @@ export class TerminalProcess extends Disposable implements ITerminalChildProcess
 		this.dispose();
 	}
 
-	private async _throttleKillSpawn(): Promise<void> {
+	private async _throttleKillSpawn(type: KillSpawnType): Promise<void> {
 		// Only throttle on Windows/conpty
 		if (!isWindows || !('useConpty' in this._ptyOptions) || !this._ptyOptions.useConpty) {
 			return;
 		}
+		const interval = type === KillSpawnType.Kill ? KillSpawnThrottleConstants.KillThrottleInterval : KillSpawnThrottleConstants.SpawnThrottleInterval;
 		// Use a loop to ensure multiple calls in a single interval space out
-		while (Date.now() - TerminalProcess._lastKillOrStart < Constants.KillSpawnThrottleInterval) {
-			this._logService.trace('Throttling kill/spawn call');
-			await timeout(Constants.KillSpawnThrottleInterval - (Date.now() - TerminalProcess._lastKillOrStart) + Constants.KillSpawnSpacingDuration);
+		if (type === KillSpawnType.Kill) {
+			while (
+				// Ensure interval
+				Date.now() - TerminalProcess._lastKillOrStart < interval ||
+				// Ensure spawn after kill delay is respected
+				(type === KillSpawnType.Kill && Date.now() < TerminalProcess._lastSpawn + KillSpawnThrottleConstants.SpawnAfterKillDelay)
+			) {
+				this._logService.trace('Throttling kill call');
+				await timeout(Math.max(
+					0,
+					interval - (Date.now() - TerminalProcess._lastKillOrStart) + KillSpawnThrottleConstants.KillSpawnSpacingDuration,
+					TerminalProcess._lastSpawn + KillSpawnThrottleConstants.SpawnAfterKillDelay - Date.now()
+				));
+			}
+			// TerminalProcess._lastKill = Date.now();
+		} else {
+			while (
+				// Ensure interval
+				Date.now() - TerminalProcess._lastKillOrStart < interval ||
+				// Ensure kill after spawn delay is respected
+				(type === KillSpawnType.Spawn && Date.now() < TerminalProcess._lastKill + KillSpawnThrottleConstants.SpawnAfterKillDelay)
+			) {
+				this._logService.trace('Throttling spawn call');
+				await timeout(Math.max(
+					0,
+					interval - (Date.now() - TerminalProcess._lastKillOrStart) + KillSpawnThrottleConstants.KillSpawnSpacingDuration,
+					TerminalProcess._lastKill + KillSpawnThrottleConstants.SpawnAfterKillDelay - Date.now()
+				));
+			}
+			// TerminalProcess._lastSpawn = Date.now();
 		}
 		TerminalProcess._lastKillOrStart = Date.now();
 	}
