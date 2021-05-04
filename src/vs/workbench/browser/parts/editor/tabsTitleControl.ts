@@ -25,7 +25,7 @@ import { IDisposable, dispose, DisposableStore, combinedDisposable, MutableDispo
 import { ScrollableElement } from 'vs/base/browser/ui/scrollbar/scrollableElement';
 import { ScrollbarVisibility } from 'vs/base/common/scrollable';
 import { getOrSet } from 'vs/base/common/map';
-import { IThemeService, registerThemingParticipant } from 'vs/platform/theme/common/themeService';
+import { IThemeService, registerThemingParticipant, ThemeIcon } from 'vs/platform/theme/common/themeService';
 import { TAB_INACTIVE_BACKGROUND, TAB_ACTIVE_BACKGROUND, TAB_ACTIVE_FOREGROUND, TAB_INACTIVE_FOREGROUND, TAB_BORDER, EDITOR_DRAG_AND_DROP_BACKGROUND, TAB_UNFOCUSED_ACTIVE_FOREGROUND, TAB_UNFOCUSED_INACTIVE_FOREGROUND, TAB_UNFOCUSED_ACTIVE_BACKGROUND, TAB_UNFOCUSED_ACTIVE_BORDER, TAB_ACTIVE_BORDER, TAB_HOVER_BACKGROUND, TAB_HOVER_BORDER, TAB_UNFOCUSED_HOVER_BACKGROUND, TAB_UNFOCUSED_HOVER_BORDER, EDITOR_GROUP_HEADER_TABS_BACKGROUND, WORKBENCH_BACKGROUND, TAB_ACTIVE_BORDER_TOP, TAB_UNFOCUSED_ACTIVE_BORDER_TOP, TAB_ACTIVE_MODIFIED_BORDER, TAB_INACTIVE_MODIFIED_BORDER, TAB_UNFOCUSED_ACTIVE_MODIFIED_BORDER, TAB_UNFOCUSED_INACTIVE_MODIFIED_BORDER, TAB_UNFOCUSED_INACTIVE_BACKGROUND, TAB_HOVER_FOREGROUND, TAB_UNFOCUSED_HOVER_FOREGROUND, EDITOR_GROUP_HEADER_TABS_BORDER, TAB_LAST_PINNED_BORDER } from 'vs/workbench/common/theme';
 import { activeContrastBorder, contrastBorder, editorBackground, breadcrumbsBackground } from 'vs/platform/theme/common/colorRegistry';
 import { ResourcesDropHandler, DraggedEditorIdentifier, DraggedEditorGroupIdentifier, DragAndDropObserver } from 'vs/workbench/browser/dnd';
@@ -49,7 +49,11 @@ import { coalesce, insert } from 'vs/base/common/arrays';
 import { ColorScheme } from 'vs/platform/theme/common/theme';
 import { isSafari } from 'vs/base/browser/browser';
 import { equals } from 'vs/base/common/objects';
+import { registerIcon } from 'vs/platform/theme/common/iconRegistry';
+import { Codicon } from 'vs/base/common/codicons';
 
+const dirtyIcon = registerIcon('tabs-dirty', Codicon.circleFilled, localize('dirtyIcon', 'Icon for when a file is dirty.'));
+const closeIcon = registerIcon('tabs-close', Codicon.close, localize('closeIcon', 'Icon for closing a tab.'));
 interface IEditorInputLabel {
 	name?: string;
 	description?: string;
@@ -1236,10 +1240,18 @@ export class TabsTitleControl extends TitleControl {
 
 	private doRedrawTabDirty(isGroupActive: boolean, isTabActive: boolean, editor: IEditorInput, tabContainer: HTMLElement): boolean {
 		let hasModifiedBorderColor = false;
+		let iconContainer = tabContainer.querySelector('.codicon');
+		let dirtyIconClass = ThemeIcon.asClassNameArray(dirtyIcon);
+		let closeIconClass = ThemeIcon.asClassNameArray(closeIcon);
 
 		// Tab: dirty (unless saving)
 		if (editor.isDirty() && !editor.isSaving()) {
 			tabContainer.classList.add('dirty');
+
+			// swap dirty icon
+			iconContainer?.classList.remove('codicon', 'codicon-close');
+			iconContainer?.classList.remove(closeIconClass[0], closeIconClass[1]);
+			iconContainer?.classList.add(dirtyIconClass[0], dirtyIconClass[1]);
 
 			// Highlight modified tabs with a border if configured
 			if (this.accessor.partOptions.highlightModifiedTabs) {
@@ -1270,6 +1282,10 @@ export class TabsTitleControl extends TitleControl {
 		else {
 			tabContainer.classList.remove('dirty', 'dirty-border-top');
 			tabContainer.style.removeProperty('--tab-dirty-border-top-color');
+
+			// swap close icon
+			iconContainer?.classList.remove(dirtyIconClass[0], dirtyIconClass[1]);
+			iconContainer?.classList.add(closeIconClass[0], closeIconClass[1]);
 		}
 
 		return hasModifiedBorderColor;
