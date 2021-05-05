@@ -127,6 +127,7 @@ export class LocalProcessExtensionHost implements IExtensionHost {
 
 		this._toDispose.add(this._onExit);
 		this._toDispose.add(this._lifecycleService.onWillShutdown(e => this._onWillShutdown(e)));
+		this._toDispose.add(this._lifecycleService.onDidShutdown(reason => this.terminate()));
 		this._toDispose.add(this._extensionHostDebugService.onClose(event => {
 			if (this._isExtensionDevHost && this._environmentService.debugExtensionHost.debugId === event.sessionId) {
 				this._nativeHostService.closeWindow();
@@ -238,7 +239,6 @@ export class LocalProcessExtensionHost implements IExtensionHost {
 
 				// Run Extension Host as fork of current process
 				this._extensionHostProcess = fork(FileAccess.asFileUri('bootstrap-fork', require).fsPath, ['--type=extensionHost'], opts);
-				this._extensionHostProcess.unref();
 
 				// Catch all output coming from the extension host process
 				type Output = { data: string, format: string[] };
@@ -529,7 +529,6 @@ export class LocalProcessExtensionHost implements IExtensionHost {
 	private _onExtHostProcessExit(code: number, signal: string): void {
 		if (this._terminating) {
 			// Expected termination path (we asked the process to terminate)
-			this._extensionHostProcess?.kill();
 			return;
 		}
 
@@ -609,31 +608,42 @@ export class LocalProcessExtensionHost implements IExtensionHost {
 		return withNullAsUndefined(this._inspectPort);
 	}
 
-	public terminate(): Promise<void> {
-		return new Promise((c) => {
-			if (this._terminating) {
-				c();
-			}
-			this._terminating = true;
+	public terminate(): void {
+		if (this._terminating) {
+			return;
+		}
+		this._terminating = true;
 
-			this._toDispose.dispose();
+		this._toDispose.dispose();
 
-			if (this._messageProtocol) {
-				this._messageProtocol.then((protocol) => {
-					// Send the extension host a request to terminate itself
-					// (graceful termination)
-					protocol.send(createMessageOfType(MessageType.Terminate));
-					protocol.flush();
-					protocol.dispose();
-					c(this._cleanResources(false));
-				}).catch(() => {
-					c(this._cleanResources(true));
-				});
-			}
+		if (!this._messageProtocol) {
+			// .start() was not called
+			return;
+		}
+
+		this._messageProtocol.then((protocol) => {
+
+			// Send the extension host a request to terminate itself
+			// (graceful termination)
+			protocol.send(createMessageOfType(MessageType.Terminate));
+
+			protocol.getSocket().dispose();
+
+			protocol.dispose();
+
+			// Give the extension host 10s, after which we will
+			// try to kill the process and release any resources
+			setTimeout(() => this._cleanResources(), 10 * 1000);
+
+		}, (err) => {
+
+			// Establishing a protocol with the extension host failed, so
+			// try to kill the process and release any resources.
+			this._cleanResources();
 		});
 	}
 
-	private _cleanResources(killChild: boolean): void {
+	private _cleanResources(): void {
 		if (this._namedPipeServer) {
 			this._namedPipeServer.close();
 			this._namedPipeServer = null;
@@ -643,10 +653,8 @@ export class LocalProcessExtensionHost implements IExtensionHost {
 			this._extensionHostConnection = null;
 		}
 		if (this._extensionHostProcess) {
-			if (killChild) {
-				this._extensionHostProcess.kill();
-				this._extensionHostProcess = null;
-			}
+			this._extensionHostProcess.kill();
+			this._extensionHostProcess = null;
 		}
 	}
 
@@ -658,6 +666,5 @@ export class LocalProcessExtensionHost implements IExtensionHost {
 			this._extensionHostDebugService.terminateSession(this._environmentService.debugExtensionHost.debugId);
 			event.join(timeout(100 /* wait a bit for IPC to get delivered */), 'join.extensionDevelopment');
 		}
-		event.join(this.terminate(), 'join.extensionHostTerminate');
 	}
 }
