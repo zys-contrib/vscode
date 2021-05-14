@@ -43,6 +43,7 @@ export interface IWorkspaceTrustManagementService {
 
 	addWorkspaceTrustTransitionParticipant(participant: IWorkspaceTrustTransitionParticipant): IDisposable;
 	isWorkpaceTrusted(): boolean;
+	isWorkspaceTrustEnabled(): boolean;
 	canSetParentFolderTrust(): boolean;
 	setParentFolderTrust(trusted: boolean): void;
 	canSetWorkspaceTrust(): boolean;

@@ -30,14 +30,6 @@ export const WorkspaceTrustContext = {
 	IsTrusted: new RawContextKey<boolean>('isWorkspaceTrusted', false, localize('workspaceTrustCtx', "Whether the current workspace has been trusted by the user."))
 };
 
-export function isWorkspaceTrustEnabled(configurationService: IConfigurationService): boolean {
-	if (isWeb) {
-		return false;
-	}
-
-	return (configurationService.inspect<boolean>(WORKSPACE_TRUST_ENABLED).userValue ?? configurationService.inspect<boolean>(WORKSPACE_TRUST_ENABLED).defaultValue) ?? false;
-}
-
 export class WorkspaceTrustManagementService extends Disposable implements IWorkspaceTrustManagementService {
 
 	_serviceBrand: undefined;
@@ -120,7 +112,7 @@ export class WorkspaceTrustManagementService extends Disposable implements IWork
 	}
 
 	private calculateWorkspaceTrust(): boolean {
-		if (!isWorkspaceTrustEnabled(this.configurationService)) {
+		if (!this.isWorkspaceTrustEnabled()) {
 			return true;
 		}
 
@@ -267,6 +259,14 @@ export class WorkspaceTrustManagementService extends Disposable implements IWork
 
 	isWorkpaceTrusted(): boolean {
 		return this._isWorkspaceTrusted;
+	}
+
+	isWorkspaceTrustEnabled(): boolean {
+		if (isWeb) {
+			return false;
+		}
+
+		return (this.configurationService.inspect<boolean>(WORKSPACE_TRUST_ENABLED).userValue ?? this.configurationService.inspect<boolean>(WORKSPACE_TRUST_ENABLED).defaultValue) ?? false;
 	}
 
 	setParentFolderTrust(trusted: boolean): void {

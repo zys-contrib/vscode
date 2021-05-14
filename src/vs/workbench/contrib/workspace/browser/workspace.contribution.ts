@@ -25,7 +25,7 @@ import { IStatusbarEntry, IStatusbarEntryAccessor, IStatusbarService, StatusbarA
 import { IEditorRegistry, EditorDescriptor } from 'vs/workbench/browser/editor';
 import { shieldIcon, WorkspaceTrustEditor } from 'vs/workbench/contrib/workspace/browser/workspaceTrustEditor';
 import { WorkspaceTrustEditorInput } from 'vs/workbench/services/workspaces/browser/workspaceTrustEditorInput';
-import { isWorkspaceTrustEnabled, WORKSPACE_TRUST_ENABLED, WORKSPACE_TRUST_STARTUP_PROMPT } from 'vs/workbench/services/workspaces/common/workspaceTrust';
+import { WORKSPACE_TRUST_ENABLED, WORKSPACE_TRUST_STARTUP_PROMPT } from 'vs/workbench/services/workspaces/common/workspaceTrust';
 import { EditorInput, IEditorInputSerializer, IEditorInputFactoryRegistry, EditorExtensions } from 'vs/workbench/common/editor';
 import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
 import { IWorkspaceContextService } from 'vs/platform/workspace/common/workspace';
@@ -74,7 +74,7 @@ export class WorkspaceTrustRequestHandler extends Disposable implements IWorkben
 
 		this.statusbarEntryAccessor = this._register(new MutableDisposable<IStatusbarEntryAccessor>());
 
-		if (isWorkspaceTrustEnabled(configurationService)) {
+		if (this.workspaceTrustManagementService.isWorkspaceTrustEnabled()) {
 			this.registerListeners();
 			this.createStatusbarEntry();
 
@@ -305,7 +305,7 @@ export class WorkspaceTrustRequestHandler extends Disposable implements IWorkben
 			if (e.fromCache) {
 				return;
 			}
-			if (!isWorkspaceTrustEnabled(this.configurationService)) {
+			if (!this.workspaceTrustManagementService.isWorkspaceTrustEnabled()) {
 				return;
 			}
 			const trusted = this.workspaceTrustManagementService.isWorkpaceTrusted();
@@ -450,7 +450,6 @@ Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Configuration)
  */
 class WorkspaceTrustTelemetryContribution extends Disposable implements IWorkbenchContribution {
 	constructor(
-		@IConfigurationService private readonly configurationService: IConfigurationService,
 		@IExtensionService private readonly extensionService: IExtensionService,
 		@ITelemetryService private readonly telemetryService: ITelemetryService,
 		@IWorkspaceContextService private readonly workspaceContextService: IWorkspaceContextService,
@@ -466,7 +465,7 @@ class WorkspaceTrustTelemetryContribution extends Disposable implements IWorkben
 	}
 
 	private logInitialWorkspaceTrustInfo(): void {
-		if (!isWorkspaceTrustEnabled(this.configurationService)) {
+		if (!this.workspaceTrustManagementService.isWorkspaceTrustEnabled()) {
 			return;
 		}
 
@@ -484,7 +483,7 @@ class WorkspaceTrustTelemetryContribution extends Disposable implements IWorkben
 	}
 
 	private logWorkspaceTrustChangeEvent(isTrusted: boolean): void {
-		if (!isWorkspaceTrustEnabled(this.configurationService)) {
+		if (!this.workspaceTrustManagementService.isWorkspaceTrustEnabled()) {
 			return;
 		}
 
@@ -544,7 +543,7 @@ class WorkspaceTrustTelemetryContribution extends Disposable implements IWorkben
 	}
 
 	private async logWorkspaceTrustRequest(): Promise<void> {
-		if (!isWorkspaceTrustEnabled(this.configurationService)) {
+		if (!this.workspaceTrustManagementService.isWorkspaceTrustEnabled()) {
 			return;
 		}
 
