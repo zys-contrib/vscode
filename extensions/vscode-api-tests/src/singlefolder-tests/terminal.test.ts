@@ -228,6 +228,38 @@ import { assertNoRpc } from '../utils';
 			});
 		});
 
+		test('activeTerminal should be set after killing a terminal', async () => {
+			const terminalA = window.createTerminal();
+			terminalA.show();
+			const resultA = await new Promise<Terminal>(r => {
+				disposables.push(window.onDidOpenTerminal(t => {
+					if (t === terminalA) {
+						r(t);
+					}
+				}));
+			});
+			equal(resultA, terminalA);
+			const terminalB = window.createTerminal();
+			terminalB.show();
+			const resultB = await new Promise<Terminal>(r => {
+				disposables.push(window.onDidOpenTerminal(t => {
+					if (t === terminalB) {
+						r(t);
+					}
+				}));
+			});
+			equal(resultB, terminalB);
+			await new Promise<void>(r => {
+				disposables.push(window.onDidCloseTerminal(t => {
+					if (t === terminalA) {
+						r();
+					}
+				}));
+				terminalA.dispose();
+			});
+			equal(terminalB, window.activeTerminal);
+		});
+
 		// test('onDidChangeActiveTerminal should fire when new terminals are created', (done) => {
 		// 	const reg1 = window.onDidChangeActiveTerminal((active: Terminal | undefined) => {
 		// 		equal(active, terminal);
