@@ -3,6 +3,8 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
+import { URI } from 'vs/base/common/uri';
+
 /**
  * This is the place for API experiments and proposals.
  * These API are NOT stable and subject to change. They are only available in the Insiders
@@ -891,9 +893,9 @@ declare module 'vscode' {
 
 	export interface TerminalOptions {
 		/**
-		 * A codicon ID to associate with this terminal.
+		 * The icon path or {@link ThemeIcon} to associate with this terminal.
 		 */
-		readonly icon?: string;
+		iconPath?: string | URI | { light: URI; dark: URI } | ThemeIcon;
 	}
 
 	//#endregion

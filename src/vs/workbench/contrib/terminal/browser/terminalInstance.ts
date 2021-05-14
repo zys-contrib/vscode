@@ -1810,7 +1810,7 @@ export class TerminalInstance extends Disposable implements ITerminalInstance {
 			matchOnDescription: true
 		});
 		if (result) {
-			this.shellLaunchConfig.icon = result.description;
+			this.shellLaunchConfig.iconPath = result.description;
 			this._onIconChanged.fire(this);
 		}
 	}

@@ -17,6 +17,7 @@ import { getSystemShell } from 'vs/base/node/shell';
 import { getWindowsBuildNumber } from 'vs/platform/terminal/node/terminalEnvironment';
 import { execFile } from 'child_process';
 import { escapeNonWindowsPath } from 'vs/platform/terminal/common/terminalEnvironment';
+import { getIconFromPath } from 'vs/platform/terminal/node/iconResolverService';
 
 type WorkspaceId = string;
 
@@ -91,7 +92,7 @@ export class PtyService extends Disposable implements IPtyService {
 		if (process.onProcessResolvedShellLaunchConfig) {
 			process.onProcessResolvedShellLaunchConfig(event => this._onProcessResolvedShellLaunchConfig.fire({ id, event }));
 		}
-		const persistentProcess = new PersistentTerminalProcess(id, process, workspaceId, workspaceName, shouldPersist, cols, rows, this._logService, shellLaunchConfig.icon);
+		const persistentProcess = new PersistentTerminalProcess(id, process, workspaceId, workspaceName, shouldPersist, cols, rows, this._logService, getIconFromPath(shellLaunchConfig.iconPath));
 		process.onProcessExit(() => {
 			persistentProcess.dispose();
 			this._ptys.delete(id);
