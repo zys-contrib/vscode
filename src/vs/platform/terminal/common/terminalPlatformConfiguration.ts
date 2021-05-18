@@ -49,6 +49,41 @@ const terminalProfileSchema: IJSONSchema = {
 		}
 	}
 };
+const terminalSourceSchema: IJSONSchema = {
+	type: 'object',
+	required: ['source'],
+	properties: {
+		source: {
+			description: localize('terminalProfile.windowsSource', 'A profile source that will auto detect the paths to the shell.'),
+			enum: ['PowerShell', 'Git Bash']
+		},
+		args: {
+			description: localize('terminalProfile.args', 'An optional set of arguments to run the shell executable with.'),
+			type: 'array',
+			items: {
+				type: 'string'
+			}
+		},
+		overrideName: {
+			description: localize('terminalProfile.overrideName', 'Controls whether or not the profile name overrides the auto detected one.'),
+			type: 'boolean'
+		},
+		icon: {
+			description: localize('terminalProfile.icon', 'A codicon ID to associate with this terminal.'),
+			type: 'string',
+			enum: Array.from(iconRegistry.all, icon => icon.id),
+			markdownEnumDescriptions: Array.from(iconRegistry.all, icon => `$(${icon.id})`),
+		},
+		env: {
+			markdownDescription: localize('terminalProfile.env', "An object with environment variables that will be added to the terminal profile process. Set to `null` to delete environment variables from the base environment."),
+			type: 'object',
+			additionalProperties: {
+				type: ['string', 'null']
+			},
+			default: {}
+		}
+	}
+};
 
 const shellDeprecationMessageLinux = localize('terminal.integrated.shell.linux.deprecation', "This is deprecated, the new recommended way to configure your default shell is by creating a terminal profile in {0} and setting its profile name as the default in {1}. This will currently take priority over the new profiles settings but that will change in the future.", '`#terminal.integrated.profiles.linux#`', '`#terminal.integrated.defaultProfile.linux#`');
 const shellDeprecationMessageOsx = localize('terminal.integrated.shell.osx.deprecation', "This is deprecated, the new recommended way to configure your default shell is by creating a terminal profile in {0} and setting its profile name as the default in {1}. This will currently take priority over the new profiles settings but that will change in the future.", '`#terminal.integrated.profiles.osx#`', '`#terminal.integrated.defaultProfile.osx#`');
@@ -86,6 +121,36 @@ const terminalPlatformConfiguration: IConfigurationNode = {
 			}, "A path that when set will override {0} and ignore {1} values for automation-related terminal usage like tasks and debug.", '`terminal.integrated.shell.windows`', '`shellArgs`'),
 			type: ['string', 'null'],
 			default: null
+		},
+		[TerminalSettingId.AutomationProfileLinux]: {
+			restricted: true,
+			markdownDescription: localize('terminal.integrated.automationProfile.linux', "The terminal profile to use on Linux for automation-related terminal usage like tasks and debug. This setting will currently be ignored if {0} is set.", '#terminal.integrated.automationShell.linux#'),
+			type: ['object', 'null'],
+			default: null,
+			'anyOf': [
+				{ type: 'null' },
+				terminalProfileSchema
+			]
+		},
+		[TerminalSettingId.AutomationProfileMacOs]: {
+			restricted: true,
+			description: localize('terminal.integrated.automationProfile.osx', "The terminal profile to use on macOS for automation-related terminal usage like tasks and debug. This setting will currently be ignored if {0} is set.", '#terminal.integrated.automationShell.osx#'),
+			type: ['object', 'null'],
+			default: null,
+			'anyOf': [
+				{ type: 'null' },
+				terminalProfileSchema
+			]
+		},
+		[TerminalSettingId.AutomationProfileWindows]: {
+			restricted: true,
+			description: localize('terminal.integrated.automationProfile.windows', "The terminal profile to use for automation-related terminal usage like tasks and debug. This setting will currently be ignored if {0} is set.", '#terminal.integrated.automationShell.windows#'),
+			type: ['object', 'null'],
+			default: null,
+			'anyOf': [
+				{ type: 'null' },
+				terminalProfileSchema
+			]
 		},
 		[TerminalSettingId.ShellLinux]: {
 			restricted: true,
@@ -179,41 +244,7 @@ const terminalPlatformConfiguration: IConfigurationNode = {
 			},
 			additionalProperties: {
 				'anyOf': [
-					{
-						type: 'object',
-						required: ['source'],
-						properties: {
-							source: {
-								description: localize('terminalProfile.windowsSource', 'A profile source that will auto detect the paths to the shell.'),
-								enum: ['PowerShell', 'Git Bash']
-							},
-							args: {
-								description: localize('terminalProfile.args', 'An optional set of arguments to run the shell executable with.'),
-								type: 'array',
-								items: {
-									type: 'string'
-								}
-							},
-							overrideName: {
-								description: localize('terminalProfile.overrideName', 'Controls whether or not the profile name overrides the auto detected one.'),
-								type: 'boolean'
-							},
-							icon: {
-								description: localize('terminalProfile.icon', 'A codicon ID to associate with this terminal.'),
-								type: 'string',
-								enum: Array.from(iconRegistry.all, icon => icon.id),
-								markdownEnumDescriptions: Array.from(iconRegistry.all, icon => `$(${icon.id})`),
-							},
-							env: {
-								markdownDescription: localize('terminalProfile.env', "An object with environment variables that will be added to the terminal profile process. Set to `null` to delete environment variables from the base environment."),
-								type: 'object',
-								additionalProperties: {
-									type: ['string', 'null']
-								},
-								default: {}
-							}
-						}
-					},
+					terminalSourceSchema,
 					{ type: 'null' },
 					terminalProfileSchema
 				]

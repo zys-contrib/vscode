@@ -246,15 +246,23 @@ export abstract class BaseTerminalProfileResolverService implements ITerminalPro
 	}
 
 	private _getUnresolvedAutomationShellProfile(options: IShellLaunchConfigResolveOptions): ITerminalProfile | undefined {
+		// Use automationShell first
 		const automationShell = this.getSafeConfigValue('automationShell', options.os);
-		if (!automationShell || typeof automationShell !== 'string') {
-			return undefined;
+		if (automationShell && typeof automationShell === 'string') {
+			return {
+				path: automationShell,
+				profileName: generatedProfileName,
+				isDefault: false
+			};
 		}
-		return {
-			path: automationShell,
-			profileName: generatedProfileName,
-			isDefault: false
-		};
+
+		// Use automationProfile second
+		const automationProfile = this.getSafeConfigValue('automationProfile', options.os);
+		if (this._isValidAutomationProfile(automationProfile, options.os)) {
+			return automationProfile;
+		}
+
+		return undefined;
 	}
 
 	private async _resolveProfile(profile: ITerminalProfile, options: IShellLaunchConfigResolveOptions): Promise<ITerminalProfile> {
@@ -347,6 +355,16 @@ export abstract class BaseTerminalProfileResolverService implements ITerminalPro
 			return true;
 		}
 		if (Array.isArray(shellArgs) && shellArgs.every(e => typeof e === 'string')) {
+			return true;
+		}
+		return false;
+	}
+
+	private _isValidAutomationProfile(profile: unknown, os: OperatingSystem): profile is ITerminalProfile {
+		if (!profile === undefined || typeof profile !== 'object' || profile === null) {
+			return false;
+		}
+		if ('path' in profile && typeof (profile as { path: unknown }).path === 'string') {
 			return true;
 		}
 		return false;

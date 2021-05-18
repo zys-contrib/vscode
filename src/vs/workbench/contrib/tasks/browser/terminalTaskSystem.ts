@@ -1031,11 +1031,15 @@ export class TerminalTaskSystem extends Disposable implements ITaskSystem {
 				os,
 				remoteAuthority: this.environmentService.remoteAuthority
 			});
-			const defaultConfig = {
-				shell: defaultProfile.path,
-				args: defaultProfile.args
+			shellLaunchConfig = {
+				name: terminalName,
+				description,
+				executable: defaultProfile.path,
+				args: defaultProfile.args,
+				icon: defaultProfile.icon,
+				env: { ...defaultProfile.env },
+				waitOnExit
 			};
-			shellLaunchConfig = { name: terminalName, description, executable: defaultConfig.shell, args: defaultConfig.args, waitOnExit };
 			let shellSpecified: boolean = false;
 			let shellOptions: ShellConfiguration | undefined = task.command.options && task.command.options.shell;
 			if (shellOptions) {
@@ -1157,7 +1161,11 @@ export class TerminalTaskSystem extends Disposable implements ITaskSystem {
 			shellLaunchConfig.cwd = isUNC(cwd) ? cwd : resources.toLocalResource(URI.from({ scheme: Schemas.file, path: cwd }), this.environmentService.remoteAuthority, this.pathService.defaultUriScheme);
 		}
 		if (options.env) {
-			shellLaunchConfig.env = options.env;
+			if (shellLaunchConfig.env) {
+				shellLaunchConfig.env = { ...shellLaunchConfig.env, ...options.env };
+			} else {
+				shellLaunchConfig.env = options.env;
+			}
 		}
 		shellLaunchConfig.isFeatureTerminal = true;
 		shellLaunchConfig.useShellEnvironment = true;
@@ -1208,7 +1216,7 @@ export class TerminalTaskSystem extends Disposable implements ITaskSystem {
 				return [undefined, undefined, new TaskError(Severity.Error, nls.localize('TerminalTaskSystem', 'Can\'t execute a shell command on an UNC drive using cmd.exe.'), TaskErrors.UnknownError)];
 			}
 		}
-		if (this.currentTask.shellLaunchConfig) {
+		if (this.currentTask.shellLaunchConfig && this.currentTask.shellLaunchConfig.icon === undefined) {
 			this.currentTask.shellLaunchConfig.icon = 'tools';
 		}
 
