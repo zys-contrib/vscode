@@ -33,6 +33,7 @@ import { disposableTimeout } from 'vs/base/common/async';
 import { ElementsDragAndDropData } from 'vs/base/browser/ui/list/listView';
 import { URI } from 'vs/base/common/uri';
 import { Schemas } from 'vs/base/common/network';
+import { HoverPosition } from 'vs/base/browser/ui/hover/hoverWidget';
 
 const $ = DOM.$;
 
@@ -79,7 +80,7 @@ export class TerminalTabList extends WorkbenchList<ITerminalInstance> {
 				smoothScrolling: configurationService.getValue<boolean>('workbench.list.smoothScrolling'),
 				multipleSelectionSupport: true,
 				additionalScrollHeight: TerminalTabsListSizes.TabHeight,
-				dnd: instantiationService.createInstance(TerminalTabsDragAndDrop)
+				dnd: instantiationService.createInstance(TerminalTabsDragAndDrop, container)
 			},
 			contextKeyService,
 			listService,
@@ -404,8 +405,10 @@ class TerminalTabsDragAndDrop implements IListDragAndDrop<ITerminalInstance> {
 	private _autoFocusDisposable: IDisposable = Disposable.None;
 
 	constructor(
+		private readonly _container: HTMLElement,
 		@ITerminalService private _terminalService: ITerminalService,
-		@ITerminalInstanceService private _terminalInstanceService: ITerminalInstanceService
+		@ITerminalInstanceService private _terminalInstanceService: ITerminalInstanceService,
+		@IHoverService private _hoverService: IHoverService
 	) { }
 
 	getDragURI(instance: ITerminalInstance): string | null {
@@ -430,8 +433,12 @@ class TerminalTabsDragAndDrop implements IListDragAndDrop<ITerminalInstance> {
 		}
 	}
 
+	private _dragState = 0;
+
 	onDragOver(data: IDragAndDropData, targetInstance: ITerminalInstance | undefined, targetIndex: number | undefined, originalEvent: DragEvent): boolean | IListDragOverReaction {
 		let result = true;
+
+		// TODO: Only do on terminal drag
 
 		const didChangeAutoFocusInstance = this._autoFocusInstance !== targetInstance;
 		if (didChangeAutoFocusInstance) {
@@ -440,10 +447,35 @@ class TerminalTabsDragAndDrop implements IListDragAndDrop<ITerminalInstance> {
 		}
 
 		if (!targetInstance) {
+			if (this._dragState !== 1) {
+				this._hoverService.showHover({
+					target: this._container,
+					text: 'Drag to empty area to move this terminal to end',
+					hoverPosition: HoverPosition.LEFT,
+					compact: true,
+					showPointer: true
+				});
+				this._dragState = 1;
+			}
+
 			return result;
 		}
 
+		if (this._dragState !== 2) {
+			console.log(this._container);
+			this._hoverService.showHover({
+				target: this._container,
+				text: 'Drag within list to rearrange this group',
+				hoverPosition: HoverPosition.LEFT,
+				compact: true,
+				showPointer: true
+			});
+
+			this._dragState = 2;
+		}
+
 		if (didChangeAutoFocusInstance) {
+			// TODO: Make sure this is still the correct state
 			this._autoFocusDisposable = disposableTimeout(() => {
 				this._terminalService.setActiveInstance(targetInstance);
 				this._autoFocusInstance = undefined;

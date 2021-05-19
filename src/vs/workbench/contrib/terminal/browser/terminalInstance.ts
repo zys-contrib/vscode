@@ -59,6 +59,8 @@ import { URI } from 'vs/base/common/uri';
 import { Schemas } from 'vs/base/common/network';
 import { DataTransfers } from 'vs/base/browser/dnd';
 import { DragAndDropObserver, IDragAndDropObserverCallbacks } from 'vs/workbench/browser/dnd';
+import { IHoverService } from 'vs/workbench/services/hover/browser/hover';
+import { HoverPosition } from 'vs/base/browser/ui/hover/hoverWidget';
 
 // How long in milliseconds should an average frame take to render for a notification to appear
 // which suggests the fallback DOM-based renderer
@@ -752,7 +754,7 @@ export class TerminalInstance extends Disposable implements ITerminalInstance {
 			this._refreshSelectionContextKey();
 		}));
 
-		const dndController = new TerminalInstanceDropAndDropController(this._container.parentElement!);
+		const dndController = this._instantiationService.createInstance(TerminalInstanceDropAndDropController, this._container.parentElement!);
 		dndController.onDropTerminal(e => this._onRequestAddInstanceToGroup.fire(e));
 		dndController.onDropFile(async path => {
 			const preparedPath = await this._terminalInstanceService.preparePathForTerminalAsync(path, this.shellLaunchConfig.executable, this.title, this.shellType, this.isRemote);
@@ -1834,7 +1836,8 @@ class TerminalInstanceDropAndDropController implements IDragAndDropObserverCallb
 	get onDropTerminal(): Event<IRequestAddInstanceToGroupEvent> { return this._onDropTerminal.event; }
 
 	constructor(
-		private readonly _container: HTMLElement
+		private readonly _container: HTMLElement,
+		@IHoverService private readonly _hoverService: IHoverService
 	) {
 	}
 
@@ -1851,6 +1854,14 @@ class TerminalInstanceDropAndDropController implements IDragAndDropObserverCallb
 			const side = this._getDropSide(e);
 			this._dropOverlay.classList.toggle('drop-left', side === 'left');
 			this._dropOverlay.classList.toggle('drop-right', side === 'right');
+
+			this._hoverService.showHover({
+				target: this._dropOverlay,
+				text: 'Drag within terminal to create a split terminal',
+				hoverPosition: HoverPosition.ABOVE,
+				compact: true,
+				showPointer: true
+			});
 		}
 
 		if (!this._dropOverlay.parentElement) {
