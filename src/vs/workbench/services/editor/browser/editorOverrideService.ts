@@ -10,11 +10,10 @@ import { basename, extname, isEqual } from 'vs/base/common/resources';
 import { URI } from 'vs/base/common/uri';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
 import { EditorActivation, EditorOverride, IEditorOptions, ITextEditorOptions } from 'vs/platform/editor/common/editor';
-import { EditorResourceAccessor, IEditorInput, IEditorInputWithOptions, IEditorInputWithOptionsAndGroup } from 'vs/workbench/common/editor';
+import { IEditorInput, IEditorInputWithOptions, IEditorInputWithOptionsAndGroup, IResourceDiffEditorInput } from 'vs/workbench/common/editor';
 import { IEditorGroup, IEditorGroupsService, preferredSideBySideGroupDirection } from 'vs/workbench/services/editor/common/editorGroupsService';
 import { Schemas } from 'vs/base/common/network';
-import { DiffEditorInput } from 'vs/workbench/common/editor/diffEditorInput';
-import { ContributedEditorInfo, ContributedEditorPriority, ContributionPointOptions, DEFAULT_EDITOR_ASSOCIATION, DiffEditorInputFactoryFunction, EditorAssociation, EditorAssociations, EditorInputFactoryFunction, editorsAssociationsSettingId, globMatchesResource, IEditorOverrideService, priorityToRank } from 'vs/workbench/services/editor/common/editorOverrideService';
+import { ContributedEditorInfo, ContributedEditorPriority, ContributionPointOptions, DEFAULT_EDITOR_ASSOCIATION, DiffEditorInputFactoryFunction, EditorAssociation, EditorAssociations, EditorInputFactoryFunction, editorsAssociationsSettingId, globMatchesResource, IEditorOverrideService, priorityToRank, IUntypedEditorInput } from 'vs/workbench/services/editor/common/editorOverrideService';
 import { IKeyMods, IQuickInputService, IQuickPickItem, IQuickPickSeparator } from 'vs/platform/quickinput/common/quickInput';
 import { localize } from 'vs/nls';
 import { INotificationService, Severity } from 'vs/platform/notification/common/notification';
@@ -80,9 +79,24 @@ export class EditorOverrideService extends Disposable implements IEditorOverride
 		}));
 	}
 
-	async resolveEditorOverride(editor: IEditorInput, options: IEditorOptions | ITextEditorOptions | undefined, group: IEditorGroup): Promise<IEditorInputWithOptionsAndGroup | undefined> {
+	//#region Extract untyped editor input information
+	private resolveEditorResource(editor: IUntypedEditorInput): URI | undefined {
+		return this.isDiffEditor(editor) ? undefined : editor.resource;
+	}
+
+	private isDiffEditor(obj: unknown): obj is IResourceDiffEditorInput {
+		const diff = obj as IResourceDiffEditorInput;
+		if (diff.leftResource && diff.rightResource) {
+			return true;
+		}
+		return false;
+	}
+	//#endregion
+
+	async resolveEditorOverride(editor: IUntypedEditorInput, options: IEditorOptions | ITextEditorOptions | undefined, group: IEditorGroup): Promise<IEditorInputWithOptionsAndGroup | undefined> {
+		const resource = this.resolveEditorResource(editor);
 		// If it was an override before we await for the extensions to activate and then proceed with overriding or else they won't be registered
-		if (this.cache && editor.resource && this.resourceMatchesCache(editor.resource)) {
+		if (this.cache && resource && this.resourceMatchesCache(resource)) {
 			await this.extensionService.whenInstalledExtensionsRegistered();
 		}
 
@@ -91,12 +105,12 @@ export class EditorOverrideService extends Disposable implements IEditorOverride
 		}
 
 		// Always ensure inputs have populated resource fields
-		if (editor instanceof DiffEditorInput) {
-			if ((!editor.modifiedInput.resource || !editor.originalInput.resource)) {
-				return { editor, options, group };
+		if (this.isDiffEditor(editor)) {
+			if ((!editor.leftResource || !editor.rightResource)) {
+				return;
 			}
 		} else if (!editor.resource) {
-			return { editor, options, group };
+			return;
 		}
 
 		let override = typeof options?.override === 'string' ? options.override : undefined;
@@ -104,7 +118,7 @@ export class EditorOverrideService extends Disposable implements IEditorOverride
 		override = override ?? (editor as IContributedEditorInput).viewType;
 
 		if (options?.override === EditorOverride.PICK) {
-			const picked = await this.doPickEditorOverride(editor, options, group);
+			const picked = await this.doPickEditorOverride(resource, options, group);
 			// If the picker was cancelled we will stop resolving the override
 			if (!picked) {
 				return;
@@ -116,21 +130,17 @@ export class EditorOverrideService extends Disposable implements IEditorOverride
 		}
 
 		// Resolved the override as much as possible, now find a given contribution
-		const { contributionPoint, conflictingDefault } = this.getContributionPoint(editor instanceof DiffEditorInput ? editor.modifiedInput.resource! : editor.resource!, override);
+		const { contributionPoint, conflictingDefault } = this.getContributionPoint(this.isDiffEditor(editor) && editor.rightResource ? editor.rightResource : resource!, override);
 		const selectedContribution = contributionPoint;
 		if (!selectedContribution) {
-			return { editor, options, group };
+			return;
 		}
 
 		const handlesDiff = typeof selectedContribution.options?.canHandleDiff === 'function' ? selectedContribution.options.canHandleDiff() : selectedContribution.options?.canHandleDiff;
-		if (editor instanceof DiffEditorInput && handlesDiff === false) {
-			return { editor, options, group };
-		}
-
-		// If it's the currently active editor we shouldn't do anything
-		if (selectedContribution.editorInfo.describes(editor)) {
+		if (this.isDiffEditor(editor) && handlesDiff === false) {
 			return;
 		}
+
 		const input = await this.doOverrideEditorInput(editor, options, group, selectedContribution);
 		if (conflictingDefault && input) {
 			// Show the conflicting default dialog
@@ -287,7 +297,7 @@ export class EditorOverrideService extends Disposable implements IEditorOverride
 		};
 	}
 
-	private async doOverrideEditorInput(editor: IEditorInput, options: IEditorOptions | ITextEditorOptions | undefined, group: IEditorGroup, selectedContribution: ContributionPoint): Promise<IEditorInputWithOptions | undefined> {
+	private async doOverrideEditorInput(editor: IUntypedEditorInput, options: IEditorOptions | ITextEditorOptions | undefined, group: IEditorGroup, selectedContribution: ContributionPoint): Promise<IEditorInputWithOptions | undefined> {
 
 		// If no activation option is provided, populate it.
 		if (options && typeof options.activation === 'undefined') {
@@ -295,7 +305,7 @@ export class EditorOverrideService extends Disposable implements IEditorOverride
 		}
 
 		// If it's a diff editor we trigger the create diff editor input
-		if (editor instanceof DiffEditorInput) {
+		if (this.isDiffEditor(editor)) {
 			if (!selectedContribution.createDiffEditorInput) {
 				return;
 			}
@@ -304,7 +314,11 @@ export class EditorOverrideService extends Disposable implements IEditorOverride
 		}
 
 		// We only call this function from one place and there we do the check to ensure editor.resource is not undefined
-		const resource = editor.resource!;
+		const resource = this.resolveEditorResource(editor);
+
+		if (!resource) {
+			return;
+		}
 
 		// Respect options passed back
 		const inputWithOptions = selectedContribution.createEditorInput(resource, options, group);
@@ -395,7 +409,7 @@ export class EditorOverrideService extends Disposable implements IEditorOverride
 				label: localize('editorOverride.configureDefault', 'Configure Default'),
 				run: async () => {
 					// Show the picker and tell it to update the setting to whatever the user selected
-					const picked = await this.doPickEditorOverride(currentEditor, options, group, true);
+					const picked = await this.doPickEditorOverride(currentEditor.resource, options, group, true);
 					if (!picked) {
 						return;
 					}
@@ -476,15 +490,13 @@ export class EditorOverrideService extends Disposable implements IEditorOverride
 		return quickPickEntries;
 	}
 
-	private async doPickEditorOverride(editor: IEditorInput, options: IEditorOptions | undefined, group: IEditorGroup, showDefaultPicker?: boolean): Promise<[IEditorOptions, IEditorGroup | undefined] | undefined> {
+	private async doPickEditorOverride(resource: URI | undefined, options: IEditorOptions | undefined, group: IEditorGroup, showDefaultPicker?: boolean): Promise<[IEditorOptions, IEditorGroup | undefined] | undefined> {
 
 		type EditorOverridePick = {
 			readonly item: IQuickPickItem;
 			readonly keyMods?: IKeyMods;
 			readonly openInBackground: boolean;
 		};
-
-		const resource = EditorResourceAccessor.getOriginalUri(editor);
 
 		if (!resource) {
 			return;
@@ -551,7 +563,7 @@ export class EditorOverrideService extends Disposable implements IEditorOverride
 
 			// If the user selected to configure default we trigger this picker again and tell it to show the default picker
 			if (picked.item.id === EditorOverrideService.configureDefaultID) {
-				return this.doPickEditorOverride(editor, options, group, true);
+				return this.doPickEditorOverride(resource, options, group, true);
 			}
 
 			// Figure out target group

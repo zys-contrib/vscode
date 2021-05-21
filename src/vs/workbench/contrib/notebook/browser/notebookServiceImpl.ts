@@ -24,7 +24,7 @@ import { IInstantiationService } from 'vs/platform/instantiation/common/instanti
 import { IStorageService, StorageScope, StorageTarget } from 'vs/platform/storage/common/storage';
 import { IWorkspaceTrustManagementService } from 'vs/platform/workspace/common/workspaceTrust';
 import { NotebookExtensionDescription } from 'vs/workbench/api/common/extHost.protocol';
-import { IEditorInput } from 'vs/workbench/common/editor';
+import { IEditorInput, IResourceDiffEditorInput } from 'vs/workbench/common/editor';
 import { DiffEditorInput } from 'vs/workbench/common/editor/diffEditorInput';
 import { Memento } from 'vs/workbench/common/memento';
 import { INotebookEditorContribution, notebooksExtensionPoint, notebookRendererExtensionPoint } from 'vs/workbench/contrib/notebook/browser/extensionPoint';
@@ -154,7 +154,7 @@ export class NotebookProviderInfoStore extends Disposable {
 				const notebookOptions = new NotebookEditorOptions({ ...options, cellOptions });
 				return { editor: NotebookEditorInput.create(this._instantiationService, notebookUri, notebookProviderInfo.id), options: notebookOptions };
 			};
-			const notebookEditorDiffFactory: DiffEditorInputFactoryFunction = (diffEditorInput: DiffEditorInput, options, group) => {
+			const notebookEditorDiffFactory: DiffEditorInputFactoryFunction = (diffEditorInput: IResourceDiffEditorInput, options, group) => {
 				const modifiedInput = diffEditorInput.modifiedInput;
 				const originalInput = diffEditorInput.originalInput;
 				const notebookUri = modifiedInput.resource!;

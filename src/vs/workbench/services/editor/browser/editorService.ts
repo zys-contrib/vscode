@@ -536,7 +536,7 @@ export class EditorService extends Disposable implements EditorServiceImpl {
 			},
 			{},
 			resource => ({ editor: this.createEditorInput({ resource }) }),
-			diffEditor => ({ editor: diffEditor })
+			diffEditor => ({ editor: this.createEditorInput(diffEditor) })
 		));
 	}
 

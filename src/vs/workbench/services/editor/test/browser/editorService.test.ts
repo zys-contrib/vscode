@@ -1120,7 +1120,7 @@ suite('EditorService', () => {
 				overrideCount++;
 				return ({ editor: service.createEditorInput({ resource }) });
 			},
-			diffEditor => ({ editor: diffEditor })
+			diffEditor => ({ editor: service.createEditorInput(diffEditor) })
 		);
 		assert.strictEqual(overrideCount, 0);
 		const input1 = new TestFileEditorInput(URI.parse('file://test/path/resource1.txt'), TEST_EDITOR_INPUT_ID);
@@ -1156,7 +1156,7 @@ suite('EditorService', () => {
 				overrideCount++;
 				return ({ editor: service.createEditorInput({ resource }) });
 			},
-			diffEditor => ({ editor: diffEditor })
+			diffEditor => ({ editor: service.createEditorInput(diffEditor) })
 		);
 		assert.strictEqual(overrideCount, 0);
 		const input1 = new TestFileEditorInput(URI.parse('file://test/path/resource1.txt'), TEST_EDITOR_INPUT_ID);
@@ -1188,7 +1188,7 @@ suite('EditorService', () => {
 				overrideCount++;
 				return ({ editor: service.createEditorInput({ resource }) });
 			},
-			diffEditor => ({ editor: diffEditor })
+			diffEditor => ({ editor: service.createEditorInput(diffEditor) })
 		);
 		assert.strictEqual(overrideCount, 0);
 		const input1 = new TestFileEditorInput(URI.parse('file://test/path/resource2.md'), TEST_EDITOR_INPUT_ID);
