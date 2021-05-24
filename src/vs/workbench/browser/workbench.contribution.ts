@@ -524,7 +524,7 @@ class ExperimentalCustomHoverConfigContribution implements IWorkbenchContributio
 				'properties': {
 					'workbench.experimental.useCustomHover': {
 						'type': 'boolean',
-						'description': localize('workbench.experimental.useCustomHover', "Enable/disable custom hovers on Activity Bar & Panel. Note this configuration is experimental and subjected to be removed at any time."),
+						'description': localize('workbench.experimental.useCustomHover', "Use custom hovers on Activity Bar & Panel. Note this configuration is experimental and subjected to be removed at any time."),
 						'default': !!useCustomHoversAsDefault
 					}
 				}

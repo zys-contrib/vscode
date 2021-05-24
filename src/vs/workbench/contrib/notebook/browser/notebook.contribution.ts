@@ -585,7 +585,7 @@ configurationRegistry.registerConfiguration({
 			default: true
 		},
 		[ExperimentalUseMarkdownRenderer]: {
-			description: nls.localize('notebook.experimental.useMarkdownRenderer.description', "Enable/disable using the new extensible markdown renderer."),
+			description: nls.localize('notebook.experimental.useMarkdownRenderer.description', "Use the new extensible markdown renderer."),
 			type: 'boolean',
 			default: true
 		},

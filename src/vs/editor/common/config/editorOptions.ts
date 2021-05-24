@@ -1477,7 +1477,7 @@ export class EditorFontLigatures extends BaseEditorOption<EditorOption.fontLigat
 						description: nls.localize('fontFeatureSettings', "Explicit 'font-feature-settings' CSS property. A boolean can be passed instead if one only needs to turn on/off ligatures.")
 					}
 				],
-				description: nls.localize('fontLigaturesGeneral', "Configures font ligatures or font features. Can be either a boolean to enable/disable ligatures or a string for the value of the CSS 'font-feature-settings' property."),
+				description: nls.localize('fontLigaturesGeneral', "Configures font ligatures or font features. Can be either a boolean to use ligatures or a string for the value of the CSS 'font-feature-settings' property."),
 				default: false
 			}
 		);

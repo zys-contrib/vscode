@@ -2935,7 +2935,7 @@ export const globalfunctions: IEntries = {
 		signature: '( int $seconds ): int'
 	},
 	pcntl_async_signals: {
-		description: 'Enable/disable asynchronous signal handling or return the old setting',
+		description: 'Use asynchronous signal handling or return the old setting',
 		signature: '([ bool $on ]): bool'
 	},
 	pcntl_errno: {
