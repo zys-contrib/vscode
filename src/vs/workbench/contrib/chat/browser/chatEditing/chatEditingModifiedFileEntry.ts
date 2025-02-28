@@ -33,7 +33,7 @@ class AutoAcceptControl {
 	) { }
 }
 
-export const pendingRewriteMinimap = registerColor('chatEdits.minimapColor',
+export const pendingRewriteMinimap = registerColor('minimap.chatEditHighlight',
 	transparent(editorBackground, 0.6),
 	localize('editorSelectionBackground', "Color of pending edit regions in the minimap"));
 
@@ -227,7 +227,7 @@ export abstract class AbstractChatEditingModifiedFileEntry extends Disposable im
 
 	abstract acceptAgentEdits(uri: URI, edits: (TextEdit | ICellEditOperation)[], isLastEdits: boolean, responseModel: IChatResponseModel): Promise<void>;
 
-	acceptStreamingEditsEnd(tx: ITransaction) {
+	async acceptStreamingEditsEnd(tx: ITransaction) {
 		this._resetEditsState(tx);
 
 		// AUTO accept mode

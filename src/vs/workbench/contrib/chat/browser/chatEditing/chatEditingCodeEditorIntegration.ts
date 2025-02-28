@@ -36,7 +36,7 @@ import { EditorsOrder, IEditorIdentifier, isDiffEditorInput } from '../../../../
 import { IEditorService } from '../../../../services/editor/common/editorService.js';
 import { overviewRulerModifiedForeground, minimapGutterModifiedBackground, overviewRulerAddedForeground, minimapGutterAddedBackground, overviewRulerDeletedForeground, minimapGutterDeletedBackground } from '../../../scm/common/quickDiff.js';
 import { ChatAgentLocation, IChatAgentService } from '../../common/chatAgents.js';
-import { ChatEditingSessionState, IChatEditingService, IModifiedFileEntry, IModifiedFileEntryChangeHunk, IModifiedFileEntryEditorIntegration, WorkingSetEntryState } from '../../common/chatEditingService.js';
+import { IChatEditingService, IModifiedFileEntry, IModifiedFileEntryChangeHunk, IModifiedFileEntryEditorIntegration, WorkingSetEntryState } from '../../common/chatEditingService.js';
 import { isTextDiffEditorForEntry } from './chatEditing.js';
 
 export interface IDocumentDiff2 extends IDocumentDiff {
@@ -221,16 +221,7 @@ export class ChatEditingCodeEditorIntegration implements IModifiedFileEntryEdito
 		this._store.add(toDisposable(restoreActualOptions));
 
 		const shouldBeReadOnly = derived(this, r => {
-			const model = codeEditorObs.model.read(r);
-			if (!model) {
-				return false;
-			}
-			for (const session of chatEditingService.editingSessionsObs.read(r)) {
-				if (session.readEntry(model.uri, r) && session.state.read(r) === ChatEditingSessionState.StreamingEdits) {
-					return true;
-				}
-			}
-			return false;
+			return enabledObs.read(r) && Boolean(_entry.isCurrentlyBeingModifiedBy.read(r));
 		});
 
 		this._store.add(autorun(r => {

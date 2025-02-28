@@ -99,6 +99,7 @@ import { DOCUMENTATION_URL } from '../common/promptSyntax/constants.js';
 import { registerChatToolActions } from './actions/chatToolActions.js';
 import { ChatStatusBarEntry } from './chatStatus.js';
 import product from '../../../../platform/product/common/product.js';
+import { ChatEditingNotebookFileSystemProviderContrib } from './chatEditing/chatEditingNotebookFileSystemProvider.js';
 
 // Register configuration
 const configurationRegistry = Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Configuration);
@@ -199,26 +200,43 @@ configurationRegistry.registerConfiguration({
 			tags: ['experimental', 'onExp']
 		},
 		[PromptsConfig.CONFIG_KEY]: {
-			type: 'object',
+			type: 'boolean',
 			title: nls.localize(
-				'chat.promptFiles.config.title',
+				'chat.reusablePrompts.config.enabled.title',
 				"Prompt Files",
 			),
 			markdownDescription: nls.localize(
-				'chat.promptFiles.config.description',
+				'chat.reusablePrompts.config.enabled.description',
+				"Enable reusable prompt files (`*{0}`) in Chat, Edits, and Inline Chat sessions. [Learn More]({1}).",
+				PROMPT_FILE_EXTENSION,
+				DOCUMENTATION_URL,
+			),
+			default: true,
+			restricted: true,
+			disallowConfigurationDefault: true,
+			tags: ['experimental', 'prompts', 'reusable prompts', 'prompt snippets', 'instructions'],
+		},
+		[PromptsConfig.LOCATIONS_CONFIG_KEY]: {
+			type: 'object',
+			title: nls.localize(
+				'chat.reusablePrompts.config.locations.title',
+				"Prompt File Locations",
+			),
+			markdownDescription: nls.localize(
+				'chat.reusablePrompts.config.locations.description',
 				"Specify location(s) of reusable prompt files (`*{0}`) that can be attached in Chat, Edits, and Inline Chat sessions. [Learn More]({1}).\n\nRelative paths are resolved from the root folder(s) of your workspace.",
 				PROMPT_FILE_EXTENSION,
 				DOCUMENTATION_URL,
 			),
 			default: {
-				[PromptsConfig.DEFAULT_SOURCE_FOLDER]: false,
+				[PromptsConfig.DEFAULT_SOURCE_FOLDER]: true,
 			},
 			required: [PromptsConfig.DEFAULT_SOURCE_FOLDER],
 			additionalProperties: { type: 'boolean' },
 			unevaluatedProperties: { type: 'boolean' },
 			restricted: true,
 			disallowConfigurationDefault: true,
-			tags: ['experimental'],
+			tags: ['experimental', 'prompts', 'reusable prompts', 'prompt snippets', 'instructions'],
 			examples: [
 				{
 					[PromptsConfig.DEFAULT_SOURCE_FOLDER]: true,
@@ -497,5 +515,6 @@ registerSingleton(IChatMarkdownAnchorService, ChatMarkdownAnchorService, Instant
 registerSingleton(ILanguageModelIgnoredFilesService, LanguageModelIgnoredFilesService, InstantiationType.Delayed);
 registerSingleton(IChatQuotasService, ChatQuotasService, InstantiationType.Delayed);
 registerSingleton(IChatEntitlementsService, ChatEntitlementsService, InstantiationType.Delayed);
-
 registerSingleton(IPromptsService, PromptsService, InstantiationType.Delayed);
+
+registerWorkbenchContribution2(ChatEditingNotebookFileSystemProviderContrib.ID, ChatEditingNotebookFileSystemProviderContrib, WorkbenchPhase.BlockStartup);

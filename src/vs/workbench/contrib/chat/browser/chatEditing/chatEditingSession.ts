@@ -49,7 +49,8 @@ import { AbstractChatEditingModifiedFileEntry, IModifiedEntryTelemetryInfo, ISna
 import { ChatEditingModifiedDocumentEntry } from './chatEditingModifiedDocumentEntry.js';
 import { ChatEditingTextModelContentProvider } from './chatEditingTextModelContentProviders.js';
 import { CellUri, ICellEditOperation } from '../../../notebook/common/notebookCommon.js';
-import { ChatEditingModifiedNotebookEntry } from './chatEditingModifiedNotebookEntry.js';
+import { ChatEditingModifiedNotebookDiff, ChatEditingModifiedNotebookEntry } from './chatEditingModifiedNotebookEntry.js';
+import { CancellationToken } from '../../../../../base/common/cancellation.js';
 
 const STORAGE_CONTENTS_FOLDER = 'contents';
 const STORAGE_STATE_FILE = 'state.json';
@@ -77,7 +78,7 @@ class ThrottledSequencer extends Sequencer {
 				const p1 = promiseTask();
 				const p2 = noDelay
 					? Promise.resolve(undefined)
-					: timeout(this._minDuration);
+					: timeout(this._minDuration, CancellationToken.None);
 
 				const [result] = await Promise.all([p1, p2]);
 				return result;
@@ -351,8 +352,13 @@ export class ChatEditingSession extends Disposable implements IChatEditingSessio
 				return;
 			}
 
-			entriesContent.read(reader); // trigger re-diffing when contents change
+			const entries = entriesContent.read(reader); // trigger re-diffing when contents change
 
+			if (entries?.before && ChatEditingModifiedNotebookEntry.canHandleSnapshot(entries.before)) {
+				const diffService = this._instantiationService.createInstance(ChatEditingModifiedNotebookDiff, entries.before, entries.after);
+				return new ObservablePromise(diffService.computeDiff());
+
+			}
 			const ignoreTrimWhitespace = this._ignoreTrimWhitespaceObservable.read(reader);
 			const promise = this._editorWorkerService.computeDiff(
 				refs[0].object.textEditorModel.uri,
@@ -404,7 +410,6 @@ export class ChatEditingSession extends Disposable implements IChatEditingSessio
 			return [entriesValue.before.snapshotUri, entriesValue.after.snapshotUri];
 		});
 
-		// todo@DonJayamanne support notebooks here too
 		const diff = this._entryDiffBetweenTextStops(entries, modelUrisObservable);
 
 		return derived(reader => {
@@ -469,15 +474,15 @@ export class ChatEditingSession extends Disposable implements IChatEditingSessio
 		};
 	}
 
-	public async getSnapshotModel(requestId: string, undoStop: string | undefined, snapshotUri: URI): Promise<ITextModel | null> {
+	public getSnapshot(requestId: string, undoStop: string | undefined, snapshotUri: URI): ISnapshotEntry | undefined {
 		const entries = undoStop === POST_EDIT_STOP_ID
 			? this._findSnapshot(requestId)?.postEdit
 			: this._findEditStop(requestId, undoStop)?.stop.entries;
-		if (!entries) {
-			return null;
-		}
+		return entries && [...entries.values()].find((e) => isEqual(e.snapshotUri, snapshotUri));
+	}
 
-		const snapshotEntry = [...entries.values()].find((e) => isEqual(e.snapshotUri, snapshotUri));
+	public async getSnapshotModel(requestId: string, undoStop: string | undefined, snapshotUri: URI): Promise<ITextModel | null> {
+		const snapshotEntry = this.getSnapshot(requestId, undoStop, snapshotUri);
 		if (!snapshotEntry) {
 			return null;
 		}
@@ -711,7 +716,7 @@ export class ChatEditingSession extends Disposable implements IChatEditingSessio
 
 			startPromise.complete();
 			return completePromise.p;
-		}).then(() => this._onStreamingEditDequeued());
+		});
 
 
 		let didComplete = false;
@@ -747,25 +752,12 @@ export class ChatEditingSession extends Disposable implements IChatEditingSessio
 				sequencer.queue(async () => {
 					if (!this.isDisposed) {
 						await this._acceptEdits(resource, [], true, responseModel);
-						this._resolve(responseModel.requestId, inUndoStop, resource);
+						await this._resolve(responseModel.requestId, inUndoStop, resource);
 						completePromise.complete();
 					}
 				});
 			},
 		};
-	}
-
-	private _onStreamingEditDequeued() {
-		const state = this._state.get();
-		if (state === ChatEditingSessionState.Disposed) {
-			return;
-		}
-
-		const isStreamingEdits = !Iterable.isEmpty(this._streamingEditLocks.keys());
-		const targetState = isStreamingEdits ? ChatEditingSessionState.StreamingEdits : ChatEditingSessionState.Idle;
-		if (state !== targetState) {
-			this._state.set(targetState, undefined);
-		}
 	}
 
 	private _trackUntitledWorkingSetEntry(resource: URI) {
@@ -976,15 +968,20 @@ export class ChatEditingSession extends Disposable implements IChatEditingSessio
 		};
 	}
 
-	private _resolve(requestId: string, undoStop: string | undefined, resource: URI): void {
-		transaction((tx) => {
+	private async _resolve(requestId: string, undoStop: string | undefined, resource: URI): Promise<void> {
+		await asyncTransaction(async (tx) => {
+			const hasOtherTasks = Iterable.some(this._streamingEditLocks.keys(), k => k !== resource.toString());
+			if (!hasOtherTasks) {
+				this._state.set(ChatEditingSessionState.Idle, tx);
+			}
+
 			const entry = this._getEntry(resource);
 			if (!entry) {
 				return;
 			}
 
 			this.ensureEditInUndoStopMatches(requestId, undoStop, entry, /* next= */ true, tx);
-			entry.acceptStreamingEditsEnd(tx);
+			return entry.acceptStreamingEditsEnd(tx);
 		});
 
 		this._onDidChange.fire(ChatEditingSessionChangeType.Other);
@@ -1052,7 +1049,7 @@ export class ChatEditingSession extends Disposable implements IChatEditingSessio
 		const notebookUri = CellUri.parse(resource)?.notebook || resource;
 		try {
 			// If a notebook isn't open, then use the old synchronization approach.
-			if (this._notebookService.hasSupportedNotebooks(notebookUri) && (this._notebookService.getNotebookTextModel(notebookUri) || ChatEditingModifiedNotebookEntry.canHandleSnapshot(initialContent))) {
+			if (this._notebookService.hasSupportedNotebooks(notebookUri) && (this._notebookService.getNotebookTextModel(notebookUri) || ChatEditingModifiedNotebookEntry.canHandleSnapshotContent(initialContent))) {
 				return ChatEditingModifiedNotebookEntry.create(notebookUri, multiDiffEntryDelegate, telemetryInfo, chatKind, initialContent, this._instantiationService);
 			} else {
 				const ref = await this._textModelService.createModelReference(resource);
