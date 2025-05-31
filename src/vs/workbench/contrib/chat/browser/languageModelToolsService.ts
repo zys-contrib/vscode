@@ -160,13 +160,13 @@ export class LanguageModelToolsService extends Disposable implements ILanguageMo
 		});
 	}
 
-	getTools(): Iterable<Readonly<IToolData>> {
+	getTools(includeDisabled?: boolean): Iterable<Readonly<IToolData>> {
 		const toolDatas = Iterable.map(this._tools.values(), i => i.data);
 		const extensionToolsEnabled = this._configurationService.getValue<boolean>(ChatConfiguration.ExtensionToolsEnabled);
 		return Iterable.filter(
 			toolDatas,
 			toolData => {
-				const satisfiesWhenClause = !toolData.when || this._contextKeyService.contextMatchesRules(toolData.when);
+				const satisfiesWhenClause = includeDisabled || !toolData.when || this._contextKeyService.contextMatchesRules(toolData.when);
 				const satisfiesExternalToolCheck = toolData.source.type !== 'extension' || !!extensionToolsEnabled;
 				return satisfiesWhenClause && satisfiesExternalToolCheck;
 			});
@@ -185,10 +185,10 @@ export class LanguageModelToolsService extends Disposable implements ILanguageMo
 		}
 	}
 
-	getToolByName(name: string): IToolData | undefined {
-		for (const toolData of this.getTools()) {
-			if (toolData.toolReferenceName === name) {
-				return toolData;
+	getToolByName(name: string, includeDisabled?: boolean): IToolData | undefined {
+		for (const tool of this.getTools(!!includeDisabled)) {
+			if (tool.toolReferenceName === name) {
+				return tool;
 			}
 		}
 		return undefined;
@@ -453,6 +453,31 @@ export class LanguageModelToolsService extends Disposable implements ILanguageMo
 			calls.forEach(call => call.store.dispose());
 			this._callsByRequestId.delete(requestId);
 		}
+	}
+
+	toEnablementMap(toolOrToolsetNames: Iterable<string>): Record<string, boolean> {
+		const toolOrToolset = new Set<string>(toolOrToolsetNames);
+		const result: Record<string, boolean> = {};
+		for (const tool of this._tools.values()) {
+			if (tool.data.toolReferenceName && toolOrToolset.has(tool.data.toolReferenceName) || toolOrToolset.has(tool.data.id)) {
+				result[tool.data.id] = true;
+			} else {
+				result[tool.data.id] = false;
+			}
+		}
+
+		for (const toolSet of this._toolSets) {
+			if (toolOrToolset.has(toolSet.toolReferenceName)) {
+				result[toolSet.toolReferenceName] = true;
+			}
+			for (const tool of toolSet.getTools()) {
+				if (toolOrToolset.has(tool.id)) {
+					result[tool.id] = true;
+				}
+			}
+		}
+
+		return result;
 	}
 
 	private readonly _toolSets = new ObservableSet<ToolSet>();

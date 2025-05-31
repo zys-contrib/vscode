@@ -3,6 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
+import './promptSyntax/promptToolsCodeLensProvider.js';
 import { timeout } from '../../../../base/common/async.js';
 import { Event } from '../../../../base/common/event.js';
 import { MarkdownString, isMarkdownString } from '../../../../base/common/htmlContent.js';
@@ -29,7 +30,7 @@ import { EditorExtensions, IEditorFactoryRegistry } from '../../../common/editor
 import { IWorkbenchAssignmentService } from '../../../services/assignment/common/assignmentService.js';
 import { mcpSchemaId } from '../../../services/configuration/common/configuration.js';
 import { IEditorResolverService, RegisteredEditorPriority } from '../../../services/editor/common/editorResolverService.js';
-import { allDiscoverySources, discoverySourceLabel, mcpConfigurationSection, mcpDiscoverySection, mcpEnabledSection, mcpSchemaExampleServers } from '../../mcp/common/mcpConfiguration.js';
+import { allDiscoverySources, discoverySourceLabel, mcpConfigurationSection, mcpDiscoverySection, mcpEnabledSection, mcpSchemaExampleServers, mcpServerSamplingSection } from '../../mcp/common/mcpConfiguration.js';
 import { ChatAgentNameService, ChatAgentService, IChatAgentNameService, IChatAgentService } from '../common/chatAgents.js';
 import { CodeMapperService, ICodeMapperService } from '../common/chatCodeMapperService.js';
 import '../common/chatColors.js';
@@ -107,6 +108,8 @@ import { LanguageModelToolsService } from './languageModelToolsService.js';
 import './promptSyntax/contributions/createPromptCommand/createPromptCommand.js';
 import { ChatViewsWelcomeHandler } from './viewsWelcome/chatViewsWelcomeHandler.js';
 import { registerAction2 } from '../../../../platform/actions/common/actions.js';
+import product from '../../../../platform/product/common/product.js';
+import { ChatModeService, IChatModeService } from '../common/chatModes.js';
 
 // Register configuration
 const configurationRegistry = Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Configuration);
@@ -246,6 +249,33 @@ configurationRegistry.registerConfiguration({
 				previewFeature: true,
 				defaultValue: false
 			}
+		},
+		[mcpServerSamplingSection]: {
+			type: 'object',
+			description: nls.localize('chat.mcp.serverSampling', "Configures which models are exposed to MCP servers for sampling (making model requests in the background). This setting can be edited in a graphical way under the `{0}` command.", 'MCP: ' + nls.localize('mcp.list', 'List Servers')),
+			scope: ConfigurationScope.RESOURCE,
+			additionalProperties: {
+				type: 'object',
+				properties: {
+					allowedDuringChat: {
+						type: 'boolean',
+						description: nls.localize('chat.mcp.serverSampling.allowedDuringChat', "Whether this server is make sampling requests during its tool calls in a chat session."),
+						default: true,
+					},
+					allowedOutsideChat: {
+						type: 'boolean',
+						description: nls.localize('chat.mcp.serverSampling.allowedOutsideChat', "Whether this server is allowed to make sampling requests outside of a chat session."),
+						default: false,
+					},
+					allowedModels: {
+						type: 'array',
+						items: {
+							type: 'string',
+							description: nls.localize('chat.mcp.serverSampling.model', "A model the MCP server has access to."),
+						},
+					}
+				}
+			},
 		},
 		[mcpConfigurationSection]: {
 			type: 'object',
@@ -439,9 +469,9 @@ configurationRegistry.registerConfiguration({
 		},
 		'chat.setup.signInDialogVariant': { // TODO@bpasero remove me eventually
 			type: 'string',
-			enum: ['default', 'brand-gh', 'brand-vsc', 'style-glow', 'alt-first'],
+			enum: ['default', 'modern', 'brand-gh', 'brand-vsc', 'style-glow', 'alt-first', 'input-email', 'account-create'],
 			description: nls.localize('chat.signInDialogVariant', "Control variations of the sign-in dialog."),
-			default: 'default',
+			default: product.quality !== 'stable' ? 'modern' : 'default',
 			tags: ['onExp', 'experimental']
 		},
 	}
@@ -512,11 +542,11 @@ class ChatAgentSettingContribution extends Disposable implements IWorkbenchContr
 	private registerMaxRequestsSetting(): void {
 		let lastNode: IConfigurationNode | undefined;
 		const registerMaxRequestsSetting = () => {
-			const treatmentId = this.entitlementService.entitlement === ChatEntitlement.Limited ?
+			const treatmentId = this.entitlementService.entitlement === ChatEntitlement.Free ?
 				'chatAgentMaxRequestsFree' :
 				'chatAgentMaxRequestsPro';
 			this.experimentService.getTreatment<number>(treatmentId).then(value => {
-				const defaultValue = value ?? (this.entitlementService.entitlement === ChatEntitlement.Limited ? 5 : 15);
+				const defaultValue = value ?? (this.entitlementService.entitlement === ChatEntitlement.Free ? 25 : 25);
 				const node: IConfigurationNode = {
 					id: 'chatSidebar',
 					title: nls.localize('interactiveSessionConfigurationTitle', "Chat"),
@@ -524,7 +554,7 @@ class ChatAgentSettingContribution extends Disposable implements IWorkbenchContr
 					properties: {
 						'chat.agent.maxRequests': {
 							type: 'number',
-							markdownDescription: nls.localize('chat.agent.maxRequests', "The maximum number of requests to allow Copilot Edits to use per-turn in agent mode. When the limit is reached, Copilot will ask the user to confirm that it should keep working."),
+							markdownDescription: nls.localize('chat.agent.maxRequests', "The maximum number of requests to allow Copilot to use per-turn in agent mode. When the limit is reached, Copilot will ask the user to confirm that it should continue."),
 							default: defaultValue,
 						},
 					}
@@ -720,6 +750,7 @@ registerSingleton(ILanguageModelIgnoredFilesService, LanguageModelIgnoredFilesSe
 registerSingleton(IChatEntitlementService, ChatEntitlementService, InstantiationType.Delayed);
 registerSingleton(IPromptsService, PromptsService, InstantiationType.Delayed);
 registerSingleton(IChatContextPickService, ChatContextPickService, InstantiationType.Delayed);
+registerSingleton(IChatModeService, ChatModeService, InstantiationType.Delayed);
 
 registerWorkbenchContribution2(ChatEditingNotebookFileSystemProviderContrib.ID, ChatEditingNotebookFileSystemProviderContrib, WorkbenchPhase.BlockStartup);
 

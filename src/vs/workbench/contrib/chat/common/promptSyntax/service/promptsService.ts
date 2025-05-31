@@ -3,9 +3,9 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
+import { flatten } from '../utils/treeUtils.js';
 import { localize } from '../../../../../../nls.js';
 import { PROMPT_LANGUAGE_ID } from '../constants.js';
-import { flatten } from '../utils/treeUtils.js';
 import { PromptParser } from '../parsers/promptParser.js';
 import { match } from '../../../../../../base/common/glob.js';
 import { pick } from '../../../../../../base/common/arrays.js';
@@ -16,18 +16,19 @@ import { basename } from '../../../../../../base/common/path.js';
 import { ResourceSet } from '../../../../../../base/common/map.js';
 import { PromptFilesLocator } from '../utils/promptFilesLocator.js';
 import { Disposable } from '../../../../../../base/common/lifecycle.js';
+import { Emitter, Event } from '../../../../../../base/common/event.js';
 import { type ITextModel } from '../../../../../../editor/common/model.js';
 import { ObjectCache } from '../../../../../../base/common/objectCache.js';
 import { ILogService } from '../../../../../../platform/log/common/log.js';
 import { TextModelPromptParser } from '../parsers/textModelPromptParser.js';
 import { ILabelService } from '../../../../../../platform/label/common/label.js';
 import { IModelService } from '../../../../../../editor/common/services/model.js';
+import { CancellationToken } from '../../../../../../base/common/cancellation.js';
 import { logTime, TLogFunction } from '../../../../../../base/common/decorators/logTime.js';
-import { getCleanPromptName, isValidPromptType, PROMPT_FILE_EXTENSION, PromptsType } from '../../../../../../platform/prompts/common/prompts.js';
 import { IInstantiationService } from '../../../../../../platform/instantiation/common/instantiation.js';
 import { IUserDataProfileService } from '../../../../../services/userDataProfile/common/userDataProfile.js';
 import type { IChatPromptSlashCommand, ICustomChatMode, IMetadata, IPromptPath, IPromptsService, TPromptsStorage } from './types.js';
-import { Emitter, Event } from '../../../../../../base/common/event.js';
+import { getCleanPromptName, isValidPromptType, PROMPT_FILE_EXTENSION, PromptsType } from '../../../../../../platform/prompts/common/prompts.js';
 
 /**
  * Provides prompt services.
@@ -111,13 +112,11 @@ export class PromptsService extends Disposable implements IPromptsService {
 		return this.cache.get(model);
 	}
 
-	public async listPromptFiles(type: PromptsType): Promise<readonly IPromptPath[]> {
-		const userLocations = [this.userDataService.currentProfile.promptsHome];
-
+	public async listPromptFiles(type: PromptsType, token: CancellationToken): Promise<readonly IPromptPath[]> {
 		const prompts = await Promise.all([
-			this.fileLocator.listFilesIn(userLocations, type)
+			this.fileLocator.listFiles(type, 'user', token)
 				.then(withType('user', type)),
-			this.fileLocator.listFiles(type)
+			this.fileLocator.listFiles(type, 'local', token)
 				.then(withType('local', type)),
 		]);
 
@@ -160,7 +159,7 @@ export class PromptsService extends Disposable implements IPromptsService {
 			return data.promptPath.uri;
 		}
 
-		const files = await this.listPromptFiles(PromptsType.prompt);
+		const files = await this.listPromptFiles(PromptsType.prompt, CancellationToken.None);
 		const command = data.command;
 		const result = files.find(file => getPromptCommandName(file.uri.path) === command);
 		if (result) {
@@ -174,7 +173,7 @@ export class PromptsService extends Disposable implements IPromptsService {
 	}
 
 	public async findPromptSlashCommands(): Promise<IChatPromptSlashCommand[]> {
-		const promptFiles = await this.listPromptFiles(PromptsType.prompt);
+		const promptFiles = await this.listPromptFiles(PromptsType.prompt, CancellationToken.None);
 		return promptFiles.map(promptPath => {
 			const command = getPromptCommandName(promptPath.uri.path);
 			return {
@@ -189,24 +188,52 @@ export class PromptsService extends Disposable implements IPromptsService {
 	// todo: firing events not yet implemented
 	public readonly onDidChangeCustomChatModes: Event<void> = this._onDidChangeCustomChatModesEmitter.event;
 
+	@logTime()
 	public async getCustomChatModes(): Promise<readonly ICustomChatMode[]> {
-		const modeFiles = await this.listPromptFiles(PromptsType.mode);
-		const metaDatas = await this.getAllMetadata(modeFiles.map(promptPath => promptPath.uri));
-		return metaDatas.map(metadata => {
-			return {
-				uri: metadata.uri,
-				name: getCleanPromptName(metadata.uri),
-				description: metadata.metadata.description,
-				tools: metadata.metadata.tools
-			};
-		});
+		const modeFiles = (await this.listPromptFiles(PromptsType.mode, CancellationToken.None))
+			.map(modeFile => modeFile.uri);
+
+		const metadataList = await Promise.all(
+			modeFiles.map(async (uri): Promise<ICustomChatMode> => {
+				let parser: PromptParser | undefined;
+				try {
+					// Note! this can be (and should be) improved by using shared parser instances
+					// 		 that the `getSyntaxParserFor` method provides for opened documents.
+					parser = this.instantiationService.createInstance(
+						PromptParser,
+						uri,
+						{ allowNonPromptFiles: true },
+					).start();
+
+					await parser.settled();
+
+					const { metadata } = parser;
+					const tools = (metadata?.promptType === PromptsType.mode)
+						? metadata.tools
+						: undefined;
+
+					const body = await parser.getBody();
+					return {
+						uri: uri,
+						name: getCleanPromptName(uri),
+						description: metadata?.description,
+						tools,
+						body,
+					};
+				} finally {
+					parser?.dispose();
+				}
+			}),
+		);
+
+		return metadataList;
 	}
 
 	@logTime()
 	public async findInstructionFilesFor(
 		files: readonly URI[],
 	): Promise<readonly URI[]> {
-		const instructionFiles = await this.listPromptFiles(PromptsType.instructions);
+		const instructionFiles = await this.listPromptFiles(PromptsType.instructions, CancellationToken.None);
 		if (instructionFiles.length === 0) {
 			return [];
 		}
@@ -218,8 +245,12 @@ export class PromptsService extends Disposable implements IPromptsService {
 		const foundFiles = new ResourceSet();
 		for (const instruction of instructions.flatMap(flatten)) {
 			const { metadata, uri } = instruction;
-			const { applyTo } = metadata;
 
+			if (metadata?.promptType !== PromptsType.instructions) {
+				continue;
+			}
+
+			const { applyTo } = metadata;
 			if (applyTo === undefined) {
 				continue;
 			}
