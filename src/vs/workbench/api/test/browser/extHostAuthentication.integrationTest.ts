@@ -41,6 +41,9 @@ import { IUserActivityService, UserActivityService } from '../../../services/use
 import { ExtHostUrls } from '../../common/extHostUrls.js';
 import { ISecretStorageService } from '../../../../platform/secrets/common/secrets.js';
 import { TestSecretStorageService } from '../../../../platform/secrets/test/common/testSecretStorageService.js';
+import { IDynamicAuthenticationProviderStorageService } from '../../../services/authentication/common/dynamicAuthenticationProviderStorage.js';
+import { DynamicAuthenticationProviderStorageService } from '../../../services/authentication/browser/dynamicAuthenticationProviderStorageService.js';
+import { ExtHostProgress } from '../../common/extHostProgress.js';
 
 class AuthQuickPick {
 	private listener: ((e: IQuickPickDidAcceptEvent) => any) | undefined;
@@ -119,6 +122,7 @@ suite('ExtHostAuthentication', () => {
 		instantiationService.stub(IDialogService, new TestDialogService({ confirmed: true }));
 		instantiationService.stub(IStorageService, new TestStorageService());
 		instantiationService.stub(ISecretStorageService, new TestSecretStorageService());
+		instantiationService.stub(IDynamicAuthenticationProviderStorageService, instantiationService.createInstance(DynamicAuthenticationProviderStorageService));
 		instantiationService.stub(IQuickInputService, new AuthTestQuickInputService());
 		instantiationService.stub(IExtensionService, new TestExtensionService());
 
@@ -156,6 +160,7 @@ suite('ExtHostAuthentication', () => {
 			} as any,
 			new ExtHostWindow(initData, rpcProtocol),
 			new ExtHostUrls(rpcProtocol),
+			new ExtHostProgress(rpcProtocol),
 			new TestLoggerService(),
 		);
 		rpcProtocol.set(ExtHostContext.ExtHostAuthentication, extHostAuthentication);

@@ -8,6 +8,7 @@ import { CancellationToken, CancellationTokenSource } from '../../../../base/com
 import * as json from '../../../../base/common/json.js';
 import { Disposable, DisposableStore, IDisposable, toDisposable } from '../../../../base/common/lifecycle.js';
 import { LRUCache } from '../../../../base/common/map.js';
+import { mapValues } from '../../../../base/common/objects.js';
 import { autorun, autorunWithStore, derived, disposableObservableValue, IDerivedReader, IObservable, ITransaction, observableFromEvent, ObservablePromise, observableValue, transaction } from '../../../../base/common/observable.js';
 import { basename } from '../../../../base/common/resources.js';
 import { URI } from '../../../../base/common/uri.js';
@@ -29,7 +30,7 @@ import { mcpActivationEvent } from './mcpConfiguration.js';
 import { McpDevModeServerAttache } from './mcpDevMode.js';
 import { IMcpRegistry } from './mcpRegistryTypes.js';
 import { McpServerRequestHandler } from './mcpServerRequestHandler.js';
-import { extensionMcpCollectionPrefix, IMcpPrompt, IMcpPromptMessage, IMcpResource, IMcpServer, IMcpServerConnection, IMcpServerStartOpts, IMcpTool, McpCollectionDefinition, McpCollectionReference, McpConnectionFailedError, McpConnectionState, McpDefinitionReference, McpResourceURI, McpServerDefinition, McpServerCacheState, McpServerTransportType, McpCapability, IMcpResourceTemplate } from './mcpTypes.js';
+import { extensionMcpCollectionPrefix, IMcpPrompt, IMcpPromptMessage, IMcpResource, IMcpResourceTemplate, IMcpSamplingService, IMcpServer, IMcpServerConnection, IMcpServerStartOpts, IMcpTool, McpCapability, McpCollectionDefinition, McpCollectionReference, McpConnectionFailedError, McpConnectionState, McpDefinitionReference, mcpPromptReplaceSpecialChars, McpResourceURI, McpServerCacheState, McpServerDefinition, McpServerTransportType, McpToolName } from './mcpTypes.js';
 import { MCP } from './modelContextProtocol.js';
 import { UriTemplate } from './uriTemplate.js';
 
@@ -266,7 +267,7 @@ export class McpServer extends Disposable implements IMcpServer {
 
 		const fromServer = this._tools.fromServerPromise.read(reader);
 		const connectionState = this.connectionState.read(reader);
-		const isIdle = McpConnectionState.canBeStarted(connectionState.state) && !fromServer;
+		const isIdle = McpConnectionState.canBeStarted(connectionState.state) || !fromServer;
 		if (isIdle) {
 			return stateWhenServingFromCache();
 		}
@@ -286,6 +287,8 @@ export class McpServer extends Disposable implements IMcpServer {
 	private readonly _loggerId: string;
 	private readonly _logger: ILogger;
 	private _lastModeDebugged = false;
+	/** Count of running tool calls, used to detect if sampling is during an LM call */
+	public runningToolCalls = 0;
 
 	public get trusted() {
 		return this._mcpRegistry.getTrust(this.collection);
@@ -297,6 +300,7 @@ export class McpServer extends Disposable implements IMcpServer {
 		explicitRoots: URI[] | undefined,
 		private readonly _requiresExtensionActivation: boolean | undefined,
 		private readonly _primitiveCache: McpServerMetadataCache,
+		toolPrefix: string,
 		@IMcpRegistry private readonly _mcpRegistry: IMcpRegistry,
 		@IWorkspaceContextService workspacesService: IWorkspaceContextService,
 		@IExtensionService private readonly _extensionService: IExtensionService,
@@ -307,6 +311,7 @@ export class McpServer extends Disposable implements IMcpServer {
 		@IInstantiationService private readonly _instantiationService: IInstantiationService,
 		@INotificationService private readonly _notificationService: INotificationService,
 		@IOpenerService private readonly _openerService: IOpenerService,
+		@IMcpSamplingService private readonly _samplingService: IMcpSamplingService,
 	) {
 		super();
 
@@ -354,15 +359,11 @@ export class McpServer extends Disposable implements IMcpServer {
 		}));
 
 		// 3. Publish tools
-		const toolPrefix = this._mcpRegistry.collectionToolPrefix(this.collection);
 		this._tools = new CachedPrimitive<IMcpTool, IValidatedMcpTool>(
 			this.definition.id,
 			this._primitiveCache,
 			(entry) => entry.tools,
-			(entry, reader) => {
-				const prefix = toolPrefix.read(reader);
-				return entry.map(def => new McpTool(this, prefix, def)).sort((a, b) => a.compare(b));
-			},
+			(entry) => entry.map(def => new McpTool(this, toolPrefix, def)).sort((a, b) => a.compare(b)),
 		);
 
 		// 4. Publish promtps
@@ -453,7 +454,14 @@ export class McpServer extends Disposable implements IMcpServer {
 			}
 
 			const start = Date.now();
-			const state = await connection.start();
+			const state = await connection.start({
+				createMessageRequestHandler: params => this._samplingService.sample({
+					isDuringToolCall: true,
+					server: this,
+					params,
+				}).then(r => r.sample)
+			});
+
 			this._telemetryService.publicLog2<ServerBootState, ServerBootStateClassification>('mcp/serverBootState', {
 				state: McpConnectionState.toKindString(state.state),
 				time: Date.now() - start,
@@ -609,8 +617,8 @@ export class McpServer extends Disposable implements IMcpServer {
 		}));
 
 		store.add(handler.onDidChangePromptList(() => {
-			handler.logger.info('Prompts list changed, refreshing tools...');
-			updateTools(undefined);
+			handler.logger.info('Prompts list changed, refreshing prompts...');
+			updatePrompts(undefined);
 		}));
 
 		transaction(tx => {
@@ -649,7 +657,7 @@ class McpPrompt implements IMcpPrompt {
 		private readonly _server: McpServer,
 		private readonly _definition: MCP.Prompt,
 	) {
-		this.id = (this._server.definition.label + '.' + _definition.name).replace(/[^a-z0-9_.-]/gi, '_');
+		this.id = mcpPromptReplaceSpecialChars(this._server.definition.label + '.' + _definition.name);
 		this.name = _definition.name;
 		this.description = _definition.description;
 		this.arguments = _definition.arguments || [];
@@ -660,10 +668,11 @@ class McpPrompt implements IMcpPrompt {
 		return result.messages;
 	}
 
-	async complete(argument: string, prefix: string, token?: CancellationToken): Promise<string[]> {
+	async complete(argument: string, prefix: string, alreadyResolved: Record<string, string>, token?: CancellationToken): Promise<string[]> {
 		const result = await McpServer.callOn(this._server, h => h.complete({
 			ref: { type: 'ref/prompt', name: this._definition.name },
-			argument: { name: argument, value: prefix, }
+			argument: { name: argument, value: prefix },
+			context: { arguments: alreadyResolved },
 		}, token), token);
 		return result.completion.values;
 	}
@@ -700,6 +709,7 @@ function encodeCapabilities(cap: MCP.ServerCapabilities): McpCapability {
 export class McpTool implements IMcpTool {
 
 	readonly id: string;
+	readonly referenceName: string;
 
 	public get definition(): MCP.Tool { return this._definition; }
 
@@ -708,17 +718,28 @@ export class McpTool implements IMcpTool {
 		idPrefix: string,
 		private readonly _definition: IValidatedMcpTool,
 	) {
-		this.id = (idPrefix + _definition.name).replaceAll('.', '_');
+		this.referenceName = _definition.name.replaceAll('.', '_');
+		this.id = (idPrefix + _definition.name).replaceAll('.', '_').slice(0, McpToolName.MaxLength);
 	}
 
-	call(params: Record<string, unknown>, token?: CancellationToken): Promise<MCP.CallToolResult> {
+	async call(params: Record<string, unknown>, token?: CancellationToken): Promise<MCP.CallToolResult> {
 		// serverToolName is always set now, but older cache entries (from 1.99-Insiders) may not have it.
 		const name = this._definition.serverToolName ?? this._definition.name;
-		return McpServer.callOn(this._server, h => h.callTool({ name, arguments: params }, token), token);
+		this._server.runningToolCalls++;
+		try {
+			return await McpServer.callOn(this._server, h => h.callTool({ name, arguments: params }, token), token);
+		} finally {
+			this._server.runningToolCalls--;
+		}
 	}
 
-	callWithProgress(params: Record<string, unknown>, progress: ToolProgress, token?: CancellationToken): Promise<MCP.CallToolResult> {
-		return this._callWithProgress(params, progress, token);
+	async callWithProgress(params: Record<string, unknown>, progress: ToolProgress, token?: CancellationToken): Promise<MCP.CallToolResult> {
+		this._server.runningToolCalls++;
+		try {
+			return await this._callWithProgress(params, progress, token);
+		} finally {
+			this._server.runningToolCalls--;
+		}
 	}
 
 	_callWithProgress(params: Record<string, unknown>, progress: ToolProgress, token?: CancellationToken, allowRetry = true): Promise<MCP.CallToolResult> {
@@ -825,10 +846,13 @@ class McpResourceTemplate implements IMcpResourceTemplate {
 		return McpResourceURI.fromServer(this._server.definition, serverUri);
 	}
 
-	async complete(templatePart: string, prefix: string, token?: CancellationToken): Promise<string[]> {
+	async complete(templatePart: string, prefix: string, alreadyResolved: Record<string, string | string[]>, token?: CancellationToken): Promise<string[]> {
 		const result = await McpServer.callOn(this._server, h => h.complete({
 			ref: { type: 'ref/resource', uri: this._definition.uriTemplate },
-			argument: { name: templatePart, value: prefix, }
+			argument: { name: templatePart, value: prefix },
+			context: {
+				arguments: mapValues(alreadyResolved, v => Array.isArray(v) ? v.join('/') : v),
+			},
 		}, token), token);
 		return result.completion.values;
 	}
