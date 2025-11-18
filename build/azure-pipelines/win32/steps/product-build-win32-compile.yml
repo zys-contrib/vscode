@@ -23,6 +23,9 @@ steps:
       versionSource: fromFile
       versionFilePath: .nvmrc
 
+  - ${{ if eq(parameters.VSCODE_QUALITY, 'insider') }}:
+    - template: ../../common/bump-insiders-version.yml@self
+
   - task: UsePythonVersion@0
     inputs:
       versionSpec: "3.x"
@@ -120,7 +123,7 @@ steps:
   - template: ../../common/install-builtin-extensions.yml@self
 
   - ${{ if ne(parameters.VSCODE_CIBUILD, true) }}:
-    - powershell: node build\lib\policies win32
+    - powershell: node build\lib\policies\policyGenerator build\lib\policies\policyData.jsonc win32
       displayName: Generate Group Policy definitions
       retryCountOnTaskFailure: 3
 

@@ -1,4 +1,6 @@
 parameters:
+  - name: VSCODE_QUALITY
+    type: string
   - name: VSCODE_ARCH
     type: string
   - name: VSCODE_CIBUILD
@@ -20,6 +22,9 @@ steps:
     inputs:
       versionSource: fromFile
       versionFilePath: .nvmrc
+
+  - ${{ if eq(parameters.VSCODE_QUALITY, 'insider') }}:
+    - template: ../../common/bump-insiders-version.yml@self
 
   - template: ../../distro/download-distro.yml@self
 
@@ -118,7 +123,7 @@ steps:
   - template: ../../common/install-builtin-extensions.yml@self
 
   - ${{ if ne(parameters.VSCODE_CIBUILD, true) }}:
-    - script: node build/lib/policies darwin
+    - script: node build/lib/policies/policyGenerator build/lib/policies/policyData.jsonc darwin
       displayName: Generate policy definitions
       retryCountOnTaskFailure: 3
 
