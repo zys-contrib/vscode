@@ -7696,6 +7696,7 @@ declare namespace monaco.languages {
 		preceeded: boolean;
 		languageId: string;
 		requestReason: string;
+		performanceMarkers?: string;
 		cursorColumnDistance?: number;
 		cursorLineDistance?: number;
 		lineCountOriginal?: number;
@@ -7711,6 +7712,7 @@ declare namespace monaco.languages {
 		renameCreated: boolean;
 		renameDuration?: number;
 		renameTimedOut: boolean;
+		editKind: string | undefined;
 	};
 
 	export interface CodeAction {
