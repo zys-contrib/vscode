@@ -89,6 +89,7 @@ import './agentSessions/agentSessionsView.js';
 import { IChatAccessibilityService, IChatCodeBlockContextProviderService, IChatWidgetService, IQuickChatService } from './chat.js';
 import { ChatAccessibilityService } from './chatAccessibilityService.js';
 import './chatAttachmentModel.js';
+import './chatStatusWidget.js';
 import { ChatAttachmentResolveService, IChatAttachmentResolveService } from './chatAttachmentResolveService.js';
 import { ChatMarkdownAnchorService, IChatMarkdownAnchorService } from './chatContentParts/chatMarkdownAnchorService.js';
 import { ChatContextPickService, IChatContextPickService } from './chatContextPickService.js';
@@ -535,6 +536,16 @@ configurationRegistry.registerConfiguration({
 			default: true,
 			tags: ['experimental'],
 		},
+		['chat.statusWidget.enabled']: {
+			type: 'boolean',
+			description: nls.localize('chat.statusWidget.enabled.description', "Show the status widget in new chat sessions when quota is exceeded."),
+			default: false,
+			tags: ['experimental'],
+			included: false,
+			experiment: {
+				mode: 'auto'
+			}
+		},
 		[ChatConfiguration.AgentSessionsViewLocation]: {
 			type: 'string',
 			enum: ['disabled', 'view', 'single-view'], // TODO@bpasero remove this setting eventually
@@ -786,6 +797,15 @@ configurationRegistry.registerConfiguration({
 			type: 'boolean',
 			description: nls.localize('chat.allowAnonymousAccess', "Controls whether anonymous access is allowed in chat."),
 			default: false,
+			tags: ['experimental'],
+			experiment: {
+				mode: 'auto'
+			}
+		},
+		[ChatConfiguration.RestoreLastPanelSession]: { // TODO@bpasero review this setting later
+			type: 'boolean',
+			description: nls.localize('chat.restoreLastPanelSession', "Controls whether the last session is restored in panel after restart."),
+			default: true,
 			tags: ['experimental'],
 			experiment: {
 				mode: 'auto'
