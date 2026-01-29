@@ -208,8 +208,8 @@ export class AgentSessionsWelcomePage extends EditorPane {
 				originalSessions = hasSessions;
 				clearNode(sessionsSection);
 				this.buildSessionsOrPrompts(sessionsSection);
-				this.layoutSessionsControl();
 			}
+			this.layoutSessionsControl();
 		}));
 
 		this.scrollableElement?.scanDomNode();
