@@ -586,7 +586,7 @@ export class ChatSessionPrimaryPickerAction extends Action2 {
 	constructor() {
 		super({
 			id: ChatSessionPrimaryPickerAction.ID,
-			title: localize2('interactive.openChatSessionPrimaryPicker.label', "Open Picker"),
+			title: localize2('interactive.openChatSessionPrimaryPicker.label', "Open Model Picker"),
 			category: CHAT_CATEGORY,
 			f1: false,
 			precondition: ChatContextKeys.enabled,
