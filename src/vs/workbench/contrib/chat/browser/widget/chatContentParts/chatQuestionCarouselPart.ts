@@ -346,15 +346,14 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 		const headerRow = dom.$('.chat-question-header-row');
 
 		// Render question message with title styling, prefixed with progress indicator
-		if (question.message) {
-			const title = dom.$('.chat-question-title');
-			const messageContent = typeof question.message === 'string'
-				? question.message
-				: question.message.value;
-			const progressPrefix = localize('chat.questionCarousel.progressPrefix', '({0}/{1}) ', this._currentIndex + 1, this.carousel.questions.length);
-			title.textContent = progressPrefix + messageContent;
-			headerRow.appendChild(title);
-		}
+		// Fall back to title if message is not provided
+		const messageContent = question.message
+			? (typeof question.message === 'string' ? question.message : question.message.value)
+			: question.title;
+		const title = dom.$('.chat-question-title');
+		const progressPrefix = localize('chat.questionCarousel.progressPrefix', '({0}/{1}) ', this._currentIndex + 1, this.carousel.questions.length);
+		title.textContent = progressPrefix + messageContent;
+		headerRow.appendChild(title);
 
 		// Add navigation buttons to header row
 		if (this._navigationButtons) {
