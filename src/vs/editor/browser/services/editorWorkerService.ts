@@ -283,7 +283,7 @@ class WordBasedCompletionItemProvider implements languages.CompletionItemProvide
 
 		if (config.wordBasedSuggestions === 'offWithInlineSuggestions'
 			&& this.languageFeaturesService.inlineCompletionsProvider.has(model)
-			&& isCompletionsEnabledWithTextResourceConfig(this._configurationService, model.getLanguageId())) {
+			&& isCompletionsEnabledWithTextResourceConfig(this._configurationService, model.uri, model.getLanguageId())) {
 			return undefined;
 		}
 

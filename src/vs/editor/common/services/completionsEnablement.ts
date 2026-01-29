@@ -7,6 +7,7 @@ import product from '../../../platform/product/common/product.js';
 import { isObject } from '../../../base/common/types.js';
 import { IConfigurationService } from '../../../platform/configuration/common/configuration.js';
 import { ITextResourceConfigurationService } from './textResourceConfiguration.js';
+import { URI } from '../../../base/common/uri.js';
 
 /**
  * Get the completions enablement setting name from product configuration.
@@ -43,7 +44,7 @@ export function isCompletionsEnabled(configurationService: IConfigurationService
  * @param modeId The language ID to check. Defaults to '*' which checks the global setting.
  * @returns `true` if completions are enabled for the language, `false` otherwise.
  */
-export function isCompletionsEnabledWithTextResourceConfig(configurationService: ITextResourceConfigurationService, modeId: string = '*'): boolean {
+export function isCompletionsEnabledWithTextResourceConfig(configurationService: ITextResourceConfigurationService, resource: URI, modeId: string = '*'): boolean {
 	const settingName = getCompletionsEnablementSettingName();
 	if (!settingName) {
 		return false;
@@ -51,7 +52,7 @@ export function isCompletionsEnabledWithTextResourceConfig(configurationService:
 
 	// Pass undefined as resource to get the global setting
 	return isCompletionsEnabledFromObject(
-		configurationService.getValue<Record<string, boolean>>(undefined, settingName),
+		configurationService.getValue<Record<string, boolean>>(resource, settingName),
 		modeId
 	);
 }
