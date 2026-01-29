@@ -90,7 +90,7 @@
 		"sideBarSectionHeader.border": "#ECEDEEFF",
 		"titleBar.activeBackground": "#E8ECF2",
 		"titleBar.activeForeground": "#424242",
-		"titleBar.inactiveBackground": "#E8ECF2",
+		"titleBar.inactiveBackground": "#FFFFFF",
 		"titleBar.inactiveForeground": "#666666",
 		"titleBar.border": "#ECEDEEFF",
 		"menubar.selectionBackground": "#EDEDED",
