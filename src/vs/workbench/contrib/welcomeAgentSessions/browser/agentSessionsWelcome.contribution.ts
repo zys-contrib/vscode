@@ -12,15 +12,16 @@ import { EditorPaneDescriptor, IEditorPaneRegistry } from '../../../browser/edit
 import { EditorExtensions, IEditorFactoryRegistry } from '../../../common/editor.js';
 import { IEditorResolverService, RegisteredEditorPriority } from '../../../services/editor/common/editorResolverService.js';
 import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
-import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
+import { IInstantiationService, ServicesAccessor } from '../../../../platform/instantiation/common/instantiation.js';
 import { IEditorService } from '../../../services/editor/common/editorService.js';
 import { IEditorGroupsService } from '../../../services/editor/common/editorGroupsService.js';
 import { IContextKeyService } from '../../../../platform/contextkey/common/contextkey.js';
 import { AuxiliaryBarMaximizedContext } from '../../../common/contextkeys.js';
-import { CommandsRegistry } from '../../../../platform/commands/common/commands.js';
 import { IStorageService, StorageScope } from '../../../../platform/storage/common/storage.js';
 import { AgentSessionsWelcomeInput } from './agentSessionsWelcomeInput.js';
 import { AgentSessionsWelcomePage, AgentSessionsWelcomeInputSerializer } from './agentSessionsWelcome.js';
+import { Action2, registerAction2 } from '../../../../platform/actions/common/actions.js';
+import { ChatContextKeys } from '../../chat/common/actions/chatContextKeys.js';
 
 // Registration priority
 const agentSessionsWelcomeInputTypeId = 'workbench.editors.agentSessionsWelcomeInput';
@@ -76,11 +77,21 @@ class AgentSessionsWelcomeEditorResolverContribution extends Disposable implemen
 }
 
 // Register command to open agent sessions welcome page
-CommandsRegistry.registerCommand(AgentSessionsWelcomePage.COMMAND_ID, (accessor) => {
-	const editorService = accessor.get(IEditorService);
-	const instantiationService = accessor.get(IInstantiationService);
-	const input = instantiationService.createInstance(AgentSessionsWelcomeInput, {});
-	return editorService.openEditor(input, { pinned: true });
+registerAction2(class OpenAgentSessionsWelcomeAction extends Action2 {
+	constructor() {
+		super({
+			id: AgentSessionsWelcomePage.COMMAND_ID,
+			title: localize('openAgentSessionsWelcome', "Open Agent Sessions Welcome"),
+			precondition: ChatContextKeys.enabled
+		});
+	}
+
+	async run(accessor: ServicesAccessor): Promise<void> {
+		const editorService = accessor.get(IEditorService);
+		const instantiationService = accessor.get(IInstantiationService);
+		const input = instantiationService.createInstance(AgentSessionsWelcomeInput, {});
+		await editorService.openEditor(input, { pinned: true });
+	}
 });
 
 // Runner contribution - handles opening on startup
@@ -100,6 +111,11 @@ class AgentSessionsWelcomeRunnerContribution extends Disposable implements IWork
 	}
 
 	private async run(): Promise<void> {
+		// Check if AI features are enabled
+		if (!ChatContextKeys.enabled.getValue(this.contextKeyService)) {
+			return;
+		}
+
 		// Get startup editor configuration
 		const startupEditor = this.configurationService.getValue<string>('workbench.startupEditor');
 
