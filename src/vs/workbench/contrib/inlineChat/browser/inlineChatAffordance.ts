@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { Disposable } from '../../../../base/common/lifecycle.js';
-import { autorun, debouncedObservable, derived, observableValue, runOnChange, waitForState } from '../../../../base/common/observable.js';
+import { autorun, debouncedObservable, derived, observableSignalFromEvent, observableValue, runOnChange, waitForState } from '../../../../base/common/observable.js';
 import { ICodeEditor } from '../../../../editor/browser/editorBrowser.js';
 import { observableCodeEditor } from '../../../../editor/browser/observableCodeEditor.js';
 import { ScrollType } from '../../../../editor/common/editorCommon.js';
@@ -19,6 +19,7 @@ import { InlineChatGutterAffordance } from './inlineChatGutterAffordance.js';
 import { Selection, SelectionDirection } from '../../../../editor/common/core/selection.js';
 import { assertType } from '../../../../base/common/types.js';
 import { CursorChangeReason } from '../../../../editor/common/cursorEvents.js';
+import { IInlineChatSessionService } from './inlineChatSessionService.js';
 
 export class InlineChatAffordance extends Disposable {
 
@@ -30,6 +31,7 @@ export class InlineChatAffordance extends Disposable {
 		@IInstantiationService private readonly _instantiationService: IInstantiationService,
 		@IConfigurationService configurationService: IConfigurationService,
 		@IChatEntitlementService chatEntiteldService: IChatEntitlementService,
+		@IInlineChatSessionService inlineChatSessionService: IInlineChatSessionService,
 	) {
 		super();
 
@@ -59,6 +61,18 @@ export class InlineChatAffordance extends Disposable {
 
 		this._store.add(autorun(r => {
 			if (chatEntiteldService.sentimentObs.read(r).hidden) {
+				selectionData.set(undefined, undefined);
+			}
+		}));
+
+		const hasSessionObs = derived(r => {
+			observableSignalFromEvent(this, inlineChatSessionService.onDidChangeSessions).read(r);
+			const model = editorObs.model.read(r);
+			return model ? inlineChatSessionService.getSessionByTextModel(model.uri) !== undefined : false;
+		});
+
+		this._store.add(autorun(r => {
+			if (hasSessionObs.read(r)) {
 				selectionData.set(undefined, undefined);
 			}
 		}));
