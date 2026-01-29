@@ -1337,7 +1337,7 @@ export class ChatListItemRenderer extends Disposable implements ITreeRenderer<Ch
 		}
 
 		// Don't pin MCP tools
-		const isMcpTool = (part.kind === 'toolInvocation' || part.kind === 'toolInvocationSerialized') && part.source.type === 'mcp';
+		const isMcpTool = (part.kind === 'toolInvocation' || part.kind === 'toolInvocationSerialized') && part.source?.type === 'mcp';
 		if (isMcpTool) {
 			return false;
 		}
@@ -1345,6 +1345,12 @@ export class ChatListItemRenderer extends Disposable implements ITreeRenderer<Ch
 		// don't pin Mermaid tools since it has rendered output
 		const isMermaidTool = (part.kind === 'toolInvocation' || part.kind === 'toolInvocationSerialized') && part.toolId.toLowerCase().includes('mermaid');
 		if (isMermaidTool) {
+			return false;
+		}
+
+		// don't pin ask questions tool invocations
+		const isAskQuestionsTool = (part.kind === 'toolInvocation' || part.kind === 'toolInvocationSerialized') && part.toolId === 'copilot_askQuestions';
+		if (isAskQuestionsTool) {
 			return false;
 		}
 
