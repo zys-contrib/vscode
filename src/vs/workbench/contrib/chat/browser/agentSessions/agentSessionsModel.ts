@@ -144,8 +144,8 @@ export function isAgentSessionsModel(obj: unknown): obj is IAgentSessionsModel {
 }
 
 interface IAgentSessionState {
-	readonly archived: boolean;
-	readonly read: number /* last date turned read */;
+	readonly archived?: boolean;
+	readonly read?: number /* last date turned read */;
 }
 
 export const enum AgentSessionSection {
@@ -562,7 +562,7 @@ export class AgentSessionsModel extends Disposable implements IAgentSessionsMode
 			return; // no change
 		}
 
-		const state = this.sessionStates.get(session.resource) ?? { archived: false, read: 0 };
+		const state = this.sessionStates.get(session.resource) ?? {};
 		this.sessionStates.set(session.resource, { ...state, archived });
 
 		const agentSession = this._sessions.get(session.resource);
@@ -598,17 +598,17 @@ export class AgentSessionsModel extends Disposable implements IAgentSessionsMode
 	}
 
 	private sessionTimeForReadStateTracking(session: IInternalAgentSessionData): number {
-		return session.timing.lastRequestEnded ?? session.timing.lastRequestStarted ?? session.timing.created;
+		return session.timing.lastRequestEnded ?? session.timing.created;
 	}
 
 	private setRead(session: IInternalAgentSessionData, read: boolean, skipEvent?: boolean): void {
-		const state = this.sessionStates.get(session.resource) ?? { archived: false, read: 0 };
+		const state = this.sessionStates.get(session.resource) ?? {};
 
 		let newRead: number;
 		if (read) {
 			newRead = Math.max(Date.now(), this.sessionTimeForReadStateTracking(session));
 
-			if (state.read >= newRead) {
+			if (typeof state.read === 'number' && state.read >= newRead) {
 				return; // already read with a sufficient timestamp
 			}
 		} else {
@@ -625,7 +625,7 @@ export class AgentSessionsModel extends Disposable implements IAgentSessionsMode
 		}
 	}
 
-	private static readonly READ_DATE_BASELINE_KEY = 'agentSessions.readDateBaseline';
+	private static readonly READ_DATE_BASELINE_KEY = 'agentSessions.readDateBaseline2';
 
 	private readonly readDateBaseline: number;
 
