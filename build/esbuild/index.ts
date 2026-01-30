@@ -18,9 +18,14 @@ const globAsync = promisify(glob);
 // ============================================================================
 
 const REPO_ROOT = path.dirname(path.dirname(import.meta.dirname));
-const isWatch = process.argv.includes('--watch');
-const isBundle = process.argv.includes('--bundle');
-const isMinify = process.argv.includes('--minify');
+
+// CLI: transpile [--watch] | bundle [--minify] [--nls]
+const command = process.argv[2]; // 'transpile' or 'bundle'
+const options = {
+	watch: process.argv.includes('--watch'),
+	minify: process.argv.includes('--minify'),
+	nls: process.argv.includes('--nls'),
+};
 
 const SRC_DIR = 'src';
 const OUT_DIR = 'out';
@@ -341,10 +346,10 @@ async function transpile(outDir: string, excludeTests: boolean): Promise<void> {
 // Bundle (Goal 2: JS → bundled JS)
 // ============================================================================
 
-async function bundle(): Promise<void> {
+async function bundle(doMinify: boolean, doNls: boolean): Promise<void> {
 	await cleanDir(OUT_VSCODE_DIR);
 
-	console.log(`[bundle] ${SRC_DIR} → ${OUT_VSCODE_DIR}`);
+	console.log(`[bundle] ${SRC_DIR} → ${OUT_VSCODE_DIR}${doMinify ? ' (minify)' : ''}${doNls ? ' (nls)' : ''}`);
 	const t1 = Date.now();
 
 	// Read TSLib for banner
@@ -368,7 +373,7 @@ ${tslib}`,
 		}
 	});
 
-	// Create shared NLS collector
+	// Create shared NLS collector (only used if doNls is true)
 	const nlsCollector = createNLSCollector();
 	const preserveEnglish = false; // Production mode: replace messages with null
 
@@ -389,6 +394,14 @@ ${tslib}`,
 		const entryPath = path.join(REPO_ROOT, SRC_DIR, `${entryPoint}.ts`);
 		const outPath = path.join(REPO_ROOT, OUT_VSCODE_DIR, `${entryPoint}.js`);
 
+		const plugins: esbuild.Plugin[] = [cssExternalPlugin()];
+		if (doNls) {
+			plugins.unshift(nlsPlugin({
+				baseDir: path.join(REPO_ROOT, SRC_DIR),
+				collector: nlsCollector,
+			}));
+		}
+
 		const result = await esbuild.build({
 			entryPoints: [entryPath],
 			outfile: outPath,
@@ -399,7 +412,7 @@ ${tslib}`,
 			packages: 'external',
 			sourcemap: 'external',
 			sourcesContent: false,
-			minify: isMinify,
+			minify: doMinify,
 			treeShaking: true,
 			banner,
 			loader: {
@@ -409,13 +422,7 @@ ${tslib}`,
 				'.sh': 'file',
 			},
 			assetNames: 'media/[name]',
-			plugins: [
-				nlsPlugin({
-					baseDir: path.join(REPO_ROOT, SRC_DIR),
-					collector: nlsCollector,
-				}),
-				cssExternalPlugin()
-			],
+			plugins,
 			write: false, // Don't write yet, we need to post-process
 			logLevel: 'warning',
 			logOverride: {
@@ -437,6 +444,14 @@ ${tslib}`,
 
 		const outPath = path.join(REPO_ROOT, OUT_VSCODE_DIR, `${entry}.js`);
 
+		const bootstrapPlugins: esbuild.Plugin[] = [inlineMinimistPlugin()];
+		if (doNls) {
+			bootstrapPlugins.unshift(nlsPlugin({
+				baseDir: path.join(REPO_ROOT, SRC_DIR),
+				collector: nlsCollector,
+			}));
+		}
+
 		const result = await esbuild.build({
 			entryPoints: [entryPath],
 			outfile: outPath,
@@ -447,16 +462,10 @@ ${tslib}`,
 			packages: 'external',
 			sourcemap: 'external',
 			sourcesContent: false,
-			minify: isMinify,
+			minify: doMinify,
 			treeShaking: true,
 			banner,
-			plugins: [
-				nlsPlugin({
-					baseDir: path.join(REPO_ROOT, SRC_DIR),
-					collector: nlsCollector,
-				}),
-				inlineMinimistPlugin()
-			],
+			plugins: bootstrapPlugins,
 			write: false, // Don't write yet, we need to post-process
 			logLevel: 'warning',
 			logOverride: {
@@ -469,7 +478,11 @@ ${tslib}`,
 	}
 
 	// Finalize NLS: sort entries, assign indices, write metadata files
-	const { indexMap } = await finalizeNLS(nlsCollector, path.join(REPO_ROOT, OUT_VSCODE_DIR));
+	let indexMap = new Map<string, number>();
+	if (doNls) {
+		const nlsResult = await finalizeNLS(nlsCollector, path.join(REPO_ROOT, OUT_VSCODE_DIR));
+		indexMap = nlsResult.indexMap;
+	}
 
 	// Post-process and write all output files
 	let bundled = 0;
@@ -481,7 +494,7 @@ ${tslib}`,
 		for (const file of result.outputFiles) {
 			await fs.promises.mkdir(path.dirname(file.path), { recursive: true });
 
-			if (file.path.endsWith('.js') && indexMap.size > 0) {
+			if (doNls && file.path.endsWith('.js') && indexMap.size > 0) {
 				// Post-process JS files to replace NLS placeholders with indices
 				const processed = postProcessNLS(file.text, indexMap, preserveEnglish);
 				await fs.promises.writeFile(file.path, processed);
@@ -609,25 +622,57 @@ async function watch(): Promise<void> {
 // Main
 // ============================================================================
 
+function printUsage(): void {
+	console.log(`Usage: npx tsx build/esbuild/index.ts <command> [options]
+
+Commands:
+	transpile          Transpile TypeScript to JavaScript (single-file, fast)
+	bundle             Bundle entry points into optimized bundles
+
+Options for 'transpile':
+	--watch            Watch for changes and rebuild incrementally
+
+Options for 'bundle':
+	--minify           Minify the output bundles
+	--nls              Process NLS (localization) strings
+
+Examples:
+	npx tsx build/esbuild/index.ts transpile
+	npx tsx build/esbuild/index.ts transpile --watch
+	npx tsx build/esbuild/index.ts bundle
+	npx tsx build/esbuild/index.ts bundle --minify --nls
+`);
+}
+
 async function main(): Promise<void> {
 	const t1 = Date.now();
 
 	try {
-		if (isWatch) {
-			await watch();
-		} else if (isBundle) {
-			await bundle();
-		} else {
-			const outDir = OUT_DIR;
-			await cleanDir(outDir);
-			console.log(`[transpile] ${SRC_DIR} → ${outDir}`);
-			const t1 = Date.now();
-			await transpile(outDir, false);
-			await copyResources(outDir, false, false);
-			console.log(`[transpile] Done in ${Date.now() - t1}ms`);
+		switch (command) {
+			case 'transpile':
+				if (options.watch) {
+					await watch();
+				} else {
+					const outDir = OUT_DIR;
+					await cleanDir(outDir);
+					console.log(`[transpile] ${SRC_DIR} → ${outDir}`);
+					const t1 = Date.now();
+					await transpile(outDir, false);
+					await copyResources(outDir, false, false);
+					console.log(`[transpile] Done in ${Date.now() - t1}ms`);
+				}
+				break;
+
+			case 'bundle':
+				await bundle(options.minify, options.nls);
+				break;
+
+			default:
+				printUsage();
+				process.exit(command ? 1 : 0);
 		}
 
-		if (!isWatch) {
+		if (!options.watch) {
 			console.log(`\n✓ Total: ${Date.now() - t1}ms`);
 		}
 	} catch (err) {
