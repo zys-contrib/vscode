@@ -73,6 +73,18 @@ suite('ChatQuestionCarouselPart', () => {
 			assert.ok(title?.textContent?.includes('What is your name?'));
 		});
 
+		test('renders question title when message is not provided', () => {
+			const carousel = createMockCarousel([
+				{ id: 'q1', type: 'text', title: 'Fallback title text' }
+			]);
+			createWidget(carousel);
+
+			const title = widget.domNode.querySelector('.chat-question-title');
+			assert.ok(title, 'title element should exist when only title is provided');
+			// Title should fall back to title property when message is not provided
+			assert.ok(title?.textContent?.includes('Fallback title text'));
+		});
+
 		test('renders progress indicator correctly', () => {
 			const carousel = createMockCarousel([
 				{ id: 'q1', type: 'text', title: 'Question 1', message: 'Question 1' },
@@ -347,6 +359,7 @@ suite('ChatQuestionCarouselPart', () => {
 			assert.ok(listItem, 'List item should exist');
 			assert.strictEqual(listItem.getAttribute('role'), 'option');
 			assert.ok(listItem.id, 'List item should have an id');
+			assert.strictEqual(listItem.getAttribute('aria-selected'), 'false', 'Unselected item should have aria-selected=false');
 		});
 	});
 

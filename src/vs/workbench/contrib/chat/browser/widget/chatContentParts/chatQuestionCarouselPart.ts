@@ -349,11 +349,13 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 		const headerRow = dom.$('.chat-question-header-row');
 
 		// Render question message with title styling, prefixed with progress indicator
-		if (question.message) {
+		// Fall back to question.title if message is not provided
+		const questionText = question.message ?? question.title;
+		if (questionText) {
 			const title = dom.$('.chat-question-title');
-			const messageContent = typeof question.message === 'string'
-				? question.message
-				: question.message.value;
+			const messageContent = typeof questionText === 'string'
+				? questionText
+				: questionText.value;
 			const progressPrefix = localize('chat.questionCarousel.progressPrefix', '({0}/{1}) ', this._currentIndex + 1, this.carousel.questions.length);
 			title.textContent = progressPrefix + messageContent;
 			headerRow.appendChild(title);
@@ -471,6 +473,10 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 				indicator.classList.toggle('codicon', isSelected);
 				indicator.classList.toggle('codicon-check', isSelected);
 			});
+			// Update aria-activedescendant for screen reader announcements
+			if (newIndex >= 0 && newIndex < listItems.length) {
+				selectContainer.setAttribute('aria-activedescendant', listItems[newIndex].id);
+			}
 			// Update tracked state
 			const data = this._singleSelectItems.get(question.id);
 			if (data) {
@@ -527,11 +533,16 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 
 		this._singleSelectItems.set(question.id, { items: listItems, selectedIndex });
 
+		// Set initial aria-activedescendant if there's a selected item
+		if (selectedIndex >= 0 && selectedIndex < listItems.length) {
+			selectContainer.setAttribute('aria-activedescendant', listItems[selectedIndex].id);
+		}
+
 		// Keyboard navigation for the list
 		this._inputBoxes.add(dom.addDisposableListener(selectContainer, dom.EventType.KEY_DOWN, (e: KeyboardEvent) => {
 			const event = new StandardKeyboardEvent(e);
 			const data = this._singleSelectItems.get(question.id);
-			if (!data) {
+			if (!data || !listItems.length) {
 				return;
 			}
 			let newIndex = data.selectedIndex;
@@ -648,9 +659,12 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 
 			// Click handler for the entire row (toggle checkbox)
 			this._inputBoxes.add(dom.addDisposableListener(listItem, dom.EventType.CLICK, (e: MouseEvent) => {
+				// Update focusedIndex when clicking a row
+				focusedIndex = index;
 				// Don't toggle if the click was on the checkbox itself (it handles itself)
 				if (e.target !== checkbox.domNode && !checkbox.domNode.contains(e.target as Node)) {
-					checkbox.checked = !checkbox.checked;
+					// Use click() to trigger onChange and sync visual state
+					checkbox.domNode.click();
 				}
 			}));
 
@@ -665,6 +679,11 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 		this._inputBoxes.add(dom.addDisposableListener(selectContainer, dom.EventType.KEY_DOWN, (e: KeyboardEvent) => {
 			const event = new StandardKeyboardEvent(e);
 
+			// Guard against empty list
+			if (!listItems.length) {
+				return;
+			}
+
 			if (event.keyCode === KeyCode.DownArrow) {
 				e.preventDefault();
 				focusedIndex = Math.min(focusedIndex + 1, listItems.length - 1);
@@ -675,9 +694,9 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 				listItems[focusedIndex].focus();
 			} else if (event.keyCode === KeyCode.Space) {
 				e.preventDefault();
-				// Toggle the currently focused checkbox
+				// Toggle the currently focused checkbox using click() to trigger onChange
 				if (focusedIndex >= 0 && focusedIndex < checkboxes.length) {
-					checkboxes[focusedIndex].checked = !checkboxes[focusedIndex].checked;
+					checkboxes[focusedIndex].domNode.click();
 				}
 			}
 		}));
