@@ -33,7 +33,7 @@ import { DisposableStore } from '../../../../base/common/lifecycle.js';
 import { AccessibleViewRegistry } from '../../../../platform/accessibility/browser/accessibleViewRegistry.js';
 import { GettingStartedAccessibleView } from './gettingStartedAccessibleView.js';
 import { AgentSessionsWelcomePage } from '../../welcomeAgentSessions/browser/agentSessionsWelcome.js';
-import { ChatContextKeys } from '../../chat/common/actions/chatContextKeys.js';
+import { IChatEntitlementService } from '../../../services/chat/common/chatEntitlementService.js';
 
 export * as icons from './gettingStartedIcons.js';
 
@@ -63,14 +63,14 @@ registerAction2(class extends Action2 {
 		const editorService = accessor.get(IEditorService);
 		const commandService = accessor.get(ICommandService);
 		const configurationService = accessor.get(IConfigurationService);
-		const contextKeyService = accessor.get(IContextKeyService);
+		const chatEntitlementService = accessor.get(IChatEntitlementService);
 
 		const toSide = typeof optionsOrToSide === 'object' ? optionsOrToSide.toSide : optionsOrToSide;
 		const inactive = typeof optionsOrToSide === 'object' ? optionsOrToSide.inactive : false;
 		const activeEditor = editorService.activeEditor;
 
 		// If no specific walkthrough is requested and agent sessions welcome is preferred, open that instead
-		if (!walkthroughID && ChatContextKeys.enabled.getValue(contextKeyService) && configurationService.getValue<string>('workbench.startupEditor') === 'agentSessionsWelcomePage') {
+		if (!walkthroughID && !chatEntitlementService.sentiment.hidden && configurationService.getValue<string>('workbench.startupEditor') === 'agentSessionsWelcomePage') {
 			commandService.executeCommand(AgentSessionsWelcomePage.COMMAND_ID);
 			return;
 		} else {
