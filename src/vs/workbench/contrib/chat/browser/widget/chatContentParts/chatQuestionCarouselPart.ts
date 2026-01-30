@@ -349,11 +349,13 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 		const headerRow = dom.$('.chat-question-header-row');
 
 		// Render question message with title styling, prefixed with progress indicator
-		if (question.message) {
+		// Fall back to question.title if message is not provided
+		const questionText = question.message ?? question.title;
+		if (questionText) {
 			const title = dom.$('.chat-question-title');
-			const messageContent = typeof question.message === 'string'
-				? question.message
-				: question.message.value;
+			const messageContent = typeof questionText === 'string'
+				? questionText
+				: questionText.value;
 			const progressPrefix = localize('chat.questionCarousel.progressPrefix', '({0}/{1}) ', this._currentIndex + 1, this.carousel.questions.length);
 			title.textContent = progressPrefix + messageContent;
 			headerRow.appendChild(title);
