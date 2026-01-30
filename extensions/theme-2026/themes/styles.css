@@ -95,7 +95,7 @@
 /* Title Bar */
 .monaco-workbench.vs .part.titlebar { box-shadow: var(--shadow-md); }
 
-.monaco-workbench.vs-dark .part.titlebar {
+.monaco-workbench .part.titlebar {
 	position: relative;
 	overflow: visible !important;
 	background: linear-gradient(
@@ -104,8 +104,15 @@
 		transparent 100%
 	), var(--vscode-titleBar-activeBackground) !important;
 }
+
 .monaco-workbench .part.titlebar.inactive {
 	background: var(--vscode-titleBar-inactiveBackground) !important;
+
+	.command-center .monaco-action-bar,
+	.command-center .actions-container,
+	.agent-status-pill, .agent-status-badge {
+		background-color: transparent !important;
+	}
 }
 .monaco-workbench .part.titlebar .titlebar-container,
 .monaco-workbench .part.titlebar .titlebar-center,
