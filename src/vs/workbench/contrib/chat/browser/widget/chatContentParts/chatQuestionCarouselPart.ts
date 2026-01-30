@@ -137,7 +137,7 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 		interactiveStore.add(prevButton.onDidClick(() => this.navigate(-1)));
 		interactiveStore.add(nextButton.onDidClick(() => this.handleNext()));
 		if (this._skipAllButton) {
-			interactiveStore.add(this._skipAllButton.onDidClick(() => this.skip()));
+			interactiveStore.add(this._skipAllButton.onDidClick(() => this.ignore()));
 		}
 
 		// Register keyboard navigation - only handle Enter on text inputs
