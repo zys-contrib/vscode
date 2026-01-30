@@ -347,6 +347,7 @@ suite('ChatQuestionCarouselPart', () => {
 			assert.ok(listItem, 'List item should exist');
 			assert.strictEqual(listItem.getAttribute('role'), 'option');
 			assert.ok(listItem.id, 'List item should have an id');
+			assert.strictEqual(listItem.getAttribute('aria-selected'), 'false', 'Unselected item should have aria-selected=false');
 		});
 	});
 
