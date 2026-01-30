@@ -10,8 +10,9 @@ import { KeyCode } from '../../../../../../base/common/keyCodes.js';
 import { Disposable, DisposableStore, MutableDisposable } from '../../../../../../base/common/lifecycle.js';
 import { hasKey } from '../../../../../../base/common/types.js';
 import { localize } from '../../../../../../nls.js';
-import { defaultButtonStyles, defaultCheckboxStyles } from '../../../../../../platform/theme/browser/defaultStyles.js';
+import { defaultButtonStyles, defaultCheckboxStyles, defaultInputBoxStyles } from '../../../../../../platform/theme/browser/defaultStyles.js';
 import { Button } from '../../../../../../base/browser/ui/button/button.js';
+import { InputBox } from '../../../../../../base/browser/ui/inputbox/inputBox.js';
 import { Checkbox } from '../../../../../../base/browser/ui/toggle/toggle.js';
 import { IChatQuestion, IChatQuestionCarousel } from '../../../common/chatService/chatService.js';
 import { IChatContentPart, IChatContentPartRenderContext } from './chatContentParts.js';
@@ -41,7 +42,7 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 
 	private _isSkipped = false;
 
-	private readonly _textInputTextareas: Map<string, HTMLTextAreaElement> = new Map();
+	private readonly _textInputBoxes: Map<string, InputBox> = new Map();
 	private readonly _singleSelectItems: Map<string, { items: HTMLElement[]; selectedIndex: number }> = new Map();
 	private readonly _multiSelectCheckboxes: Map<string, Checkbox[]> = new Map();
 	private readonly _freeformTextareas: Map<string, HTMLTextAreaElement> = new Map();
@@ -212,7 +213,7 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 		// Dispose interactive UI disposables (header, nav buttons, etc.)
 		this._interactiveUIStore.clear();
 		this._inputBoxes.clear();
-		this._textInputTextareas.clear();
+		this._textInputBoxes.clear();
 		this._singleSelectItems.clear();
 		this._multiSelectCheckboxes.clear();
 		this._freeformTextareas.clear();
@@ -298,9 +299,10 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 					: undefined;
 				const selectedValue = defaultOption?.value;
 
-				// Note: Freeform input is always shown regardless of the `allowFreeformInput` API property.
-				// The property is kept for backwards compatibility but is no longer used.
-				return selectedValue !== undefined ? { selectedValue, freeformValue: undefined } : undefined;
+				if (question.allowFreeformInput) {
+					return selectedValue !== undefined ? { selectedValue, freeformValue: undefined } : undefined;
+				}
+				return selectedValue;
 			}
 
 			case 'multiSelect': {
@@ -312,9 +314,10 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 					.map(opt => opt.value)
 					.filter(v => v !== undefined) ?? [];
 
-				// Note: Freeform input is always shown regardless of the `allowFreeformInput` API property.
-				// The property is kept for backwards compatibility but is no longer used.
-				return selectedValues.length > 0 ? { selectedValues, freeformValue: undefined } : undefined;
+				if (question.allowFreeformInput) {
+					return selectedValues.length > 0 ? { selectedValues, freeformValue: undefined } : undefined;
+				}
+				return selectedValues;
 			}
 
 			default:
@@ -329,7 +332,7 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 
 		// Clear previous input boxes and stale references
 		this._inputBoxes.clear();
-		this._textInputTextareas.clear();
+		this._textInputBoxes.clear();
 		this._singleSelectItems.clear();
 		this._multiSelectCheckboxes.clear();
 		this._freeformTextareas.clear();
@@ -346,14 +349,15 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 		const headerRow = dom.$('.chat-question-header-row');
 
 		// Render question message with title styling, prefixed with progress indicator
-		// Fall back to title if message is not provided
-		const messageContent = question.message
-			? (typeof question.message === 'string' ? question.message : question.message.value)
-			: question.title;
-		const title = dom.$('.chat-question-title');
-		const progressPrefix = localize('chat.questionCarousel.progressPrefix', '({0}/{1}) ', this._currentIndex + 1, this.carousel.questions.length);
-		title.textContent = progressPrefix + messageContent;
-		headerRow.appendChild(title);
+		if (question.message) {
+			const title = dom.$('.chat-question-title');
+			const messageContent = typeof question.message === 'string'
+				? question.message
+				: question.message.value;
+			const progressPrefix = localize('chat.questionCarousel.progressPrefix', '({0}/{1}) ', this._currentIndex + 1, this.carousel.questions.length);
+			title.textContent = progressPrefix + messageContent;
+			headerRow.appendChild(title);
+		}
 
 		// Add navigation buttons to header row
 		if (this._navigationButtons) {
@@ -378,10 +382,14 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 			this._nextButton!.label = `$(${Codicon.check.id})`;
 			this._nextButton!.element.title = submitLabel;
 			this._nextButton!.element.setAttribute('aria-label', submitLabel);
+			// Switch to primary style for submit
+			this._nextButton!.element.classList.add('chat-question-nav-submit');
 		} else {
 			this._nextButton!.label = `$(${Codicon.chevronRight.id})`;
 			this._nextButton!.element.title = nextLabel;
 			this._nextButton!.element.setAttribute('aria-label', nextLabel);
+			// Keep secondary style for next
+			this._nextButton!.element.classList.remove('chat-question-nav-submit');
 		}
 
 		this._onDidChangeHeight.fire();
@@ -401,55 +409,24 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 		}
 	}
 
-	/**
-	 * Sets up auto-resize behavior for a textarea element.
-	 * @returns A function that triggers the resize manually (useful for initial sizing).
-	 */
-	private setupTextareaAutoResize(textarea: HTMLTextAreaElement): () => void {
-		const autoResize = () => {
-			textarea.style.height = 'auto';
-			textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
-			this._onDidChangeHeight.fire();
-		};
-		this._inputBoxes.add(dom.addDisposableListener(textarea, dom.EventType.INPUT, autoResize));
-		return autoResize;
-	}
-
 	private renderTextInput(container: HTMLElement, question: IChatQuestion): void {
-		const textarea = dom.$<HTMLTextAreaElement>('textarea.chat-question-text-textarea');
-		textarea.placeholder = localize('chat.questionCarousel.enterText', 'Enter your answer');
-		textarea.rows = 1;
-		textarea.setAttribute('aria-label', question.title);
+		const inputBox = this._inputBoxes.add(new InputBox(container, undefined, {
+			placeholder: localize('chat.questionCarousel.enterText', 'Enter your answer'),
+			inputBoxStyles: defaultInputBoxStyles,
+		}));
 
 		// Restore previous answer if exists
 		const previousAnswer = this._answers.get(question.id);
 		if (previousAnswer !== undefined) {
-			textarea.value = String(previousAnswer);
+			inputBox.value = String(previousAnswer);
 		} else if (question.defaultValue !== undefined) {
-			textarea.value = String(question.defaultValue);
+			inputBox.value = String(question.defaultValue);
 		}
 
-		// Setup auto-resize behavior
-		const autoResize = this.setupTextareaAutoResize(textarea);
-
-		// Handle Enter to submit (Shift+Enter for newline)
-		this._inputBoxes.add(dom.addDisposableListener(textarea, dom.EventType.KEY_DOWN, (e: KeyboardEvent) => {
-			const event = new StandardKeyboardEvent(e);
-			if (event.keyCode === KeyCode.Enter && !event.shiftKey && textarea.value.trim()) {
-				e.preventDefault();
-				e.stopPropagation();
-				this.handleNext();
-			}
-		}));
-
-		container.appendChild(textarea);
-		this._textInputTextareas.set(question.id, textarea);
+		this._textInputBoxes.set(question.id, inputBox);
 
 		// Focus on input when rendered using proper DOM scheduling
-		this._inputBoxes.add(dom.runAtThisOrScheduleAtNextAnimationFrame(dom.getWindow(textarea), () => {
-			textarea.focus();
-			autoResize();
-		}));
+		this._inputBoxes.add(dom.runAtThisOrScheduleAtNextAnimationFrame(dom.getWindow(inputBox.element), () => inputBox.focus()));
 	}
 
 	private renderSingleSelect(container: HTMLElement, question: IChatQuestion): void {
@@ -517,9 +494,20 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 			listItem.appendChild(indicator);
 			indicators.push(indicator);
 
-			// Label
+			// Label with optional description (format: "Title - Description")
 			const label = dom.$('.chat-question-list-label');
-			label.textContent = option.label;
+			const separatorIndex = option.label.indexOf(' - ');
+			if (separatorIndex !== -1) {
+				const titleSpan = dom.$('span.chat-question-list-label-title');
+				titleSpan.textContent = option.label.substring(0, separatorIndex);
+				label.appendChild(titleSpan);
+
+				const descSpan = dom.$('span.chat-question-list-label-desc');
+				descSpan.textContent = ' - ' + option.label.substring(separatorIndex + 3);
+				label.appendChild(descSpan);
+			} else {
+				label.textContent = option.label;
+			}
 			listItem.appendChild(label);
 
 			if (isSelected) {
@@ -565,52 +553,21 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 			}
 		}));
 
-		// Note: Freeform input is always shown regardless of the `allowFreeformInput` API property.
-		// The property is kept for backwards compatibility but is no longer used.
-		{
+		// Add freeform input if allowed
+		if (question.allowFreeformInput) {
 			const freeformContainer = dom.$('.chat-question-freeform');
-			const freeformLabelId = `freeform-label-${question.id}`;
-			const freeformLabel = dom.$('.chat-question-freeform-label');
-			freeformLabel.id = freeformLabelId;
-			freeformLabel.textContent = localize('chat.questionCarousel.orEnterOwn', 'Or enter your own:');
-			freeformContainer.appendChild(freeformLabel);
 
 			const freeformTextarea = dom.$<HTMLTextAreaElement>('textarea.chat-question-freeform-textarea');
 			freeformTextarea.placeholder = localize('chat.questionCarousel.enterCustomAnswer', 'Enter custom answer');
 			freeformTextarea.rows = 1;
-			freeformTextarea.setAttribute('aria-labelledby', freeformLabelId);
 
 			if (previousFreeform !== undefined) {
 				freeformTextarea.value = previousFreeform;
 			}
 
-			this._inputBoxes.add(dom.addDisposableListener(freeformTextarea, dom.EventType.KEY_DOWN, (e: KeyboardEvent) => {
-				const event = new StandardKeyboardEvent(e);
-				if (event.keyCode === KeyCode.Enter && !event.shiftKey && freeformTextarea.value.trim()) {
-					e.preventDefault();
-					e.stopPropagation();
-					this.handleNext();
-				}
-			}));
-
-			// Setup auto-resize behavior
-			const autoResize = this.setupTextareaAutoResize(freeformTextarea);
-
-			// Deselect list items when freeform text is entered
-			this._inputBoxes.add(dom.addDisposableListener(freeformTextarea, dom.EventType.INPUT, () => {
-				if (freeformTextarea.value.trim()) {
-					updateSelection(-1);
-				}
-			}));
-
 			freeformContainer.appendChild(freeformTextarea);
 			container.appendChild(freeformContainer);
 			this._freeformTextareas.set(question.id, freeformTextarea);
-
-			// Resize textarea if it has restored content
-			if (previousFreeform !== undefined) {
-				this._inputBoxes.add(dom.runAtThisOrScheduleAtNextAnimationFrame(dom.getWindow(freeformTextarea), () => autoResize()));
-			}
 		}
 	}
 
@@ -663,9 +620,20 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 			checkbox.domNode.tabIndex = -1;
 			listItem.appendChild(checkbox.domNode);
 
-			// Label
+			// Label with optional description (format: "Title - Description")
 			const label = dom.$('.chat-question-list-label');
-			label.textContent = option.label;
+			const separatorIndex = option.label.indexOf(' - ');
+			if (separatorIndex !== -1) {
+				const titleSpan = dom.$('span.chat-question-list-label-title');
+				titleSpan.textContent = option.label.substring(0, separatorIndex);
+				label.appendChild(titleSpan);
+
+				const descSpan = dom.$('span.chat-question-list-label-desc');
+				descSpan.textContent = ' - ' + option.label.substring(separatorIndex + 3);
+				label.appendChild(descSpan);
+			} else {
+				label.textContent = option.label;
+			}
 			listItem.appendChild(label);
 
 			if (isChecked) {
@@ -714,47 +682,21 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 			}
 		}));
 
-		// Note: Freeform input is always shown regardless of the `allowFreeformInput` API property.
-		// The property is kept for backwards compatibility but is no longer used.
-		{
+		// Add freeform input if allowed
+		if (question.allowFreeformInput) {
 			const freeformContainer = dom.$('.chat-question-freeform');
-			const freeformLabelId = `freeform-label-${question.id}`;
-			const freeformLabel = dom.$('.chat-question-freeform-label');
-			freeformLabel.id = freeformLabelId;
-			freeformLabel.textContent = localize('chat.questionCarousel.orEnterOwn', 'Or enter your own:');
-			freeformContainer.appendChild(freeformLabel);
 
 			const freeformTextarea = dom.$<HTMLTextAreaElement>('textarea.chat-question-freeform-textarea');
 			freeformTextarea.placeholder = localize('chat.questionCarousel.enterCustomAnswer', 'Enter custom answer');
 			freeformTextarea.rows = 1;
-			freeformTextarea.setAttribute('aria-labelledby', freeformLabelId);
 
 			if (previousFreeform !== undefined) {
 				freeformTextarea.value = previousFreeform;
 			}
 
-			this._inputBoxes.add(dom.addDisposableListener(freeformTextarea, dom.EventType.KEY_DOWN, (e: KeyboardEvent) => {
-				const event = new StandardKeyboardEvent(e);
-				if (event.keyCode === KeyCode.Enter && !event.shiftKey && freeformTextarea.value.trim()) {
-					e.preventDefault();
-					e.stopPropagation();
-					this.handleNext();
-				}
-			}));
-
-			// Setup auto-resize behavior
-			const autoResize = this.setupTextareaAutoResize(freeformTextarea);
-
-			// For multiSelect, both checkboxes and freeform input are combined, so don't uncheck on input
-
 			freeformContainer.appendChild(freeformTextarea);
 			container.appendChild(freeformContainer);
 			this._freeformTextareas.set(question.id, freeformTextarea);
-
-			// Resize textarea if it has restored content
-			if (previousFreeform !== undefined) {
-				this._inputBoxes.add(dom.runAtThisOrScheduleAtNextAnimationFrame(dom.getWindow(freeformTextarea), () => autoResize()));
-			}
 		}
 	}
 
@@ -766,8 +708,8 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 
 		switch (question.type) {
 			case 'text': {
-				const textarea = this._textInputTextareas.get(question.id);
-				return textarea?.value ?? question.defaultValue;
+				const inputBox = this._textInputBoxes.get(question.id);
+				return inputBox?.value ?? question.defaultValue;
 			}
 
 			case 'singleSelect': {
@@ -782,16 +724,17 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 					selectedValue = defaultOption?.value;
 				}
 
-				// Note: Freeform input is always shown regardless of the `allowFreeformInput` API property.
-				// The property is kept for backwards compatibility but is no longer used.
-				// For singleSelect, if freeform value is provided, use only that (ignore selected value).
-				const freeformTextarea = this._freeformTextareas.get(question.id);
-				const freeformValue = freeformTextarea?.value !== '' ? freeformTextarea?.value : undefined;
-				if (freeformValue || selectedValue !== undefined) {
-					// if there is text in freeform, don't include selected
-					return { selectedValue: freeformValue ? undefined : selectedValue, freeformValue };
+				// Include freeform value if allowed
+				if (question.allowFreeformInput) {
+					const freeformTextarea = this._freeformTextareas.get(question.id);
+					const freeformValue = freeformTextarea?.value !== '' ? freeformTextarea?.value : undefined;
+					if (freeformValue || selectedValue !== undefined) {
+						return { selectedValue, freeformValue };
+					}
+					return undefined;
 				}
-				return undefined;
+
+				return selectedValue;
 			}
 
 			case 'multiSelect': {
@@ -819,15 +762,17 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 					finalSelectedValues = defaultValues?.filter(v => v !== undefined) || [];
 				}
 
-				// Note: Freeform input is always shown regardless of the `allowFreeformInput` API property.
-				// The property is kept for backwards compatibility but is no longer used.
-				// For multiSelect, include both selected values and freeform input together.
-				const freeformTextarea = this._freeformTextareas.get(question.id);
-				const freeformValue = freeformTextarea?.value !== '' ? freeformTextarea?.value : undefined;
-				if (freeformValue || finalSelectedValues.length > 0) {
-					return { selectedValues: finalSelectedValues, freeformValue };
+				// Include freeform value if allowed
+				if (question.allowFreeformInput) {
+					const freeformTextarea = this._freeformTextareas.get(question.id);
+					const freeformValue = freeformTextarea?.value !== '' ? freeformTextarea?.value : undefined;
+					if (freeformValue || finalSelectedValues.length > 0) {
+						return { selectedValues: finalSelectedValues, freeformValue };
+					}
+					return undefined;
 				}
-				return undefined;
+
+				return finalSelectedValues;
 			}
 
 			default:
