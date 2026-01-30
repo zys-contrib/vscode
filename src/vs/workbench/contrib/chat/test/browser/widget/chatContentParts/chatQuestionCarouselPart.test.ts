@@ -98,8 +98,8 @@ suite('ChatQuestionCarouselPart', () => {
 
 			const inputContainer = widget.domNode.querySelector('.chat-question-input-container');
 			assert.ok(inputContainer);
-			const textarea = inputContainer?.querySelector('textarea.chat-question-text-textarea');
-			assert.ok(textarea, 'Should have a textarea for text questions');
+			const inputBox = inputContainer?.querySelector('.monaco-inputbox input');
+			assert.ok(inputBox, 'Should have an input box for text questions');
 		});
 
 		test('renders list items for singleSelect type questions', () => {
@@ -400,9 +400,9 @@ suite('ChatQuestionCarouselPart', () => {
 
 			widget.skip();
 			assert.ok(submittedAnswers instanceof Map);
-			const answer = submittedAnswers?.get('q1') as { selectedValue: unknown; freeformValue: unknown };
-			assert.strictEqual(answer.selectedValue, 'value_b');
-			assert.strictEqual(answer.freeformValue, undefined);
+			// When allowFreeformInput is not set, the answer is just the value (not wrapped)
+			const answer = submittedAnswers?.get('q1');
+			assert.strictEqual(answer, 'value_b');
 		});
 
 		test('skip returns default values for multiSelect questions', () => {
@@ -423,12 +423,12 @@ suite('ChatQuestionCarouselPart', () => {
 
 			widget.skip();
 			assert.ok(submittedAnswers instanceof Map);
-			const answer = submittedAnswers?.get('q1') as { selectedValues: unknown[]; freeformValue: unknown };
-			assert.ok(Array.isArray(answer.selectedValues));
-			assert.strictEqual(answer.selectedValues.length, 2);
-			assert.ok(answer.selectedValues.includes('value_a'));
-			assert.ok(answer.selectedValues.includes('value_c'));
-			assert.strictEqual(answer.freeformValue, undefined);
+			// When allowFreeformInput is not set, the answer is just the array of values (not wrapped)
+			const answer = submittedAnswers?.get('q1') as unknown[];
+			assert.ok(Array.isArray(answer));
+			assert.strictEqual(answer.length, 2);
+			assert.ok(answer.includes('value_a'));
+			assert.ok(answer.includes('value_c'));
 		});
 
 		test('skip returns defaults for multiple questions', () => {
@@ -449,9 +449,9 @@ suite('ChatQuestionCarouselPart', () => {
 			widget.skip();
 			assert.ok(submittedAnswers instanceof Map);
 			assert.strictEqual(submittedAnswers?.get('q1'), 'text default');
-			const answer = submittedAnswers?.get('q2') as { selectedValue: unknown; freeformValue: unknown };
-			assert.strictEqual(answer.selectedValue, 'first_value');
-			assert.strictEqual(answer.freeformValue, undefined);
+			// When allowFreeformInput is not set, the answer is just the value (not wrapped)
+			const answer = submittedAnswers?.get('q2');
+			assert.strictEqual(answer, 'first_value');
 		});
 
 		test('skip returns empty map when no defaults are provided', () => {
