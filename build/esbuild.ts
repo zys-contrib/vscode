@@ -25,6 +25,9 @@ const SRC_DIR = 'src';
 const OUT_DIR = 'out';
 const OUT_VSCODE_DIR = 'out-vscode';
 
+// UTF-8 BOM - added to test files with 'utf8' in the path (matches gulp build behavior)
+const UTF8_BOM = Buffer.from([0xef, 0xbb, 0xbf]);
+
 // ============================================================================
 // Entry Points (from build/buildfile.ts)
 // ============================================================================
@@ -162,6 +165,27 @@ async function cleanDir(dir: string): Promise<void> {
 	await fs.promises.mkdir(fullPath, { recursive: true });
 }
 
+/**
+ * Only used to make encoding tests happy. The source files don't have a BOM but the
+ * tests expect one... so we add it here.
+ */
+function needsBomAdded(filePath: string): boolean {
+	return /([\/\\])test\1.*utf8/.test(filePath);
+}
+
+async function copyFile(srcPath: string, destPath: string): Promise<void> {
+	await fs.promises.mkdir(path.dirname(destPath), { recursive: true });
+
+	if (needsBomAdded(srcPath)) {
+		const content = await fs.promises.readFile(srcPath);
+		if (content[0] !== 0xef || content[1] !== 0xbb || content[2] !== 0xbf) {
+			await fs.promises.writeFile(destPath, Buffer.concat([UTF8_BOM, content]));
+			return;
+		}
+	}
+	await fs.promises.copyFile(srcPath, destPath);
+}
+
 async function copyCssFiles(outDir: string, excludeTests = false): Promise<number> {
 	// Copy all CSS files from src to output (they're imported by JS)
 	const cssFiles = await globAsync('**/*.css', {
@@ -173,8 +197,7 @@ async function copyCssFiles(outDir: string, excludeTests = false): Promise<numbe
 		const srcPath = path.join(REPO_ROOT, SRC_DIR, file);
 		const destPath = path.join(REPO_ROOT, outDir, file);
 
-		await fs.promises.mkdir(path.dirname(destPath), { recursive: true });
-		await fs.promises.copyFile(srcPath, destPath);
+		await copyFile(srcPath, destPath);
 	}
 
 	return cssFiles.length;
@@ -202,8 +225,7 @@ async function copyResources(outDir: string, excludeDevFiles = false, excludeTes
 			const srcPath = path.join(REPO_ROOT, SRC_DIR, file);
 			const destPath = path.join(REPO_ROOT, outDir, file);
 
-			await fs.promises.mkdir(path.dirname(destPath), { recursive: true });
-			await fs.promises.copyFile(srcPath, destPath);
+			await copyFile(srcPath, destPath);
 			copied++;
 		}
 	}
@@ -219,8 +241,7 @@ async function copyResources(outDir: string, excludeDevFiles = false, excludeTes
 				const srcPath = path.join(REPO_ROOT, SRC_DIR, file);
 				const destPath = path.join(REPO_ROOT, outDir, file);
 
-				await fs.promises.mkdir(path.dirname(destPath), { recursive: true });
-				await fs.promises.copyFile(srcPath, destPath);
+				await copyFile(srcPath, destPath);
 				copied++;
 			}
 		}
