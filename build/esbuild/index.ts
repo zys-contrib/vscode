@@ -9,6 +9,7 @@ import * as path from 'path';
 import { promisify } from 'util';
 import glob from 'glob';
 import * as watcher from '@parcel/watcher';
+import { nlsPlugin, createNLSCollector, finalizeNLS, postProcessNLS } from './nls-plugin.ts';
 
 const globAsync = promisify(glob);
 
@@ -16,7 +17,7 @@ const globAsync = promisify(glob);
 // Configuration
 // ============================================================================
 
-const REPO_ROOT = path.dirname(import.meta.dirname);
+const REPO_ROOT = path.dirname(path.dirname(import.meta.dirname));
 const isWatch = process.argv.includes('--watch');
 const isBundle = process.argv.includes('--bundle');
 const isMinify = process.argv.includes('--minify');
@@ -367,6 +368,10 @@ ${tslib}`,
 		}
 	});
 
+	// Create shared NLS collector
+	const nlsCollector = createNLSCollector();
+	const preserveEnglish = false; // Production mode: replace messages with null
+
 	// All entry points to bundle
 	const allEntryPoints = [
 		...workerEntryPoints,
@@ -376,16 +381,15 @@ ${tslib}`,
 		...keyboardMapEntryPoints,
 	];
 
+	// Collect all build results (with write: false)
+	const buildResults: { outPath: string; result: esbuild.BuildResult }[] = [];
+
 	// Bundle each entry point directly from TypeScript source
-	let bundled = 0;
 	await Promise.all(allEntryPoints.map(async (entryPoint) => {
 		const entryPath = path.join(REPO_ROOT, SRC_DIR, `${entryPoint}.ts`);
 		const outPath = path.join(REPO_ROOT, OUT_VSCODE_DIR, `${entryPoint}.js`);
 
-		// Ensure output directory exists
-		await fs.promises.mkdir(path.dirname(outPath), { recursive: true });
-
-		await esbuild.build({
+		const result = await esbuild.build({
 			entryPoints: [entryPath],
 			outfile: outPath,
 			bundle: true,
@@ -405,14 +409,22 @@ ${tslib}`,
 				'.sh': 'file',
 			},
 			assetNames: 'media/[name]',
-			plugins: [cssExternalPlugin()],
+			plugins: [
+				nlsPlugin({
+					baseDir: path.join(REPO_ROOT, SRC_DIR),
+					collector: nlsCollector,
+				}),
+				cssExternalPlugin()
+			],
+			write: false, // Don't write yet, we need to post-process
 			logLevel: 'warning',
 			logOverride: {
 				'unsupported-require-call': 'silent',
 			},
 			tsconfigRaw,
 		});
-		bundled++;
+
+		buildResults.push({ outPath, result });
 	}));
 
 	// Bundle bootstrap files (with minimist inlined) directly from TypeScript source
@@ -425,7 +437,7 @@ ${tslib}`,
 
 		const outPath = path.join(REPO_ROOT, OUT_VSCODE_DIR, `${entry}.js`);
 
-		await esbuild.build({
+		const result = await esbuild.build({
 			entryPoints: [entryPath],
 			outfile: outPath,
 			bundle: true,
@@ -438,13 +450,46 @@ ${tslib}`,
 			minify: isMinify,
 			treeShaking: true,
 			banner,
-			plugins: [inlineMinimistPlugin()],
+			plugins: [
+				nlsPlugin({
+					baseDir: path.join(REPO_ROOT, SRC_DIR),
+					collector: nlsCollector,
+				}),
+				inlineMinimistPlugin()
+			],
+			write: false, // Don't write yet, we need to post-process
 			logLevel: 'warning',
 			logOverride: {
 				'unsupported-require-call': 'silent',
 			},
 			tsconfigRaw,
 		});
+
+		buildResults.push({ outPath, result });
+	}
+
+	// Finalize NLS: sort entries, assign indices, write metadata files
+	const { indexMap } = await finalizeNLS(nlsCollector, path.join(REPO_ROOT, OUT_VSCODE_DIR));
+
+	// Post-process and write all output files
+	let bundled = 0;
+	for (const { result } of buildResults) {
+		if (!result.outputFiles) {
+			continue;
+		}
+
+		for (const file of result.outputFiles) {
+			await fs.promises.mkdir(path.dirname(file.path), { recursive: true });
+
+			if (file.path.endsWith('.js') && indexMap.size > 0) {
+				// Post-process JS files to replace NLS placeholders with indices
+				const processed = postProcessNLS(file.text, indexMap, preserveEnglish);
+				await fs.promises.writeFile(file.path, processed);
+			} else {
+				// Write other files (source maps, etc.) as-is
+				await fs.promises.writeFile(file.path, file.contents);
+			}
+		}
 		bundled++;
 	}
 
