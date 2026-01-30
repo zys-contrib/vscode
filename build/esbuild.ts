@@ -23,7 +23,6 @@ const isMinify = process.argv.includes('--minify');
 
 const SRC_DIR = 'src';
 const OUT_DIR = 'out';
-const OUT_BUILD_DIR = 'out-build';
 const OUT_VSCODE_DIR = 'out-vscode';
 
 // ============================================================================
@@ -140,6 +139,7 @@ const testFixturePatterns = [
 	'**/test/**/*.js',
 	'**/test/**/*.jxs',
 	'**/test/**/*.tsx',
+	'**/test/**/*.css',
 	'**/test/**/*.png',
 	'**/test/**/*.md',
 	'**/test/**/*.zip',
@@ -264,10 +264,36 @@ function cssExternalPlugin(): esbuild.Plugin {
 }
 
 // ============================================================================
-// Transpile (Goal 1: TS → JS)
+// Transpile (Goal 1: TS → JS using esbuild.transform for maximum speed)
 // ============================================================================
 
-async function createTranspileContext(outDir: string, excludeTests: boolean): Promise<esbuild.BuildContext> {
+// Shared transform options for single-file transpilation
+const transformOptions: esbuild.TransformOptions = {
+	loader: 'ts',
+	format: 'esm',
+	target: 'es2024',
+	sourcemap: 'inline',
+	sourcesContent: false,
+	tsconfigRaw: JSON.stringify({
+		compilerOptions: {
+			experimentalDecorators: true,
+			useDefineForClassFields: false
+		}
+	}),
+};
+
+async function transpileFile(srcPath: string, destPath: string, relativePath: string): Promise<void> {
+	const source = await fs.promises.readFile(srcPath, 'utf-8');
+	const result = await esbuild.transform(source, {
+		...transformOptions,
+		sourcefile: relativePath,
+	});
+
+	await fs.promises.mkdir(path.dirname(destPath), { recursive: true });
+	await fs.promises.writeFile(destPath, result.code);
+}
+
+async function transpile(outDir: string, excludeTests: boolean): Promise<void> {
 	// Find all .ts files
 	const ignorePatterns = ['**/*.d.ts'];
 	if (excludeTests) {
@@ -281,47 +307,12 @@ async function createTranspileContext(outDir: string, excludeTests: boolean): Pr
 
 	console.log(`[transpile] Found ${files.length} files`);
 
-	return esbuild.context({
-		entryPoints: files.map(f => path.join(REPO_ROOT, SRC_DIR, f)),
-		outdir: path.join(REPO_ROOT, outDir),
-		outbase: path.join(REPO_ROOT, SRC_DIR),
-		format: 'esm',
-		target: ['es2024'],
-		platform: 'neutral',
-		// sourcemap: isBundle ? 'external' : 'inline',
-		sourcemap: 'external',
-		sourcesContent: false,
-		bundle: false,
-		logLevel: 'warning',
-		logOverride: {
-			'unsupported-require-call': 'silent',
-		},
-		tsconfigRaw: JSON.stringify({
-			compilerOptions: {
-				experimentalDecorators: true,
-				useDefineForClassFields: false
-			}
-		}),
-	});
-}
-
-async function transpile(): Promise<void> {
-	const outDir = isBundle ? OUT_BUILD_DIR : OUT_DIR;
-
-	await cleanDir(outDir);
-
-	console.log(`[transpile] ${SRC_DIR} → ${outDir}`);
-	const t1 = Date.now();
-
-	// Create context and build
-	const ctx = await createTranspileContext(outDir, isBundle);
-	await ctx.rebuild();
-	await ctx.dispose();
-
-	// Copy resources (exclude tests only when bundling for production)
-	await copyResources(outDir, false, isBundle);
-
-	console.log(`[transpile] Done in ${Date.now() - t1}ms`);
+	// Transpile all files in parallel using esbuild.transform (fastest approach)
+	await Promise.all(files.map(file => {
+		const srcPath = path.join(REPO_ROOT, SRC_DIR, file);
+		const destPath = path.join(REPO_ROOT, outDir, file.replace(/\.ts$/, '.js'));
+		return transpileFile(srcPath, destPath, file);
+	}));
 }
 
 // ============================================================================
@@ -331,7 +322,7 @@ async function transpile(): Promise<void> {
 async function bundle(): Promise<void> {
 	await cleanDir(OUT_VSCODE_DIR);
 
-	console.log(`[bundle] ${OUT_BUILD_DIR} → ${OUT_VSCODE_DIR}`);
+	console.log(`[bundle] ${SRC_DIR} → ${OUT_VSCODE_DIR}`);
 	const t1 = Date.now();
 
 	// Read TSLib for banner
@@ -347,6 +338,14 @@ ${tslib}`,
  *--------------------------------------------------------*/`,
 	};
 
+	// Shared TypeScript options for bundling directly from source
+	const tsconfigRaw = JSON.stringify({
+		compilerOptions: {
+			experimentalDecorators: true,
+			useDefineForClassFields: false
+		}
+	});
+
 	// All entry points to bundle
 	const allEntryPoints = [
 		...workerEntryPoints,
@@ -356,10 +355,10 @@ ${tslib}`,
 		...keyboardMapEntryPoints,
 	];
 
-	// Bundle each entry point
+	// Bundle each entry point directly from TypeScript source
 	let bundled = 0;
 	await Promise.all(allEntryPoints.map(async (entryPoint) => {
-		const entryPath = path.join(REPO_ROOT, OUT_BUILD_DIR, `${entryPoint}.js`);
+		const entryPath = path.join(REPO_ROOT, SRC_DIR, `${entryPoint}.ts`);
 		const outPath = path.join(REPO_ROOT, OUT_VSCODE_DIR, `${entryPoint}.js`);
 
 		// Ensure output directory exists
@@ -387,13 +386,17 @@ ${tslib}`,
 			assetNames: 'media/[name]',
 			plugins: [cssExternalPlugin()],
 			logLevel: 'warning',
+			logOverride: {
+				'unsupported-require-call': 'silent',
+			},
+			tsconfigRaw,
 		});
 		bundled++;
 	}));
 
-	// Bundle bootstrap files (with minimist inlined)
+	// Bundle bootstrap files (with minimist inlined) directly from TypeScript source
 	for (const entry of bootstrapEntryPoints) {
-		const entryPath = path.join(REPO_ROOT, OUT_BUILD_DIR, `${entry}.js`);
+		const entryPath = path.join(REPO_ROOT, SRC_DIR, `${entry}.ts`);
 		if (!fs.existsSync(entryPath)) {
 			console.log(`[bundle] Skipping ${entry} (not found)`);
 			continue;
@@ -416,6 +419,10 @@ ${tslib}`,
 			banner,
 			plugins: [inlineMinimistPlugin()],
 			logLevel: 'warning',
+			logOverride: {
+				'unsupported-require-call': 'silent',
+			},
+			tsconfigRaw,
 		});
 		bundled++;
 	}
@@ -439,13 +446,10 @@ async function watch(): Promise<void> {
 	await cleanDir(outDir);
 	console.log(`[transpile] ${SRC_DIR} → ${outDir}`);
 
-	// Create context for incremental builds
-	const ctx = await createTranspileContext(outDir, false);
-
-	// Initial build
+	// Initial full build
 	const t1 = Date.now();
 	try {
-		await ctx.rebuild();
+		await transpile(outDir, false);
 		await copyResources(outDir, false, false);
 		console.log(`[transpile] Done in ${Date.now() - t1}ms`);
 	} catch (err) {
@@ -453,45 +457,45 @@ async function watch(): Promise<void> {
 		// Continue watching anyway
 	}
 
-	let debounce: NodeJS.Timeout | undefined;
-	let pendingTsRebuild = false;
-	let pendingCopyFiles: string[] = [];
+	let pendingTsFiles: Set<string> = new Set();
+	let pendingCopyFiles: Set<string> = new Set();
 
-	const processChanges = () => {
-		if (debounce) {
-			clearTimeout(debounce);
-		}
-		debounce = setTimeout(async () => {
-			const t1 = Date.now();
-			const hasTsChanges = pendingTsRebuild;
-			const filesToCopy = [...pendingCopyFiles];
-			pendingTsRebuild = false;
-			pendingCopyFiles = [];
+	const processChanges = async () => {
+		const t1 = Date.now();
+		const tsFiles = [...pendingTsFiles];
+		const filesToCopy = [...pendingCopyFiles];
+		pendingTsFiles = new Set();
+		pendingCopyFiles = new Set();
 
-			try {
-				if (hasTsChanges) {
-					console.log('[watch] Rebuilding TypeScript...');
-					// await ctx.cancel();
-					await ctx.rebuild();
-				}
+		try {
+			// Transform changed TypeScript files in parallel
+			if (tsFiles.length > 0) {
+				console.log(`[watch] Transpiling ${tsFiles.length} file(s)...`);
+				await Promise.all(tsFiles.map(srcPath => {
+					const relativePath = path.relative(path.join(REPO_ROOT, SRC_DIR), srcPath);
+					const destPath = path.join(REPO_ROOT, outDir, relativePath.replace(/\.ts$/, '.js'));
+					return transpileFile(srcPath, destPath, relativePath);
+				}));
+			}
 
-				// Copy changed resource files
-				for (const srcPath of filesToCopy) {
+			// Copy changed resource files in parallel
+			if (filesToCopy.length > 0) {
+				await Promise.all(filesToCopy.map(async (srcPath) => {
 					const relativePath = path.relative(path.join(REPO_ROOT, SRC_DIR), srcPath);
 					const destPath = path.join(REPO_ROOT, outDir, relativePath);
 					await fs.promises.mkdir(path.dirname(destPath), { recursive: true });
 					await fs.promises.copyFile(srcPath, destPath);
 					console.log(`[watch] Copied ${relativePath}`);
-				}
-
-				if (hasTsChanges || filesToCopy.length > 0) {
-					console.log(`[watch] Done in ${Date.now() - t1}ms`);
-				}
-			} catch (err) {
-				console.error('[watch] Rebuild failed:', err);
-				// Continue watching
+				}));
 			}
-		}, 100);
+
+			if (tsFiles.length > 0 || filesToCopy.length > 0) {
+				console.log(`[watch] Done in ${Date.now() - t1}ms`);
+			}
+		} catch (err) {
+			console.error('[watch] Rebuild failed:', err);
+			// Continue watching
+		}
 	};
 
 	// Extensions to watch and copy (non-TypeScript resources)
@@ -512,13 +516,13 @@ async function watch(): Promise<void> {
 				}
 
 				if (event.path.endsWith('.ts') && !event.path.endsWith('.d.ts')) {
-					pendingTsRebuild = true;
+					pendingTsFiles.add(event.path);
 				} else if (copyExtensions.some(ext => event.path.endsWith(ext))) {
-					pendingCopyFiles.push(event.path);
+					pendingCopyFiles.add(event.path);
 				}
 			}
 
-			if (pendingTsRebuild || pendingCopyFiles.length > 0) {
+			if (pendingTsFiles.size > 0 || pendingCopyFiles.size > 0) {
 				processChanges();
 			}
 		},
@@ -531,7 +535,6 @@ async function watch(): Promise<void> {
 	process.on('SIGINT', async () => {
 		console.log('\n[watch] Stopping...');
 		await subscription.unsubscribe();
-		await ctx.dispose();
 		process.exit(0);
 	});
 }
@@ -547,10 +550,15 @@ async function main(): Promise<void> {
 		if (isWatch) {
 			await watch();
 		} else if (isBundle) {
-			await transpile();
 			await bundle();
 		} else {
-			await transpile();
+			const outDir = OUT_DIR;
+			await cleanDir(outDir);
+			console.log(`[transpile] ${SRC_DIR} → ${outDir}`);
+			const t1 = Date.now();
+			await transpile(outDir, false);
+			await copyResources(outDir, false, false);
+			console.log(`[transpile] Done in ${Date.now() - t1}ms`);
 		}
 
 		if (!isWatch) {
