@@ -50,7 +50,7 @@ export interface IActionWidgetDropdownOptions extends IBaseDropdownOptions {
 	 * Name used for telemetry tracking when the dropdown closes.
 	 * If not provided, no telemetry will be sent.
 	 */
-	readonly reporter?: { name: string; includeOptions?: boolean };
+	readonly reporter?: { id: string; name?: string; includeOptions?: boolean };
 }
 
 /**
@@ -216,6 +216,7 @@ export class ActionWidgetDropdown extends BaseDropdown {
 			this.telemetryService.publicLog2<ActionWidgetDropdownClosedEvent, ActionWidgetDropdownClosedClassification>(
 				'actionWidgetDropdownClosed',
 				{
+					id: this._options.reporter.id,
 					name: this._options.reporter.name,
 					selectionChanged: optionBefore?.id !== optionAfter?.id,
 					optionIdBefore: this._options.reporter.includeOptions ? optionBefore?.id : undefined,
@@ -229,7 +230,8 @@ export class ActionWidgetDropdown extends BaseDropdown {
 }
 
 type ActionWidgetDropdownClosedEvent = {
-	name: string;
+	id: string;
+	name: string | undefined;
 	selectionChanged: boolean;
 	optionIdBefore: string | undefined;
 	optionIdAfter: string | undefined;
@@ -238,6 +240,7 @@ type ActionWidgetDropdownClosedEvent = {
 };
 
 type ActionWidgetDropdownClosedClassification = {
+	id: { classification: 'SystemMetaData'; purpose: 'FeatureInsight'; comment: 'The telemetry id of the dropdown picker.' };
 	name: { classification: 'SystemMetaData'; purpose: 'FeatureInsight'; comment: 'The telemetry name of the dropdown picker.' };
 	selectionChanged: { classification: 'SystemMetaData'; purpose: 'FeatureInsight'; isMeasurement: true; comment: 'Whether the user changed the selected option.' };
 	optionIdBefore: { classification: 'SystemMetaData'; purpose: 'FeatureInsight'; comment: 'The option configured before opening the dropdown.' };
