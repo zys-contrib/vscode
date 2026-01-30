@@ -101,13 +101,13 @@ registerAction2(class OpenAgentSessionsWelcomeAction extends Action2 {
 			title: localize('openAgentSessionsWelcome', "Open Agent Sessions Welcome"),
 			precondition: ChatContextKeys.enabled
 		});
-	}
+}
 
 	async run(accessor: ServicesAccessor): Promise<void> {
 		const editorService = accessor.get(IEditorService);
 		const instantiationService = accessor.get(IInstantiationService);
-	const workspaceContextService = accessor.get(IWorkspaceContextService);
-	const input = instantiationService.createInstance(AgentSessionsWelcomeInput, { initiator: 'command', workspaceKind: getWorkspaceKind(workspaceContextService) });
+		const workspaceContextService = accessor.get(IWorkspaceContextService);
+		const input = instantiationService.createInstance(AgentSessionsWelcomeInput, { initiator: 'command', workspaceKind: getWorkspaceKind(workspaceContextService) });
 		await editorService.openEditor(input, { pinned: true });
 	}
 });
