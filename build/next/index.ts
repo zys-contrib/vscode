@@ -623,7 +623,7 @@ async function watch(): Promise<void> {
 // ============================================================================
 
 function printUsage(): void {
-	console.log(`Usage: npx tsx build/esbuild/index.ts <command> [options]
+	console.log(`Usage: npx tsx build/next/index.ts <command> [options]
 
 Commands:
 	transpile          Transpile TypeScript to JavaScript (single-file, fast)
@@ -637,10 +637,10 @@ Options for 'bundle':
 	--nls              Process NLS (localization) strings
 
 Examples:
-	npx tsx build/esbuild/index.ts transpile
-	npx tsx build/esbuild/index.ts transpile --watch
-	npx tsx build/esbuild/index.ts bundle
-	npx tsx build/esbuild/index.ts bundle --minify --nls
+	npx tsx build/next/index.ts transpile
+	npx tsx build/next/index.ts transpile --watch
+	npx tsx build/next/index.ts bundle
+	npx tsx build/next/index.ts bundle --minify --nls
 `);
 }
 
