@@ -101,7 +101,7 @@ registerAction2(class OpenAgentSessionsWelcomeAction extends Action2 {
 			title: localize('openAgentSessionsWelcome', "Open Agent Sessions Welcome"),
 			precondition: ChatContextKeys.enabled
 		});
-}
+	}
 
 	async run(accessor: ServicesAccessor): Promise<void> {
 		const editorService = accessor.get(IEditorService);
