@@ -288,7 +288,8 @@ async function createTranspileContext(outDir: string, excludeTests: boolean): Pr
 		format: 'esm',
 		target: ['es2024'],
 		platform: 'neutral',
-		sourcemap: isBundle ? 'external' : 'inline',
+		// sourcemap: isBundle ? 'external' : 'inline',
+		sourcemap: 'external',
 		sourcesContent: false,
 		bundle: false,
 		logLevel: 'warning',
@@ -470,7 +471,7 @@ async function watch(): Promise<void> {
 			try {
 				if (hasTsChanges) {
 					console.log('[watch] Rebuilding TypeScript...');
-					await ctx.cancel();
+					// await ctx.cancel();
 					await ctx.rebuild();
 				}
 
