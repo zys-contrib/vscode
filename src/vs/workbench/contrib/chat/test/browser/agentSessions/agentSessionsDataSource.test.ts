@@ -6,12 +6,91 @@
 import assert from 'assert';
 import { URI } from '../../../../../../base/common/uri.js';
 import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../../../base/test/common/utils.js';
-import { AgentSessionsDataSource, AgentSessionListItem, IAgentSessionsFilter } from '../../../browser/agentSessions/agentSessionsViewer.js';
+import { AgentSessionsDataSource, AgentSessionListItem, IAgentSessionsFilter, sessionDateFromNow } from '../../../browser/agentSessions/agentSessionsViewer.js';
 import { AgentSessionSection, IAgentSession, IAgentSessionSection, IAgentSessionsModel, isAgentSessionSection } from '../../../browser/agentSessions/agentSessionsModel.js';
 import { ChatSessionStatus, isSessionInProgressStatus } from '../../../common/chatSessionsService.js';
 import { ITreeSorter } from '../../../../../../base/browser/ui/tree/tree.js';
 import { Codicon } from '../../../../../../base/common/codicons.js';
 import { Event } from '../../../../../../base/common/event.js';
+import { AgentSessionsGrouping } from '../../../browser/agentSessions/agentSessionsFilter.js';
+import { getAgentSessionTime } from '../../../browser/agentSessions/agentSessions.js';
+import { IChatSessionTiming } from '../../../common/chatService/chatService.js';
+
+suite('getAgentSessionTime', () => {
+
+	ensureNoDisposablesAreLeakedInTestSuite();
+
+	test('returns lastRequestEnded when available', () => {
+		const timing: IChatSessionTiming = {
+			created: 1000,
+			lastRequestStarted: 2000,
+			lastRequestEnded: 3000,
+		};
+		assert.strictEqual(getAgentSessionTime(timing), 3000);
+	});
+
+	test('returns lastRequestStarted when lastRequestEnded is undefined', () => {
+		const timing: IChatSessionTiming = {
+			created: 1000,
+			lastRequestStarted: 2000,
+			lastRequestEnded: undefined,
+		};
+		assert.strictEqual(getAgentSessionTime(timing), 2000);
+	});
+
+	test('returns created when both lastRequestEnded and lastRequestStarted are undefined', () => {
+		const timing: IChatSessionTiming = {
+			created: 1000,
+			lastRequestStarted: undefined,
+			lastRequestEnded: undefined,
+		};
+		assert.strictEqual(getAgentSessionTime(timing), 1000);
+	});
+});
+
+suite('sessionDateFromNow', () => {
+
+	ensureNoDisposablesAreLeakedInTestSuite();
+
+	const ONE_DAY = 24 * 60 * 60 * 1000;
+
+	test('returns "1 day ago" for yesterday', () => {
+		const now = Date.now();
+		const startOfToday = new Date(now).setHours(0, 0, 0, 0);
+		// Time in the middle of yesterday
+		const yesterday = startOfToday - ONE_DAY / 2;
+		assert.strictEqual(sessionDateFromNow(yesterday), '1 day ago');
+	});
+
+	test('returns "2 days ago" for two days ago', () => {
+		const now = Date.now();
+		const startOfToday = new Date(now).setHours(0, 0, 0, 0);
+		const startOfYesterday = startOfToday - ONE_DAY;
+		// Time in the middle of two days ago
+		const twoDaysAgo = startOfYesterday - ONE_DAY / 2;
+		assert.strictEqual(sessionDateFromNow(twoDaysAgo), '2 days ago');
+	});
+
+	test('returns fromNow result for today', () => {
+		const now = Date.now();
+		// A time from today (5 minutes ago)
+		const fiveMinutesAgo = now - 5 * 60 * 1000;
+		const result = sessionDateFromNow(fiveMinutesAgo);
+		// Should return a time ago string, not "1 day ago" or "2 days ago"
+		assert.ok(result.includes('min') || result.includes('sec') || result === 'now', `Expected minutes/seconds ago or now, got: ${result}`);
+	});
+
+	test('returns fromNow result for three or more days ago', () => {
+		const now = Date.now();
+		const startOfToday = new Date(now).setHours(0, 0, 0, 0);
+		// Time 5 days ago
+		const fiveDaysAgo = startOfToday - 5 * ONE_DAY;
+		const result = sessionDateFromNow(fiveDaysAgo);
+		// Should return "5 days ago" from fromNow, not our special handling
+		assert.ok(result.includes('day'), `Expected days ago, got: ${result}`);
+		assert.ok(!result.includes('1 day') && !result.includes('2 days'), `Should not be 1 or 2 days ago, got: ${result}`);
+	});
+});
 
 suite('AgentSessionsDataSource', () => {
 
@@ -24,6 +103,8 @@ suite('AgentSessionsDataSource', () => {
 		id: string;
 		status: ChatSessionStatus;
 		isArchived: boolean;
+		isRead: boolean;
+		hasChanges: boolean;
 		startTime: number;
 		endTime: number;
 	}> = {}): IAgentSession {
@@ -40,9 +121,10 @@ suite('AgentSessionsDataSource', () => {
 				lastRequestEnded: undefined,
 				lastRequestStarted: undefined,
 			},
+			changes: overrides.hasChanges ? { files: 1, insertions: 10, deletions: 5 } : undefined,
 			isArchived: () => overrides.isArchived ?? false,
 			setArchived: () => { },
-			isRead: () => true,
+			isRead: () => overrides.isRead ?? true,
 			setRead: () => { },
 		};
 	}
@@ -61,12 +143,12 @@ suite('AgentSessionsDataSource', () => {
 	}
 
 	function createMockFilter(options: {
-		groupResults: boolean;
+		groupBy?: AgentSessionsGrouping;
 		exclude?: (session: IAgentSession) => boolean;
 	}): IAgentSessionsFilter {
 		return {
 			onDidChange: Event.None,
-			groupResults: () => options.groupResults,
+			groupResults: () => options.groupBy,
 			exclude: options.exclude ?? (() => false),
 			getExcludes: () => ({ providers: [], states: [], archived: false, read: false })
 		};
@@ -76,8 +158,8 @@ suite('AgentSessionsDataSource', () => {
 		return {
 			compare: (a, b) => {
 				// Sort by end time, most recent first
-				const aTime = a.timing.lastRequestEnded ?? a.timing.lastRequestStarted ?? a.timing.created;
-				const bTime = b.timing.lastRequestEnded ?? b.timing.lastRequestStarted ?? b.timing.created;
+				const aTime = getAgentSessionTime(a.timing);
+				const bTime = getAgentSessionTime(b.timing);
 				return bTime - aTime;
 			}
 		};
@@ -96,7 +178,7 @@ suite('AgentSessionsDataSource', () => {
 				createMockSession({ id: '2', startTime: now - ONE_DAY, endTime: now - ONE_DAY }),
 			];
 
-			const filter = createMockFilter({ groupResults: false });
+			const filter = createMockFilter({ groupBy: undefined });
 			const sorter = createMockSorter();
 			const dataSource = new AgentSessionsDataSource(filter, sorter);
 
@@ -116,7 +198,7 @@ suite('AgentSessionsDataSource', () => {
 				createMockSession({ id: '3', status: ChatSessionStatus.NeedsInput, startTime: now - 2 * ONE_DAY }),
 			];
 
-			const filter = createMockFilter({ groupResults: true });
+			const filter = createMockFilter({ groupBy: AgentSessionsGrouping.Date });
 			const sorter = createMockSorter();
 			const dataSource = new AgentSessionsDataSource(filter, sorter);
 
@@ -139,7 +221,7 @@ suite('AgentSessionsDataSource', () => {
 				createMockSession({ id: '2', status: ChatSessionStatus.InProgress, startTime: now - ONE_DAY }),
 			];
 
-			const filter = createMockFilter({ groupResults: true });
+			const filter = createMockFilter({ groupBy: AgentSessionsGrouping.Date });
 			const sorter = createMockSorter();
 			const dataSource = new AgentSessionsDataSource(filter, sorter);
 
@@ -160,7 +242,7 @@ suite('AgentSessionsDataSource', () => {
 				createMockSession({ id: '2', status: ChatSessionStatus.Completed, startTime: now - ONE_DAY, endTime: now - ONE_DAY }),
 			];
 
-			const filter = createMockFilter({ groupResults: true });
+			const filter = createMockFilter({ groupBy: AgentSessionsGrouping.Date });
 			const sorter = createMockSorter();
 			const dataSource = new AgentSessionsDataSource(filter, sorter);
 
@@ -179,7 +261,7 @@ suite('AgentSessionsDataSource', () => {
 				createMockSession({ id: '2', status: ChatSessionStatus.Completed, startTime: now - WEEK_THRESHOLD - ONE_DAY, endTime: now - WEEK_THRESHOLD - ONE_DAY }),
 			];
 
-			const filter = createMockFilter({ groupResults: true });
+			const filter = createMockFilter({ groupBy: AgentSessionsGrouping.Date });
 			const sorter = createMockSorter();
 			const dataSource = new AgentSessionsDataSource(filter, sorter);
 
@@ -197,7 +279,7 @@ suite('AgentSessionsDataSource', () => {
 				createMockSession({ id: '2', status: ChatSessionStatus.Completed, isArchived: true, startTime: now - ONE_DAY, endTime: now - ONE_DAY }),
 			];
 
-			const filter = createMockFilter({ groupResults: true });
+			const filter = createMockFilter({ groupBy: AgentSessionsGrouping.Date });
 			const sorter = createMockSorter();
 			const dataSource = new AgentSessionsDataSource(filter, sorter);
 
@@ -215,7 +297,7 @@ suite('AgentSessionsDataSource', () => {
 				createMockSession({ id: '2', status: ChatSessionStatus.Completed, startTime: now - WEEK_THRESHOLD - ONE_DAY, endTime: now - WEEK_THRESHOLD - ONE_DAY }),
 			];
 
-			const filter = createMockFilter({ groupResults: true });
+			const filter = createMockFilter({ groupBy: AgentSessionsGrouping.Date });
 			const sorter = createMockSorter();
 			const dataSource = new AgentSessionsDataSource(filter, sorter);
 
@@ -235,7 +317,7 @@ suite('AgentSessionsDataSource', () => {
 				createMockSession({ id: 'active', status: ChatSessionStatus.InProgress, startTime: now }),
 			];
 
-			const filter = createMockFilter({ groupResults: true });
+			const filter = createMockFilter({ groupBy: AgentSessionsGrouping.Date });
 			const sorter = createMockSorter();
 			const dataSource = new AgentSessionsDataSource(filter, sorter);
 
@@ -269,7 +351,7 @@ suite('AgentSessionsDataSource', () => {
 				createMockSession({ id: 'active', status: ChatSessionStatus.InProgress, startTime: now }),
 			];
 
-			const filter = createMockFilter({ groupResults: true });
+			const filter = createMockFilter({ groupBy: AgentSessionsGrouping.Date });
 			const sorter = createMockSorter();
 			const dataSource = new AgentSessionsDataSource(filter, sorter);
 
@@ -304,7 +386,7 @@ suite('AgentSessionsDataSource', () => {
 		});
 
 		test('empty sessions returns empty result', () => {
-			const filter = createMockFilter({ groupResults: true });
+			const filter = createMockFilter({ groupBy: AgentSessionsGrouping.Date });
 			const sorter = createMockSorter();
 			const dataSource = new AgentSessionsDataSource(filter, sorter);
 
@@ -321,7 +403,7 @@ suite('AgentSessionsDataSource', () => {
 				createMockSession({ id: '2', status: ChatSessionStatus.Completed, startTime: now - 1000, endTime: now - 1000 }),
 			];
 
-			const filter = createMockFilter({ groupResults: true });
+			const filter = createMockFilter({ groupBy: AgentSessionsGrouping.Date });
 			const sorter = createMockSorter();
 			const dataSource = new AgentSessionsDataSource(filter, sorter);
 
@@ -344,7 +426,7 @@ suite('AgentSessionsDataSource', () => {
 				createMockSession({ id: 'week2', status: ChatSessionStatus.Completed, startTime: now - 2 * ONE_DAY, endTime: now - 2 * ONE_DAY }),
 			];
 
-			const filter = createMockFilter({ groupResults: true });
+			const filter = createMockFilter({ groupBy: AgentSessionsGrouping.Date });
 			const sorter = createMockSorter();
 			const dataSource = new AgentSessionsDataSource(filter, sorter);
 

@@ -149,6 +149,11 @@ export interface RepositoryUIState {
 	readonly onDidChange: Event<void>;
 }
 
+export interface RepositoryAccessDetails {
+	readonly rootUri: Uri;
+	readonly lastAccessTime: number;
+}
+
 /**
  * Log options.
  */
@@ -251,6 +256,7 @@ export interface Repository {
 	clean(paths: string[]): Promise<void>;
 
 	apply(patch: string, reverse?: boolean): Promise<void>;
+	apply(patch: string, options?: { allowEmpty?: boolean; reverse?: boolean; threeWay?: boolean; }): Promise<void>;
 	diff(cached?: boolean): Promise<string>;
 	diffWithHEAD(): Promise<Change[]>;
 	diffWithHEAD(path: string): Promise<string>;
@@ -399,6 +405,7 @@ export interface API {
 	readonly onDidPublish: Event<PublishEvent>;
 	readonly git: Git;
 	readonly repositories: Repository[];
+	readonly recentRepositories: Iterable<RepositoryAccessDetails>;
 	readonly onDidOpenRepository: Event<Repository>;
 	readonly onDidCloseRepository: Event<Repository>;
 
