@@ -18,8 +18,10 @@ import { IEditorGroupsService } from '../../../services/editor/common/editorGrou
 import { IContextKeyService } from '../../../../platform/contextkey/common/contextkey.js';
 import { AuxiliaryBarMaximizedContext } from '../../../common/contextkeys.js';
 import { CommandsRegistry } from '../../../../platform/commands/common/commands.js';
+import { IStorageService, StorageScope } from '../../../../platform/storage/common/storage.js';
 import { AgentSessionsWelcomeInput } from './agentSessionsWelcomeInput.js';
 import { AgentSessionsWelcomePage, AgentSessionsWelcomeInputSerializer } from './agentSessionsWelcome.js';
+import { IWorkspaceContextService, WorkbenchState } from '../../../../platform/workspace/common/workspace.js';
 
 // Registration priority
 const agentSessionsWelcomeInputTypeId = 'workbench.editors.agentSessionsWelcomeInput';
@@ -40,6 +42,21 @@ Registry.as<IEditorPaneRegistry>(EditorExtensions.EditorPane).registerEditorPane
 	]
 );
 
+const getWorkspaceKind = (workspaceContextService: IWorkspaceContextService) => {
+	const state = workspaceContextService.getWorkbenchState();
+	switch (state) {
+		case WorkbenchState.EMPTY:
+			return 'empty';
+		case WorkbenchState.FOLDER:
+			return 'folder';
+		case WorkbenchState.WORKSPACE:
+			return 'workspace';
+		default:
+			return 'empty';
+
+	}
+};
+
 // Register resolver contribution
 class AgentSessionsWelcomeEditorResolverContribution extends Disposable implements IWorkbenchContribution {
 	static readonly ID = 'workbench.contrib.agentSessionsWelcomeEditorResolver';
@@ -47,6 +64,7 @@ class AgentSessionsWelcomeEditorResolverContribution extends Disposable implemen
 	constructor(
 		@IEditorResolverService editorResolverService: IEditorResolverService,
 		@IInstantiationService instantiationService: IInstantiationService,
+		@IWorkspaceContextService workspaceContextService: IWorkspaceContextService,
 	) {
 		super();
 
@@ -66,7 +84,7 @@ class AgentSessionsWelcomeEditorResolverContribution extends Disposable implemen
 			{
 				createEditorInput: () => {
 					return {
-						editor: instantiationService.createInstance(AgentSessionsWelcomeInput, {}),
+						editor: instantiationService.createInstance(AgentSessionsWelcomeInput, { workspaceKind: getWorkspaceKind(workspaceContextService) }),
 					};
 				}
 			}
@@ -78,7 +96,8 @@ class AgentSessionsWelcomeEditorResolverContribution extends Disposable implemen
 CommandsRegistry.registerCommand(AgentSessionsWelcomePage.COMMAND_ID, (accessor) => {
 	const editorService = accessor.get(IEditorService);
 	const instantiationService = accessor.get(IInstantiationService);
-	const input = instantiationService.createInstance(AgentSessionsWelcomeInput, {});
+	const workspaceContextService = accessor.get(IWorkspaceContextService);
+	const input = instantiationService.createInstance(AgentSessionsWelcomeInput, { initiator: 'command', workspaceKind: getWorkspaceKind(workspaceContextService) });
 	return editorService.openEditor(input, { pinned: true });
 });
 
@@ -92,6 +111,8 @@ class AgentSessionsWelcomeRunnerContribution extends Disposable implements IWork
 		@IEditorGroupsService private readonly editorGroupsService: IEditorGroupsService,
 		@IInstantiationService private readonly instantiationService: IInstantiationService,
 		@IContextKeyService private readonly contextKeyService: IContextKeyService,
+		@IStorageService private readonly storageService: IStorageService,
+		@IWorkspaceContextService private readonly workspaceContextService: IWorkspaceContextService
 	) {
 		super();
 		this.run();
@@ -114,13 +135,16 @@ class AgentSessionsWelcomeRunnerContribution extends Disposable implements IWork
 			return;
 		}
 
-		// Don't open if there are already editors open
-		if (this.editorService.activeEditor) {
+		// Check if there's prefill data from a workspace transfer - always show welcome page in that case
+		const hasPrefillData = !!this.storageService.get('chat.welcomeViewPrefill', StorageScope.APPLICATION);
+
+		// Don't open if there are already editors open (unless we have prefill data)
+		if (this.editorService.activeEditor && !hasPrefillData) {
 			return;
 		}
 
 		// Open the agent sessions welcome page
-		const input = this.instantiationService.createInstance(AgentSessionsWelcomeInput, {});
+		const input = this.instantiationService.createInstance(AgentSessionsWelcomeInput, { initiator: 'startup', workspaceKind: getWorkspaceKind(this.workspaceContextService) });
 		await this.editorService.openEditor(input, { pinned: false });
 	}
 }

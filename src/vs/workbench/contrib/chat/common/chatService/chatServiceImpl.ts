@@ -92,6 +92,9 @@ export class ChatService extends Disposable implements IChatService {
 	private readonly _onDidPerformUserAction = this._register(new Emitter<IChatUserActionEvent>());
 	public readonly onDidPerformUserAction: Event<IChatUserActionEvent> = this._onDidPerformUserAction.event;
 
+	private readonly _onDidReceiveQuestionCarouselAnswer = this._register(new Emitter<{ requestId: string; resolveId: string; answers: Record<string, unknown> | undefined }>());
+	public readonly onDidReceiveQuestionCarouselAnswer = this._onDidReceiveQuestionCarouselAnswer.event;
+
 	private readonly _onDidDisposeSession = this._register(new Emitter<{ readonly sessionResource: URI[]; reason: 'cleared' }>());
 	public readonly onDidDisposeSession = this._onDidDisposeSession.event;
 
@@ -242,6 +245,10 @@ export class ChatService extends Disposable implements IChatService {
 		}
 	}
 
+	notifyQuestionCarouselAnswer(requestId: string, resolveId: string, answers: Record<string, unknown> | undefined): void {
+		this._onDidReceiveQuestionCarouselAnswer.fire({ requestId, resolveId, answers });
+	}
+
 	async setChatSessionTitle(sessionResource: URI, title: string): Promise<void> {
 		const model = this._sessionModels.get(sessionResource);
 		if (model) {
@@ -373,6 +380,7 @@ export class ChatService extends Disposable implements IChatService {
 			.filter(entry => !this._sessionModels.has(LocalChatSessionUri.forSession(entry.sessionId)) && entry.initialLocation === ChatAgentLocation.Chat && !entry.isEmpty)
 			.map((entry): IChatDetail => {
 				const sessionResource = LocalChatSessionUri.forSession(entry.sessionId);
+				const lastResponseState = entry.lastResponseState ?? ResponseModelState.Complete;
 				return ({
 					...entry,
 					sessionResource,
@@ -384,7 +392,8 @@ export class ChatService extends Disposable implements IChatService {
 					},
 					isActive: this._sessionModels.has(sessionResource),
 					// TODO@roblourens- missing for old data- normalize inside the store
-					lastResponseState: entry.lastResponseState ?? ResponseModelState.Complete,
+					// TODO@connor4312: the check here guards old sessions from Insiders pre PR #288161 and it can be safely removed after a transition period.
+					lastResponseState: lastResponseState === ResponseModelState.Pending || lastResponseState === ResponseModelState.NeedsInput ? ResponseModelState.Complete : lastResponseState,
 				});
 			});
 	}
