@@ -865,9 +865,11 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 
 			const summaryItem = dom.$('.chat-question-summary-item');
 
-			// Category label (question title)
+			// Category label (use same text as shown in question UI: message ?? title)
 			const questionLabel = dom.$('span.chat-question-summary-label');
-			questionLabel.textContent = question.title;
+			const questionText = question.message ?? question.title;
+			const labelText = typeof questionText === 'string' ? questionText : questionText.value;
+			questionLabel.textContent = labelText;
 			summaryItem.appendChild(questionLabel);
 
 			// Format answer with title and description parts
