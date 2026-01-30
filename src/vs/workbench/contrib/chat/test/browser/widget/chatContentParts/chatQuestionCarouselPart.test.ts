@@ -93,11 +93,11 @@ suite('ChatQuestionCarouselPart', () => {
 			]);
 			createWidget(carousel);
 
-			// Progress is embedded in the title as "(1/3) Question 1"
-			const title = widget.domNode.querySelector('.chat-question-title');
-			assert.ok(title);
-			assert.ok(title?.textContent?.includes('1'));
-			assert.ok(title?.textContent?.includes('3'));
+			// Progress is shown in the step indicator in the footer as "1/3"
+			const stepIndicator = widget.domNode.querySelector('.chat-question-step-indicator');
+			assert.ok(stepIndicator);
+			assert.ok(stepIndicator?.textContent?.includes('1'));
+			assert.ok(stepIndicator?.textContent?.includes('3'));
 		});
 	});
 
@@ -493,7 +493,7 @@ suite('ChatQuestionCarouselPart', () => {
 			assert.ok(summary, 'Should show summary container after skip');
 			const summaryItem = summary?.querySelector('.chat-question-summary-item');
 			assert.ok(summaryItem, 'Should have summary item for the question');
-			const summaryValue = summaryItem?.querySelector('.chat-question-summary-value');
+			const summaryValue = summaryItem?.querySelector('.chat-question-summary-answer-title');
 			assert.ok(summaryValue?.textContent?.includes('default answer'), 'Summary should show the default answer');
 		});
 
@@ -527,7 +527,7 @@ suite('ChatQuestionCarouselPart', () => {
 			assert.ok(widget.domNode.classList.contains('chat-question-carousel-used'), 'Should have used class');
 			const summary = widget.domNode.querySelector('.chat-question-carousel-summary');
 			assert.ok(summary, 'Should show summary container when isUsed is true');
-			const summaryValue = summary?.querySelector('.chat-question-summary-value');
+			const summaryValue = summary?.querySelector('.chat-question-summary-answer-title');
 			assert.ok(summaryValue?.textContent?.includes('saved answer'), 'Summary should show saved answer from data');
 		});
 
