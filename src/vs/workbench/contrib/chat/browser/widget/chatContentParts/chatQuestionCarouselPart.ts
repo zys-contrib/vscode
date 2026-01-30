@@ -35,6 +35,9 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 	private readonly _answers = new Map<string, unknown>();
 
 	private _questionContainer: HTMLElement | undefined;
+	private _closeButtonContainer: HTMLElement | undefined;
+	private _footerRow: HTMLElement | undefined;
+	private _stepIndicator: HTMLElement | undefined;
 	private _navigationButtons: HTMLElement | undefined;
 	private _prevButton: Button | undefined;
 	private _nextButton: Button | undefined;
@@ -86,7 +89,25 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 		this._questionContainer = dom.$('.chat-question-carousel-content');
 		this.domNode.append(this._questionContainer);
 
-		// Navigation controls (< > X) - will be placed in header row with question
+		// Close/skip button (X) - placed in header row, only shown when allowSkip is true
+		if (carousel.allowSkip) {
+			this._closeButtonContainer = dom.$('.chat-question-close-container');
+			const skipAllTitle = localize('chat.questionCarousel.skipAllTitle', 'Skip all questions');
+			const skipAllButton = interactiveStore.add(new Button(this._closeButtonContainer, { ...defaultButtonStyles, secondary: true, supportIcons: true, title: skipAllTitle }));
+			skipAllButton.label = `$(${Codicon.close.id})`;
+			skipAllButton.element.classList.add('chat-question-nav-arrow', 'chat-question-close');
+			skipAllButton.element.setAttribute('aria-label', skipAllTitle);
+			this._skipAllButton = skipAllButton;
+		}
+
+		// Footer row with step indicator and navigation buttons
+		this._footerRow = dom.$('.chat-question-footer-row');
+
+		// Step indicator (e.g., "2/4") on the left
+		this._stepIndicator = dom.$('.chat-question-step-indicator');
+		this._footerRow.appendChild(this._stepIndicator);
+
+		// Navigation controls (< >) - placed in footer row
 		this._navigationButtons = dom.$('.chat-question-carousel-nav');
 		this._navigationButtons.setAttribute('role', 'navigation');
 		this._navigationButtons.setAttribute('aria-label', localize('chat.questionCarousel.navigation', 'Question navigation'));
@@ -108,16 +129,8 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 		this._nextButton = nextButton;
 
 		this._navigationButtons.appendChild(arrowsContainer);
-
-		// Close/skip button (X) - only shown when allowSkip is true
-		if (carousel.allowSkip) {
-			const skipAllTitle = localize('chat.questionCarousel.skipAllTitle', 'Skip all questions');
-			const skipAllButton = interactiveStore.add(new Button(this._navigationButtons, { ...defaultButtonStyles, secondary: true, supportIcons: true, title: skipAllTitle }));
-			skipAllButton.label = `$(${Codicon.close.id})`;
-			skipAllButton.element.classList.add('chat-question-nav-arrow', 'chat-question-close');
-			skipAllButton.element.setAttribute('aria-label', skipAllTitle);
-			this._skipAllButton = skipAllButton;
-		}
+		this._footerRow.appendChild(this._navigationButtons);
+		this.domNode.append(this._footerRow);
 
 
 		// Register event listeners
@@ -224,6 +237,9 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 		this._skipAllButton = undefined;
 		this._questionContainer = undefined;
 		this._navigationButtons = undefined;
+		this._closeButtonContainer = undefined;
+		this._footerRow = undefined;
+		this._stepIndicator = undefined;
 	}
 
 	/**
@@ -345,10 +361,10 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 			return;
 		}
 
-		// Render question header row with navigation and title
+		// Render question header row with title and close button
 		const headerRow = dom.$('.chat-question-header-row');
 
-		// Render question message with title styling, prefixed with progress indicator
+		// Render question message with title styling (no progress prefix)
 		// Fall back to question.title if message is not provided
 		const questionText = question.message ?? question.title;
 		if (questionText) {
@@ -356,17 +372,36 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 			const messageContent = typeof questionText === 'string'
 				? questionText
 				: questionText.value;
-			const progressPrefix = localize('chat.questionCarousel.progressPrefix', '({0}/{1}) ', this._currentIndex + 1, this.carousel.questions.length);
-			title.textContent = progressPrefix + messageContent;
+
+			// Check for subtitle in parentheses at the end
+			const parenMatch = messageContent.match(/^(.+?)\s*(\([^)]+\))\s*$/);
+			if (parenMatch) {
+				// Main title (bold)
+				const mainTitle = dom.$('span.chat-question-title-main');
+				mainTitle.textContent = parenMatch[1];
+				title.appendChild(mainTitle);
+
+				// Subtitle in parentheses (normal weight)
+				const subtitle = dom.$('span.chat-question-title-subtitle');
+				subtitle.textContent = ' ' + parenMatch[2];
+				title.appendChild(subtitle);
+			} else {
+				title.textContent = messageContent;
+			}
 			headerRow.appendChild(title);
 		}
 
-		// Add navigation buttons to header row
-		if (this._navigationButtons) {
-			headerRow.appendChild(this._navigationButtons);
+		// Add close button to header row (if allowSkip is enabled)
+		if (this._closeButtonContainer) {
+			headerRow.appendChild(this._closeButtonContainer);
 		}
 
 		this._questionContainer.appendChild(headerRow);
+
+		// Update step indicator in footer
+		if (this._stepIndicator) {
+			this._stepIndicator.textContent = `${this._currentIndex + 1}/${this.carousel.questions.length}`;
+		}
 
 		// Render input based on question type
 		const inputContainer = dom.$('.chat-question-input-container');
@@ -509,7 +544,7 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 				label.appendChild(titleSpan);
 
 				const descSpan = dom.$('span.chat-question-list-label-desc');
-				descSpan.textContent = ' - ' + option.label.substring(separatorIndex + 3);
+				descSpan.textContent = ': ' + option.label.substring(separatorIndex + 3);
 				label.appendChild(descSpan);
 			} else {
 				label.textContent = option.label;
@@ -640,7 +675,7 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 				label.appendChild(titleSpan);
 
 				const descSpan = dom.$('span.chat-question-list-label-desc');
-				descSpan.textContent = ' - ' + option.label.substring(separatorIndex + 3);
+				descSpan.textContent = ': ' + option.label.substring(separatorIndex + 3);
 				label.appendChild(descSpan);
 			} else {
 				label.textContent = option.label;
@@ -830,13 +865,31 @@ export class ChatQuestionCarouselPart extends Disposable implements IChatContent
 
 			const summaryItem = dom.$('.chat-question-summary-item');
 
-			const questionLabel = dom.$('.chat-question-summary-label');
+			// Category label (question title)
+			const questionLabel = dom.$('span.chat-question-summary-label');
 			questionLabel.textContent = question.title;
 			summaryItem.appendChild(questionLabel);
 
-			const answerValue = dom.$('.chat-question-summary-value');
-			answerValue.textContent = this.formatAnswerForSummary(question, answer);
-			summaryItem.appendChild(answerValue);
+			// Format answer with title and description parts
+			const formattedAnswer = this.formatAnswerForSummary(question, answer);
+			const separatorIndex = formattedAnswer.indexOf(' - ');
+
+			if (separatorIndex !== -1) {
+				// Answer title (bold)
+				const answerTitle = dom.$('span.chat-question-summary-answer-title');
+				answerTitle.textContent = formattedAnswer.substring(0, separatorIndex);
+				summaryItem.appendChild(answerTitle);
+
+				// Answer description (normal)
+				const answerDesc = dom.$('span.chat-question-summary-answer-desc');
+				answerDesc.textContent = ' - ' + formattedAnswer.substring(separatorIndex + 3);
+				summaryItem.appendChild(answerDesc);
+			} else {
+				// Just the answer value (bold)
+				const answerValue = dom.$('span.chat-question-summary-answer-title');
+				answerValue.textContent = formattedAnswer;
+				summaryItem.appendChild(answerValue);
+			}
 
 			summaryContainer.appendChild(summaryItem);
 		}

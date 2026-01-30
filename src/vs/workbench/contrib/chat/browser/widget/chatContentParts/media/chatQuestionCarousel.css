@@ -22,10 +22,13 @@
 
 .chat-question-summary-item {
 	display: flex;
-	flex-direction: column;
-	align-items: flex-start;
-	gap: 2px;
+	flex-direction: row;
+	align-items: baseline;
+	gap: 0;
 	font-size: var(--vscode-chat-font-size-body-s);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .chat-question-summary-label {
@@ -34,12 +37,21 @@
 }
 
 .chat-question-summary-label::after {
-	content: ':';
+	content: ': ';
+	white-space: pre;
 }
 
-.chat-question-summary-value {
+.chat-question-summary-answer-title {
 	color: var(--vscode-foreground);
-	word-break: break-word;
+	font-weight: 600;
+	flex-shrink: 0;
+}
+
+.chat-question-summary-answer-desc {
+	color: var(--vscode-foreground);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: pre;
 }
 
 .chat-question-summary-skipped {
@@ -54,15 +66,9 @@
 	align-items: flex-start;
 	gap: 8px;
 	min-width: 0;
-	flex-wrap: wrap;
 	padding-bottom: 12px;
 	border-bottom: 1px solid var(--vscode-chat-requestBorder);
-	margin-bottom: 12px;
-}
-
-.chat-question-header-row .chat-question-carousel-nav {
-	order: 0;
-	flex-shrink: 0;
+	margin-bottom: 4px;
 }
 
 .chat-question-header-row .chat-question-title {
@@ -72,21 +78,39 @@
 	overflow-wrap: break-word;
 }
 
-/* At small container widths, move nav above the question */
-@container (max-width: 300px) {
-	.chat-question-header-row .chat-question-carousel-nav {
-		order: -1;
-		width: 100%;
-		justify-content: space-between;
-	}
+/* Close button container in header */
+.chat-question-close-container {
+	flex-shrink: 0;
+}
 
-	.chat-question-carousel-nav > .monaco-button.chat-question-close {
-		margin-left: 0;
-	}
+.chat-question-close-container .monaco-button.chat-question-close {
+	min-width: 22px;
+	width: 22px;
+	height: 22px;
+	padding: 0;
+	border: none;
+	background: transparent !important;
+	color: var(--vscode-foreground) !important;
+}
 
-	.chat-question-header-row .chat-question-title {
-		flex: 1 1 100%;
-	}
+.chat-question-close-container .monaco-button.chat-question-close:hover:not(.disabled) {
+	background: var(--vscode-toolbar-hoverBackground) !important;
+}
+
+/* Footer row with step indicator and navigation */
+.chat-question-footer-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 8px 16px;
+	border-top: 1px solid var(--vscode-chat-requestBorder);
+	background: var(--vscode-chat-requestBackground);
+}
+
+/* Step indicator (e.g., "2/4") */
+.chat-question-step-indicator {
+	font-size: var(--vscode-chat-font-size-body-s);
+	color: var(--vscode-descriptionForeground);
 }
 
 .chat-question-carousel-nav {
@@ -100,10 +124,6 @@
 	display: flex;
 	align-items: center;
 	gap: 4px;
-}
-
-.chat-question-carousel-nav > .monaco-button.chat-question-close {
-	margin-left: 4px;
 }
 
 .chat-question-carousel-nav .monaco-button.chat-question-nav-arrow {
@@ -159,6 +179,15 @@
 	font-weight: 500;
 	font-size: var(--vscode-chat-font-size-body-s);
 	margin: 0;
+}
+
+.chat-question-title-main {
+	font-weight: 500;
+}
+
+.chat-question-title-subtitle {
+	font-weight: normal;
+	color: var(--vscode-descriptionForeground);
 }
 
 .chat-question-message {
@@ -252,8 +281,13 @@
 }
 
 .chat-question-list-checkbox.monaco-custom-toggle.checked {
-	background-color: var(--vscode-inputOption-activeBackground, var(--vscode-button-background)) !important;
-	border-color: var(--vscode-inputOption-activeBorder, var(--vscode-button-background)) !important;
+	background-color: var(--vscode-button-background) !important;
+	border-color: var(--vscode-button-background) !important;
+	color: var(--vscode-button-foreground) !important;
+}
+
+.chat-question-list-checkbox.monaco-custom-toggle.checked .codicon {
+	color: var(--vscode-button-foreground) !important;
 }
 
 /* Label in list item */
