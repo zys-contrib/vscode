@@ -216,7 +216,7 @@ export class AgentSessionsWelcomePage extends EditorPane {
 		// Detect empty workspace and fetch recent workspaces
 		this._isEmptyWorkspace = this.workspaceContextService.getWorkbenchState() === WorkbenchState.EMPTY;
 		if (this._isEmptyWorkspace) {
-			const recentlyOpened = await this.getRecentlyOpenedWorkspaces();
+			const recentlyOpened = await this.getRecentlyOpenedWorkspaces(true);
 			this._recentTrustedWorkspaces = recentlyOpened.slice(0, MAX_REPO_PICKS);
 		}
 
