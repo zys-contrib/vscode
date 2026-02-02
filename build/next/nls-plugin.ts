@@ -165,9 +165,13 @@ function transformToPlaceholders(
 ): { code: string; entries: NLSEntry[] } {
 	const localizeCalls = analyzeLocalizeCalls(source, 'localize');
 	const localize2Calls = analyzeLocalizeCalls(source, 'localize2');
-	const allCalls = [...localizeCalls, ...localize2Calls].sort(
-		(a, b) => a.keySpan.start.line - b.keySpan.start.line ||
-			a.keySpan.start.character - b.keySpan.start.character
+
+	// Tag calls with their type so we can handle them differently later
+	const taggedLocalize = localizeCalls.map(call => ({ call, isLocalize2: false }));
+	const taggedLocalize2 = localize2Calls.map(call => ({ call, isLocalize2: true }));
+	const allCalls = [...taggedLocalize, ...taggedLocalize2].sort(
+		(a, b) => a.call.keySpan.start.line - b.call.keySpan.start.line ||
+			a.call.keySpan.start.character - b.call.keySpan.start.character
 	);
 
 	if (allCalls.length === 0) {
@@ -178,13 +182,16 @@ function transformToPlaceholders(
 	const model = new TextModel(source);
 
 	// Process in reverse order to preserve positions
-	for (const call of allCalls.reverse()) {
+	for (const { call, isLocalize2 } of allCalls.reverse()) {
 		const keyParsed = parseLocalizeKeyOrValue(call.key) as string | { key: string; comment: string[] };
 		const messageParsed = parseLocalizeKeyOrValue(call.value);
 		const keyString = typeof keyParsed === 'string' ? keyParsed : keyParsed.key;
 
-		// Create a deterministic placeholder
-		const placeholder = `%%NLS:${moduleId}#${keyString}%%`;
+		// Use different placeholder prefix for localize vs localize2
+		// localize: message will be replaced with null
+		// localize2: message will be preserved (only key replaced)
+		const prefix = isLocalize2 ? 'NLS2' : 'NLS';
+		const placeholder = `%%${prefix}:${moduleId}#${keyString}%%`;
 
 		entries.push({
 			moduleId,
@@ -208,14 +215,21 @@ function replaceInOutput(
 	indexMap: Map<string, number>,
 	preserveEnglish: boolean
 ): string {
-	// Replace all placeholders in a single pass using a regex that matches any placeholder
-	// Pattern: "%%NLS:moduleId#key%%"
+	// Replace all placeholders in a single pass using regex
+	// Two types of placeholders:
+	// - %%NLS:moduleId#key%% for localize() - message replaced with null
+	// - %%NLS2:moduleId#key%% for localize2() - message preserved
 
 	if (preserveEnglish) {
-		// Just replace the placeholder with the index
-		return content.replace(/"%%NLS:([^%]+)%%"/g, (match, inner) => {
-			const placeholder = `%%NLS:${inner}%%`;
-			const index = indexMap.get(placeholder);
+		// Just replace the placeholder with the index (both NLS and NLS2)
+		return content.replace(/"%%NLS2?:([^%]+)%%"/g, (match, inner) => {
+			// Try NLS first, then NLS2
+			let placeholder = `%%NLS:${inner}%%`;
+			let index = indexMap.get(placeholder);
+			if (index === undefined) {
+				placeholder = `%%NLS2:${inner}%%`;
+				index = indexMap.get(placeholder);
+			}
 			if (index !== undefined) {
 				return String(index);
 			}
@@ -223,20 +237,37 @@ function replaceInOutput(
 			return match;
 		});
 	} else {
-		// Replace placeholder with index AND replace message with null
-		// Pattern: "%%NLS:...%%", "message" (or 'message' or `message`)
-		return content.replace(
-			/"%%NLS:([^%]+)%%"(\s*,\s*)(?:"[^"]*"|'[^']*'|`[^`]*`)/g,
+		// For NLS (localize): replace placeholder with index AND replace message with null
+		// For NLS2 (localize2): replace placeholder with index, keep message
+		// Note: Use (?:[^"\\]|\\.)* to properly handle escaped quotes like \" or \\
+
+		// First handle NLS (localize) - replace both key and message
+		content = content.replace(
+			/"%%NLS:([^%]+)%%"(\s*,\s*)(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)/g,
 			(match, inner, comma) => {
 				const placeholder = `%%NLS:${inner}%%`;
 				const index = indexMap.get(placeholder);
 				if (index !== undefined) {
 					return `${index}${comma}null`;
 				}
-				// Placeholder not found in map, leave as-is (shouldn't happen)
 				return match;
 			}
 		);
+
+		// Then handle NLS2 (localize2) - replace only key, keep message
+		content = content.replace(
+			/"%%NLS2:([^%]+)%%"/g,
+			(match, inner) => {
+				const placeholder = `%%NLS2:${inner}%%`;
+				const index = indexMap.get(placeholder);
+				if (index !== undefined) {
+					return String(index);
+				}
+				return match;
+			}
+		);
+
+		return content;
 	}
 }
 

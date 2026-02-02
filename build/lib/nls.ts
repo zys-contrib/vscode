@@ -10,7 +10,7 @@ import File from 'vinyl';
 import sm from 'source-map';
 import path from 'path';
 import sort from 'gulp-sort';
-import { type ISpan, analyzeLocalizeCalls, TextModel, parseLocalizeKeyOrValue } from './nls-analysis.js';
+import { type ISpan, analyzeLocalizeCalls, TextModel, parseLocalizeKeyOrValue } from './nls-analysis.ts';
 
 type FileWithSourcemap = File & { sourceMap: sm.RawSourceMap };
 

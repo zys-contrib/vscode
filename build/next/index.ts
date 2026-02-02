@@ -19,12 +19,22 @@ const globAsync = promisify(glob);
 
 const REPO_ROOT = path.dirname(path.dirname(import.meta.dirname));
 
-// CLI: transpile [--watch] | bundle [--minify] [--nls]
+// CLI: transpile [--watch] | bundle [--minify] [--nls] [--out <dir>]
 const command = process.argv[2]; // 'transpile' or 'bundle'
+
+function getArgValue(name: string): string | undefined {
+	const index = process.argv.indexOf(name);
+	if (index !== -1 && index + 1 < process.argv.length) {
+		return process.argv[index + 1];
+	}
+	return undefined;
+}
+
 const options = {
 	watch: process.argv.includes('--watch'),
 	minify: process.argv.includes('--minify'),
 	nls: process.argv.includes('--nls'),
+	out: getArgValue('--out'),
 };
 
 const SRC_DIR = 'src';
@@ -103,10 +113,6 @@ const resourcePatterns = [
 	'vs/base/common/marked/marked.js',
 	'vs/base/common/semver/semver.js',
 	'vs/base/browser/dompurify/dompurify.js',
-
-	// Electron preload (not bundled)
-	'vs/base/parts/sandbox/electron-browser/preload.js',
-	'vs/base/parts/sandbox/electron-browser/preload-aux.js',
 
 	// Webview pre scripts
 	'vs/workbench/contrib/webview/browser/pre/*.js',
@@ -190,6 +196,44 @@ async function copyFile(srcPath: string, destPath: string): Promise<void> {
 		}
 	}
 	await fs.promises.copyFile(srcPath, destPath);
+}
+
+/**
+ * Standalone TypeScript files that need to be compiled separately (not bundled).
+ * These run in special contexts (e.g., Electron preload) where bundling isn't appropriate.
+ */
+const standaloneFiles = [
+	'vs/base/parts/sandbox/electron-browser/preload.ts',
+	'vs/base/parts/sandbox/electron-browser/preload-aux.ts',
+];
+
+async function compileStandaloneFiles(outDir: string, doMinify: boolean): Promise<void> {
+	console.log(`[standalone] Compiling ${standaloneFiles.length} standalone files...`);
+
+	const banner = `/*!--------------------------------------------------------
+ * Copyright (C) Microsoft Corporation. All rights reserved.
+ *--------------------------------------------------------*/`;
+
+	await Promise.all(standaloneFiles.map(async (file) => {
+		const entryPath = path.join(REPO_ROOT, SRC_DIR, file);
+		const outPath = path.join(REPO_ROOT, outDir, file.replace(/\.ts$/, '.js'));
+
+		await esbuild.build({
+			entryPoints: [entryPath],
+			outfile: outPath,
+			bundle: false, // Don't bundle - these are standalone scripts
+			format: 'cjs', // CommonJS for Electron preload
+			platform: 'node',
+			target: ['es2024'],
+			sourcemap: 'external',
+			sourcesContent: false,
+			minify: doMinify,
+			banner: { js: banner },
+			logLevel: 'warning',
+		});
+	}));
+
+	console.log(`[standalone] Done`);
 }
 
 async function copyCssFiles(outDir: string, excludeTests = false): Promise<number> {
@@ -346,10 +390,10 @@ async function transpile(outDir: string, excludeTests: boolean): Promise<void> {
 // Bundle (Goal 2: JS → bundled JS)
 // ============================================================================
 
-async function bundle(doMinify: boolean, doNls: boolean): Promise<void> {
-	await cleanDir(OUT_VSCODE_DIR);
+async function bundle(outDir: string, doMinify: boolean, doNls: boolean): Promise<void> {
+	await cleanDir(outDir);
 
-	console.log(`[bundle] ${SRC_DIR} → ${OUT_VSCODE_DIR}${doMinify ? ' (minify)' : ''}${doNls ? ' (nls)' : ''}`);
+	console.log(`[bundle] ${SRC_DIR} → ${outDir}${doMinify ? ' (minify)' : ''}${doNls ? ' (nls)' : ''}`);
 	const t1 = Date.now();
 
 	// Read TSLib for banner
@@ -386,15 +430,25 @@ ${tslib}`,
 		...keyboardMapEntryPoints,
 	];
 
+	// Entry points that should bundle CSS (workbench mains and code entry points)
+	// Workers and other entry points don't need CSS
+	const bundleCssEntryPoints = new Set([
+		'vs/workbench/workbench.desktop.main',
+		'vs/workbench/workbench.web.main.internal',
+		'vs/code/electron-browser/workbench/workbench',
+		'vs/code/browser/workbench/workbench',
+	]);
+
 	// Collect all build results (with write: false)
 	const buildResults: { outPath: string; result: esbuild.BuildResult }[] = [];
 
 	// Bundle each entry point directly from TypeScript source
 	await Promise.all(allEntryPoints.map(async (entryPoint) => {
 		const entryPath = path.join(REPO_ROOT, SRC_DIR, `${entryPoint}.ts`);
-		const outPath = path.join(REPO_ROOT, OUT_VSCODE_DIR, `${entryPoint}.js`);
+		const outPath = path.join(REPO_ROOT, outDir, `${entryPoint}.js`);
 
-		const plugins: esbuild.Plugin[] = [cssExternalPlugin()];
+		// Use CSS external plugin for entry points that don't need bundled CSS
+		const plugins: esbuild.Plugin[] = bundleCssEntryPoints.has(entryPoint) ? [] : [cssExternalPlugin()];
 		if (doNls) {
 			plugins.unshift(nlsPlugin({
 				baseDir: path.join(REPO_ROOT, SRC_DIR),
@@ -402,9 +456,17 @@ ${tslib}`,
 			}));
 		}
 
-		const result = await esbuild.build({
-			entryPoints: [entryPath],
-			outfile: outPath,
+		// For entry points that bundle CSS, we need to use outdir instead of outfile
+		// because esbuild can't produce multiple output files (JS + CSS) with outfile
+		const needsCssBundling = bundleCssEntryPoints.has(entryPoint);
+
+		const buildOptions: esbuild.BuildOptions = {
+			entryPoints: needsCssBundling
+				? [{ in: entryPath, out: entryPoint }]
+				: [entryPath],
+			...(needsCssBundling
+				? { outdir: path.join(REPO_ROOT, outDir) }
+				: { outfile: outPath }),
 			bundle: true,
 			format: 'esm',
 			platform: 'neutral',
@@ -429,7 +491,9 @@ ${tslib}`,
 				'unsupported-require-call': 'silent',
 			},
 			tsconfigRaw,
-		});
+		};
+
+		const result = await esbuild.build(buildOptions);
 
 		buildResults.push({ outPath, result });
 	}));
@@ -442,7 +506,7 @@ ${tslib}`,
 			continue;
 		}
 
-		const outPath = path.join(REPO_ROOT, OUT_VSCODE_DIR, `${entry}.js`);
+		const outPath = path.join(REPO_ROOT, outDir, `${entry}.js`);
 
 		const bootstrapPlugins: esbuild.Plugin[] = [inlineMinimistPlugin()];
 		if (doNls) {
@@ -480,7 +544,7 @@ ${tslib}`,
 	// Finalize NLS: sort entries, assign indices, write metadata files
 	let indexMap = new Map<string, number>();
 	if (doNls) {
-		const nlsResult = await finalizeNLS(nlsCollector, path.join(REPO_ROOT, OUT_VSCODE_DIR));
+		const nlsResult = await finalizeNLS(nlsCollector, path.join(REPO_ROOT, outDir));
 		indexMap = nlsResult.indexMap;
 	}
 
@@ -507,7 +571,10 @@ ${tslib}`,
 	}
 
 	// Copy resources (exclude dev files and tests for production)
-	await copyResources(OUT_VSCODE_DIR, true, true);
+	await copyResources(outDir, true, true);
+
+	// Compile standalone TypeScript files (like Electron preload scripts) that cannot be bundled
+	await compileStandaloneFiles(outDir, doMinify);
 
 	console.log(`[bundle] Done in ${Date.now() - t1}ms (${bundled} bundles)`);
 }
@@ -635,12 +702,14 @@ Options for 'transpile':
 Options for 'bundle':
 	--minify           Minify the output bundles
 	--nls              Process NLS (localization) strings
+	--out <dir>        Output directory (default: out-vscode)
 
 Examples:
 	npx tsx build/next/index.ts transpile
 	npx tsx build/next/index.ts transpile --watch
 	npx tsx build/next/index.ts bundle
 	npx tsx build/next/index.ts bundle --minify --nls
+	npx tsx build/next/index.ts bundle --nls --out out-vscode-min
 `);
 }
 
@@ -664,7 +733,7 @@ async function main(): Promise<void> {
 				break;
 
 			case 'bundle':
-				await bundle(options.minify, options.nls);
+				await bundle(options.out ?? OUT_VSCODE_DIR, options.minify, options.nls);
 				break;
 
 			default:
