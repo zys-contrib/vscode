@@ -925,7 +925,7 @@ export class AgentSessionsWelcomePage extends EditorPane {
 		super.dispose();
 	}
 
-	private async getRecentlyOpenedWorkspaces(trusted: boolean = false): Promise<Array<IRecentWorkspace | IRecentFolder>> {
+	private async getRecentlyOpenedWorkspaces(onlyTrusted: boolean = false): Promise<Array<IRecentWorkspace | IRecentFolder>> {
 		const workspaces = await this.workspacesService.getRecentlyOpened();
 		const trustInfoPromises = workspaces.workspaces.map(async ws => {
 			const uri = isRecentWorkspace(ws) ? ws.workspace.configPath : ws.folderUri;
@@ -934,7 +934,7 @@ export class AgentSessionsWelcomePage extends EditorPane {
 		});
 		const trustInfoResults = await Promise.all(trustInfoPromises);
 		const filteredWorkspaces = trustInfoResults
-			.filter(result => trusted ? result.trusted : true)
+			.filter(result => onlyTrusted ? result.trusted : true)
 			.map(result => result.workspace);
 		return filteredWorkspaces;
 	}
