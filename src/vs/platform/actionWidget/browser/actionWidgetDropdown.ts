@@ -50,6 +50,7 @@ export interface IActionWidgetDropdownOptions extends IBaseDropdownOptions {
 	 * Telemetry reporter configuration used when the dropdown closes. The `id` field is required
 	 * and is used as the telemetry identifier; `name` is optional additional context. If not
 	 * provided, no telemetry will be sent.
+	 */
 	readonly reporter?: { id: string; name?: string; includeOptions?: boolean };
 }
 
