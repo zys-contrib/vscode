@@ -925,7 +925,6 @@ export class AgentSessionsWelcomePage extends EditorPane {
 		super.dispose();
 	}
 
-
 	private async getRecentlyOpenedWorkspaces(trusted: boolean = false): Promise<Array<IRecentWorkspace | IRecentFolder>> {
 		const workspaces = await this.workspacesService.getRecentlyOpened();
 		const trustInfoPromises = workspaces.workspaces.map(async ws => {
