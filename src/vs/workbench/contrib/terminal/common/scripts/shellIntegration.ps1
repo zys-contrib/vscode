@@ -78,7 +78,8 @@ if (-not $env:VSCODE_PYTHON_AUTOACTIVATE_GUARD) {
 	$env:VSCODE_PYTHON_AUTOACTIVATE_GUARD = '1'
 	if ($env:VSCODE_PYTHON_PWSH_ACTIVATE -and $env:TERM_PROGRAM -eq 'vscode') {
 		$activateScript = $env:VSCODE_PYTHON_PWSH_ACTIVATE
-		Remove-Item Env:VSCODE_PYTHON_PWSH_ACTIVATE
+		# Remove any leftover Python activation env vars.
+		Get-ChildItem Env:VSCODE_PYTHON_*_ACTIVATE | Remove-Item -ErrorAction SilentlyContinue
 
 		try {
 			Invoke-Expression $activateScript
