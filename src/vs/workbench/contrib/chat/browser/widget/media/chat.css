@@ -2169,6 +2169,7 @@ have to be updated for changes to the rules above, or to support more deeply nes
 	align-items: center;
 	gap: 4px;
 	margin: 0 0 6px 2px;
+	font-size: 13px;
 
 	/* Tool calls transition from a progress to a collapsible list part, which needs to have this top padding.
 	The working progress also can be replaced by a tool progress part. So align this padding so the text doesn't appear to shift. */
