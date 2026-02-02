@@ -667,11 +667,6 @@
 	box-shadow: inset var(--shadow-sm);
 }
 
-.monaco-workbench .part.titlebar .command-center .agent-status-pill:hover {
-	box-shadow: none;
-	background-color: transparent;
-}
-
 .monaco-dialog-modal-block .dialog-shadow {
 	border-radius: var(--radius-xl);
 }
