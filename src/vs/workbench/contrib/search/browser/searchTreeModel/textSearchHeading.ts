@@ -322,6 +322,7 @@ export class PlainTextSearchHeadingImpl extends TextSearchHeadingImpl<ITextQuery
 		}
 
 		this._folderMatches = (query && query.folderQueries || [])
+			.filter(fq => !!fq)
 			.map(fq => fq.folder)
 			.map((resource, index) => <ISearchTreeFolderMatchWorkspaceRoot>this._createBaseFolderMatch(resource, resource.toString(), index, query));
 

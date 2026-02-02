@@ -60,6 +60,7 @@ export class AITextSearchHeadingImpl extends TextSearchHeadingImpl<IAITextQuery>
 		}
 
 		this._folderMatches = (query && query.folderQueries || [])
+			.filter(fq => !!fq)
 			.map(fq => fq.folder)
 			.map((resource, index) => <ISearchTreeFolderMatchWorkspaceRoot>this._createBaseFolderMatch(resource, resource.toString(), index, query));
 
