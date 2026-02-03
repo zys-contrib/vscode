@@ -167,10 +167,6 @@ export class MockChatSessionsService implements IChatSessionsService {
 		await this._onRequestNotifyExtension.fireAsync({ sessionResource, updates }, CancellationToken.None);
 	}
 
-	notifySessionItemsChanged(chatSessionType: string): void {
-		this._onDidChangeSessionItems.fire({ chatSessionType });
-	}
-
 	getSessionOption(sessionResource: URI, optionId: string): string | undefined {
 		return this.sessionOptions.get(sessionResource)?.get(optionId);
 	}
