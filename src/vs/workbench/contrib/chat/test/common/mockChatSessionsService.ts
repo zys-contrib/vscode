@@ -19,7 +19,7 @@ export class MockChatSessionsService implements IChatSessionsService {
 
 	private readonly _onDidChangeSessionOptions = new Emitter<URI>();
 	readonly onDidChangeSessionOptions = this._onDidChangeSessionOptions.event;
-	private readonly _onDidChangeItemsProviders = new Emitter<IChatSessionItemProvider>();
+	private readonly _onDidChangeItemsProviders = new Emitter<{ readonly chatSessionType: string }>();
 	readonly onDidChangeItemsProviders = this._onDidChangeItemsProviders.event;
 
 	private readonly _onDidChangeSessionItems = new Emitter<{ readonly chatSessionType: string }>();
