@@ -1009,10 +1009,6 @@ export class ChatSessionsService extends Disposable implements IChatSessionsServ
 		return !!session?.setOption(optionId, value);
 	}
 
-	public notifySessionItemsChanged(chatSessionType: string): void {
-		this._onDidChangeSessionItems.fire({ chatSessionType });
-	}
-
 	/**
 	 * Store option groups for a session type
 	 */

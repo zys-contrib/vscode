@@ -227,13 +227,11 @@ export interface IChatSessionsService {
 	 * Get the list of chat session items grouped by session type.
 	 * @param providerTypeFilter If specified, only returns items from the given providers. If undefined, returns items from all providers.
 	 */
-	getChatSessionItems(providerTypeFilter: readonly string[] | undefined, token: CancellationToken): Promise<Array<{ readonly chatSessionType: string; readonly items: IChatSessionItem[] }>>;
+	getChatSessionItems(providerTypeFilter: readonly string[] | undefined, token: CancellationToken): Promise<Array<{ readonly chatSessionType: string; readonly items: readonly IChatSessionItem[] }>>;
 
 	reportInProgress(chatSessionType: string, count: number): void;
 	getInProgress(): { displayName: string; count: number }[];
 
-	// Notify providers about session items changes
-	notifySessionItemsChanged(chatSessionType: string): void;
 	// #endregion
 
 	// #region Content provider support
