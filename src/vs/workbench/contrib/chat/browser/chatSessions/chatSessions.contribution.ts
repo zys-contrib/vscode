@@ -730,7 +730,11 @@ export class ChatSessionsService extends Disposable implements IChatSessionsServ
 		return this._isContributionAvailable(contribution) ? contribution : undefined;
 	}
 
-	async activateChatSessionItemProvider(chatViewType: string): Promise<IChatSessionItemProvider | undefined> {
+	async activateChatSessionItemProvider(chatViewType: string): Promise<void> {
+		await this.doActivateChatSessionItemProvider(chatViewType);
+	}
+
+	private async doActivateChatSessionItemProvider(chatViewType: string): Promise<IChatSessionItemProvider | undefined> {
 		await this._extensionService.whenInstalledExtensionsRegistered();
 		const resolvedType = this._resolveToPrimaryType(chatViewType);
 		if (resolvedType) {
@@ -777,7 +781,7 @@ export class ChatSessionsService extends Disposable implements IChatSessionsServ
 				continue; // skip: not considered for resolving
 			}
 
-			const provider = await this.activateChatSessionItemProvider(contrib.type);
+			const provider = await this.doActivateChatSessionItemProvider(contrib.type);
 			if (!provider) {
 				// We requested this provider but it is not available
 				if (providersToResolve?.includes(contrib.type)) {
