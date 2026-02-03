@@ -153,11 +153,11 @@ const bundleVSCodeTask = task.define('bundle-vscode', task.series(
 gulp.task(bundleVSCodeTask);
 
 // esbuild-based bundle tasks (drop-in replacement for bundle-vscode / minify-vscode)
-function runEsbuildBundle(outDir: string, minify: boolean, nls: boolean): Promise<void> {
+function runEsbuildBundle(outDir: string, minify: boolean, nls: boolean, target: 'desktop' | 'server' | 'server-web' = 'desktop'): Promise<void> {
 	return new Promise((resolve, reject) => {
 		// const tsxPath = path.join(root, 'build/node_modules/tsx/dist/cli.mjs');
 		const scriptPath = path.join(root, 'build/next/index.ts');
-		const args = [scriptPath, 'bundle', '--out', outDir];
+		const args = [scriptPath, 'bundle', '--out', outDir, '--target', target];
 		if (minify) {
 			args.push('--minify');
 		}
@@ -198,6 +198,18 @@ const coreCI = task.define('core-ci', task.series(
 	)
 ));
 gulp.task(coreCI);
+
+const coreCIEsbuild = task.define('core-ci-esbuild', task.series(
+	cleanExtensionsBuildTask,
+	compileNonNativeExtensionsBuildTask,
+	compileExtensionMediaBuildTask,
+	task.parallel(
+		task.define('esbuild-vscode-min', () => runEsbuildBundle('out-vscode-min', true, true, 'desktop')),
+		task.define('esbuild-vscode-reh-min', () => runEsbuildBundle('out-vscode-reh-min', true, true, 'server')),
+		task.define('esbuild-vscode-reh-web-min', () => runEsbuildBundle('out-vscode-reh-web-min', true, true, 'server-web')),
+	)
+));
+gulp.task(coreCIEsbuild);
 
 const coreCIPR = task.define('core-ci-pr', task.series(
 	gulp.task('compile-build-without-mangling') as task.Task,

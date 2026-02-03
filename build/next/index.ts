@@ -35,7 +35,11 @@ const options = {
 	minify: process.argv.includes('--minify'),
 	nls: process.argv.includes('--nls'),
 	out: getArgValue('--out'),
+	target: getArgValue('--target') ?? 'desktop', // 'desktop' | 'server' | 'server-web'
 };
+
+// Build targets
+type BuildTarget = 'desktop' | 'server' | 'server-web';
 
 const SRC_DIR = 'src';
 const OUT_DIR = 'out';
@@ -48,17 +52,23 @@ const UTF8_BOM = Buffer.from([0xef, 0xbb, 0xbf]);
 // Entry Points (from build/buildfile.ts)
 // ============================================================================
 
+// Workers - shared between targets
 const workerEntryPoints = [
 	'vs/editor/common/services/editorWebWorkerMain',
 	'vs/workbench/api/worker/extensionHostWorkerMain',
 	'vs/workbench/contrib/notebook/common/services/notebookWebWorkerMain',
 	'vs/workbench/services/languageDetection/browser/languageDetectionWebWorkerMain',
 	'vs/workbench/services/search/worker/localFileSearchMain',
-	'vs/platform/profiling/electron-browser/profileAnalysisWorkerMain',
 	'vs/workbench/contrib/output/common/outputLinkComputerMain',
 	'vs/workbench/services/textMate/browser/backgroundTokenization/worker/textMateTokenizationWorker.workerMain',
 ];
 
+// Desktop-only workers (use electron-browser)
+const desktopWorkerEntryPoints = [
+	'vs/platform/profiling/electron-browser/profileAnalysisWorkerMain',
+];
+
+// Desktop workbench and code entry points
 const desktopEntryPoints = [
 	'vs/workbench/workbench.desktop.main',
 	'vs/workbench/contrib/debug/node/telemetryApp',
@@ -73,6 +83,7 @@ const codeEntryPoints = [
 	'vs/code/electron-browser/workbench/workbench',
 ];
 
+// Web entry points (used in server-web and vscode-web)
 const webEntryPoints = [
 	'vs/workbench/workbench.web.main.internal',
 	'vs/code/browser/workbench/workbench',
@@ -84,19 +95,118 @@ const keyboardMapEntryPoints = [
 	'vs/workbench/services/keybinding/browser/keyboardLayouts/layout.contribution.win',
 ];
 
-const bootstrapEntryPoints = [
+// Server entry points (reh)
+const serverEntryPoints = [
+	'vs/workbench/api/node/extensionHostProcess',
+	'vs/platform/files/node/watcher/watcherMain',
+	'vs/platform/terminal/node/ptyHostMain',
+];
+
+// Bootstrap files per target
+const bootstrapEntryPointsDesktop = [
 	'main',
 	'cli',
 	'bootstrap-fork',
+];
+
+const bootstrapEntryPointsServer = [
 	'server-main',
 	'server-cli',
+	'bootstrap-fork',
 ];
+
+/**
+ * Get entry points for a build target.
+ */
+function getEntryPointsForTarget(target: BuildTarget): string[] {
+	switch (target) {
+		case 'desktop':
+			return [
+				...workerEntryPoints,
+				...desktopWorkerEntryPoints,
+				...desktopEntryPoints,
+				...codeEntryPoints,
+				...webEntryPoints, // Desktop also includes web for remote development
+				...keyboardMapEntryPoints,
+			];
+		case 'server':
+			return [
+				...serverEntryPoints,
+			];
+		case 'server-web':
+			return [
+				...serverEntryPoints,
+				...workerEntryPoints,
+				...webEntryPoints,
+				...keyboardMapEntryPoints,
+			];
+		default:
+			throw new Error(`Unknown target: ${target}`);
+	}
+}
+
+/**
+ * Get bootstrap entry points for a build target.
+ */
+function getBootstrapEntryPointsForTarget(target: BuildTarget): string[] {
+	switch (target) {
+		case 'desktop':
+			return bootstrapEntryPointsDesktop;
+		case 'server':
+		case 'server-web':
+			return bootstrapEntryPointsServer;
+		default:
+			throw new Error(`Unknown target: ${target}`);
+	}
+}
+
+/**
+ * Get entry points that should bundle CSS (workbench mains).
+ */
+function getCssBundleEntryPointsForTarget(target: BuildTarget): Set<string> {
+	switch (target) {
+		case 'desktop':
+			return new Set([
+				'vs/workbench/workbench.desktop.main',
+				'vs/workbench/workbench.web.main.internal',
+				'vs/code/electron-browser/workbench/workbench',
+				'vs/code/browser/workbench/workbench',
+			]);
+		case 'server':
+			return new Set(); // Server has no UI
+		case 'server-web':
+			return new Set([
+				'vs/workbench/workbench.web.main.internal',
+				'vs/code/browser/workbench/workbench',
+			]);
+		default:
+			throw new Error(`Unknown target: ${target}`);
+	}
+}
 
 // ============================================================================
 // Resource Patterns (files to copy, not transpile/bundle)
 // ============================================================================
 
-const resourcePatterns = [
+// Common resources needed by all targets
+const commonResourcePatterns = [
+	// Fonts
+	'vs/base/browser/ui/codicons/codicon/codicon.ttf',
+
+	// Vendor JavaScript libraries (not transpiled)
+	'vs/base/common/marked/marked.js',
+	'vs/base/common/semver/semver.js',
+	'vs/base/browser/dompurify/dompurify.js',
+
+	// Tree-sitter queries
+	'vs/editor/common/languages/highlights/*.scm',
+	'vs/editor/common/languages/injections/*.scm',
+];
+
+// Resources for desktop target
+const desktopResourcePatterns = [
+	...commonResourcePatterns,
+
 	// HTML
 	'vs/code/electron-browser/workbench/workbench.html',
 	'vs/code/electron-browser/workbench/workbench-dev.html',
@@ -105,14 +215,6 @@ const resourcePatterns = [
 	'vs/code/browser/workbench/callback.html',
 	'vs/workbench/services/extensions/worker/webWorkerExtensionHostIframe.html',
 	'vs/workbench/contrib/webview/browser/pre/*.html',
-
-	// Fonts
-	'vs/base/browser/ui/codicons/codicon/codicon.ttf',
-
-	// Vendor JavaScript libraries (not transpiled)
-	'vs/base/common/marked/marked.js',
-	'vs/base/common/semver/semver.js',
-	'vs/base/browser/dompurify/dompurify.js',
 
 	// Webview pre scripts
 	'vs/workbench/contrib/webview/browser/pre/*.js',
@@ -138,11 +240,71 @@ const resourcePatterns = [
 	'vs/workbench/services/extensionManagement/common/media/*.png',
 	'vs/workbench/browser/parts/editor/media/*.png',
 	'vs/workbench/contrib/debug/browser/media/*.png',
-
-	// Tree-sitter queries
-	'vs/editor/common/languages/highlights/*.scm',
-	'vs/editor/common/languages/injections/*.scm',
 ];
+
+// Resources for server target (minimal - no UI)
+const serverResourcePatterns = [
+	// Shell scripts for process monitoring
+	'vs/base/node/cpuUsage.sh',
+	'vs/base/node/ps.sh',
+
+	// External Terminal
+	'vs/workbench/contrib/externalTerminal/**/*.scpt',
+
+	// Terminal shell integration
+	'vs/workbench/contrib/terminal/common/scripts/shellIntegration.ps1',
+	'vs/workbench/contrib/terminal/common/scripts/CodeTabExpansion.psm1',
+	'vs/workbench/contrib/terminal/common/scripts/GitTabExpansion.psm1',
+	'vs/workbench/contrib/terminal/common/scripts/shellIntegration-bash.sh',
+	'vs/workbench/contrib/terminal/common/scripts/shellIntegration-env.zsh',
+	'vs/workbench/contrib/terminal/common/scripts/shellIntegration-profile.zsh',
+	'vs/workbench/contrib/terminal/common/scripts/shellIntegration-rc.zsh',
+	'vs/workbench/contrib/terminal/common/scripts/shellIntegration-login.zsh',
+	'vs/workbench/contrib/terminal/common/scripts/shellIntegration.fish',
+];
+
+// Resources for server-web target (server + web UI)
+const serverWebResourcePatterns = [
+	...serverResourcePatterns,
+	...commonResourcePatterns,
+
+	// Web HTML
+	'vs/code/browser/workbench/workbench.html',
+	'vs/code/browser/workbench/workbench-dev.html',
+	'vs/code/browser/workbench/callback.html',
+	'vs/workbench/services/extensions/worker/webWorkerExtensionHostIframe.html',
+	'vs/workbench/contrib/webview/browser/pre/*.html',
+
+	// Webview pre scripts
+	'vs/workbench/contrib/webview/browser/pre/*.js',
+
+	// Media - audio
+	'vs/platform/accessibilitySignal/browser/media/*.mp3',
+
+	// Media - images
+	'vs/workbench/contrib/welcomeGettingStarted/common/media/**/*.svg',
+	'vs/workbench/contrib/welcomeGettingStarted/common/media/**/*.png',
+	'vs/workbench/contrib/extensions/browser/media/*.svg',
+	'vs/workbench/contrib/extensions/browser/media/*.png',
+	'vs/workbench/services/extensionManagement/common/media/*.svg',
+	'vs/workbench/services/extensionManagement/common/media/*.png',
+];
+
+/**
+ * Get resource patterns for a build target.
+ */
+function getResourcePatternsForTarget(target: BuildTarget): string[] {
+	switch (target) {
+		case 'desktop':
+			return desktopResourcePatterns;
+		case 'server':
+			return serverResourcePatterns;
+		case 'server-web':
+			return serverWebResourcePatterns;
+		default:
+			throw new Error(`Unknown target: ${target}`);
+	}
+}
 
 // Test fixtures (only copied for development builds, not production)
 const testFixturePatterns = [
@@ -201,20 +363,26 @@ async function copyFile(srcPath: string, destPath: string): Promise<void> {
 /**
  * Standalone TypeScript files that need to be compiled separately (not bundled).
  * These run in special contexts (e.g., Electron preload) where bundling isn't appropriate.
+ * Only needed for desktop target.
  */
-const standaloneFiles = [
+const desktopStandaloneFiles = [
 	'vs/base/parts/sandbox/electron-browser/preload.ts',
 	'vs/base/parts/sandbox/electron-browser/preload-aux.ts',
 ];
 
-async function compileStandaloneFiles(outDir: string, doMinify: boolean): Promise<void> {
-	console.log(`[standalone] Compiling ${standaloneFiles.length} standalone files...`);
+async function compileStandaloneFiles(outDir: string, doMinify: boolean, target: BuildTarget): Promise<void> {
+	// Only desktop needs preload scripts
+	if (target !== 'desktop') {
+		return;
+	}
+
+	console.log(`[standalone] Compiling ${desktopStandaloneFiles.length} standalone files...`);
 
 	const banner = `/*!--------------------------------------------------------
  * Copyright (C) Microsoft Corporation. All rights reserved.
  *--------------------------------------------------------*/`;
 
-	await Promise.all(standaloneFiles.map(async (file) => {
+	await Promise.all(desktopStandaloneFiles.map(async (file) => {
 		const entryPath = path.join(REPO_ROOT, SRC_DIR, file);
 		const outPath = path.join(REPO_ROOT, outDir, file.replace(/\.ts$/, '.js'));
 
@@ -253,8 +421,8 @@ async function copyCssFiles(outDir: string, excludeTests = false): Promise<numbe
 	return cssFiles.length;
 }
 
-async function copyResources(outDir: string, excludeDevFiles = false, excludeTests = false): Promise<void> {
-	console.log(`[resources] Copying to ${outDir}...`);
+async function copyResources(outDir: string, target: BuildTarget, excludeDevFiles = false, excludeTests = false): Promise<void> {
+	console.log(`[resources] Copying to ${outDir} for target '${target}'...`);
 	let copied = 0;
 
 	const ignorePatterns: string[] = [];
@@ -265,6 +433,7 @@ async function copyResources(outDir: string, excludeDevFiles = false, excludeTes
 		ignorePatterns.push('**/*-dev.html');
 	}
 
+	const resourcePatterns = getResourcePatternsForTarget(target);
 	for (const pattern of resourcePatterns) {
 		const files = await globAsync(pattern, {
 			cwd: path.join(REPO_ROOT, SRC_DIR),
@@ -390,10 +559,10 @@ async function transpile(outDir: string, excludeTests: boolean): Promise<void> {
 // Bundle (Goal 2: JS → bundled JS)
 // ============================================================================
 
-async function bundle(outDir: string, doMinify: boolean, doNls: boolean): Promise<void> {
+async function bundle(outDir: string, doMinify: boolean, doNls: boolean, target: BuildTarget): Promise<void> {
 	await cleanDir(outDir);
 
-	console.log(`[bundle] ${SRC_DIR} → ${outDir}${doMinify ? ' (minify)' : ''}${doNls ? ' (nls)' : ''}`);
+	console.log(`[bundle] ${SRC_DIR} → ${outDir} (target: ${target})${doMinify ? ' (minify)' : ''}${doNls ? ' (nls)' : ''}`);
 	const t1 = Date.now();
 
 	// Read TSLib for banner
@@ -421,23 +590,10 @@ ${tslib}`,
 	const nlsCollector = createNLSCollector();
 	const preserveEnglish = false; // Production mode: replace messages with null
 
-	// All entry points to bundle
-	const allEntryPoints = [
-		...workerEntryPoints,
-		...desktopEntryPoints,
-		...codeEntryPoints,
-		...webEntryPoints,
-		...keyboardMapEntryPoints,
-	];
-
-	// Entry points that should bundle CSS (workbench mains and code entry points)
-	// Workers and other entry points don't need CSS
-	const bundleCssEntryPoints = new Set([
-		'vs/workbench/workbench.desktop.main',
-		'vs/workbench/workbench.web.main.internal',
-		'vs/code/electron-browser/workbench/workbench',
-		'vs/code/browser/workbench/workbench',
-	]);
+	// Get entry points based on target
+	const allEntryPoints = getEntryPointsForTarget(target);
+	const bootstrapEntryPoints = getBootstrapEntryPointsForTarget(target);
+	const bundleCssEntryPoints = getCssBundleEntryPointsForTarget(target);
 
 	// Collect all build results (with write: false)
 	const buildResults: { outPath: string; result: esbuild.BuildResult }[] = [];
@@ -571,10 +727,10 @@ ${tslib}`,
 	}
 
 	// Copy resources (exclude dev files and tests for production)
-	await copyResources(outDir, true, true);
+	await copyResources(outDir, target, true, true);
 
 	// Compile standalone TypeScript files (like Electron preload scripts) that cannot be bundled
-	await compileStandaloneFiles(outDir, doMinify);
+	await compileStandaloneFiles(outDir, doMinify, target);
 
 	console.log(`[bundle] Done in ${Date.now() - t1}ms (${bundled} bundles)`);
 }
@@ -596,7 +752,7 @@ async function watch(): Promise<void> {
 	const t1 = Date.now();
 	try {
 		await transpile(outDir, false);
-		await copyResources(outDir, false, false);
+		await copyResources(outDir, 'desktop', false, false);
 		console.log(`[transpile] Done in ${Date.now() - t1}ms`);
 	} catch (err) {
 		console.error('[watch] Initial build failed:', err);
@@ -703,6 +859,7 @@ Options for 'bundle':
 	--minify           Minify the output bundles
 	--nls              Process NLS (localization) strings
 	--out <dir>        Output directory (default: out-vscode)
+	--target <target>  Build target: desktop (default), server, server-web
 
 Examples:
 	npx tsx build/next/index.ts transpile
@@ -710,6 +867,8 @@ Examples:
 	npx tsx build/next/index.ts bundle
 	npx tsx build/next/index.ts bundle --minify --nls
 	npx tsx build/next/index.ts bundle --nls --out out-vscode-min
+	npx tsx build/next/index.ts bundle --minify --nls --target server --out out-vscode-reh-min
+	npx tsx build/next/index.ts bundle --minify --nls --target server-web --out out-vscode-reh-web-min
 `);
 }
 
@@ -727,13 +886,13 @@ async function main(): Promise<void> {
 					console.log(`[transpile] ${SRC_DIR} → ${outDir}`);
 					const t1 = Date.now();
 					await transpile(outDir, false);
-					await copyResources(outDir, false, false);
+					await copyResources(outDir, 'desktop', false, false);
 					console.log(`[transpile] Done in ${Date.now() - t1}ms`);
 				}
 				break;
 
 			case 'bundle':
-				await bundle(options.out ?? OUT_VSCODE_DIR, options.minify, options.nls);
+				await bundle(options.out ?? OUT_VSCODE_DIR, options.minify, options.nls, options.target as BuildTarget);
 				break;
 
 			default:
