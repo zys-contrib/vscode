@@ -37,7 +37,8 @@ export function spawnTsgo(projectPath: string): Promise<void> {
 
 	const child = cp.spawn(npx, args, {
 		cwd: root,
-		stdio: ['ignore', 'pipe', 'pipe']
+		stdio: ['ignore', 'pipe', 'pipe'],
+		shell: true
 	});
 
 	let buffer = '';
