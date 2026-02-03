@@ -9,7 +9,7 @@ import * as path from 'path';
 import { createReporter } from './reporter.ts';
 
 const root = path.dirname(path.dirname(import.meta.dirname));
-const tsgoPath = path.join(root, 'node_modules', '.bin', 'tsgo');
+const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 const ansiRegex = /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;
 
 export function spawnTsgo(projectPath: string): Promise<void> {
@@ -31,11 +31,11 @@ export function spawnTsgo(projectPath: string): Promise<void> {
 		report = undefined;
 	};
 
-	const args = [tsgoPath, '--project', projectPath, '--pretty', 'false'];
+	const args = ['tsgo', '--project', projectPath, '--pretty', 'false'];
 
 	beginReport(false);
 
-	const child = cp.spawn(process.execPath, args, {
+	const child = cp.spawn(npx, args, {
 		cwd: root,
 		stdio: ['ignore', 'pipe', 'pipe']
 	});
