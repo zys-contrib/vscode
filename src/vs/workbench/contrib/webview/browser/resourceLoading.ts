@@ -89,8 +89,9 @@ export function getResourceToLoad(
 	roots: ReadonlyArray<URI>,
 	uriIdentityService: IUriIdentityService,
 ): URI | undefined {
+	const requestUriNoQueryString = requestUri.with({ query: '' });
 	for (const root of roots) {
-		if (containsResource(root, requestUri, uriIdentityService)) {
+		if (containsResource(root, requestUriNoQueryString, uriIdentityService)) {
 			return normalizeResourcePath(requestUri);
 		}
 	}
@@ -103,10 +104,7 @@ function containsResource(root: URI, resource: URI, uriIdentityService: IUriIden
 		return false;
 	}
 
-	return uriIdentityService.extUri.isEqualOrParent(
-		resource.with({ query: '' }),
-		root,
-		/* ignoreFragment */ true);
+	return uriIdentityService.extUri.isEqualOrParent(resource, root, /* ignoreFragment */ true);
 }
 
 function normalizeResourcePath(resource: URI): URI {
