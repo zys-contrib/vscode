@@ -30,6 +30,7 @@ import { createAsar } from './lib/asar.ts';
 import minimist from 'minimist';
 import { compileBuildWithoutManglingTask, compileBuildWithManglingTask } from './gulpfile.compile.ts';
 import { compileNonNativeExtensionsBuildTask, compileNativeExtensionsBuildTask, compileAllExtensionsBuildTask, compileExtensionMediaBuildTask, cleanExtensionsBuildTask } from './gulpfile.extensions.ts';
+import { copyCodiconsTask } from './lib/compilation.ts';
 import { promisify } from 'util';
 import globCallback from 'glob';
 import rceditCallback from 'rcedit';
@@ -200,6 +201,7 @@ const coreCI = task.define('core-ci-OLD', task.series(
 gulp.task(coreCI);
 
 const coreCIEsbuild = task.define('core-ci', task.series(
+	copyCodiconsTask,
 	cleanExtensionsBuildTask,
 	compileNonNativeExtensionsBuildTask,
 	compileExtensionMediaBuildTask,
@@ -604,6 +606,7 @@ BUILD_TARGETS.forEach(buildTarget => {
 		}
 
 		const vscodeEsbuildTask = task.define(`vscode${dashed(platform)}${dashed(arch)}-esbuild${dashed(minified)}`, task.series(
+			copyCodiconsTask,
 			cleanExtensionsBuildTask,
 			compileNonNativeExtensionsBuildTask,
 			compileExtensionMediaBuildTask,
