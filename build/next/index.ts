@@ -562,6 +562,11 @@ async function transpile(outDir: string, excludeTests: boolean): Promise<void> {
 async function bundle(outDir: string, doMinify: boolean, doNls: boolean, target: BuildTarget): Promise<void> {
 	await cleanDir(outDir);
 
+	// Write build date file (used by packaging to embed in product.json)
+	const outDirPath = path.join(REPO_ROOT, outDir);
+	await fs.promises.mkdir(outDirPath, { recursive: true });
+	await fs.promises.writeFile(path.join(outDirPath, 'date'), new Date().toISOString(), 'utf8');
+
 	console.log(`[bundle] ${SRC_DIR} → ${outDir} (target: ${target})${doMinify ? ' (minify)' : ''}${doNls ? ' (nls)' : ''}`);
 	const t1 = Date.now();
 
