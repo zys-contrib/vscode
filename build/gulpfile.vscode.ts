@@ -175,7 +175,7 @@ function runEsbuildBundle(outDir: string, minify: boolean, nls: boolean, target:
 			if (code === 0) {
 				resolve();
 			} else {
-				reject(new Error(`esbuild bundle failed with exit code ${code}`));
+				reject(new Error(`esbuild bundle failed with exit code ${code} (outDir: ${outDir}, minify: ${minify}, nls: ${nls}, target: ${target})`));
 			}
 		});
 	});
