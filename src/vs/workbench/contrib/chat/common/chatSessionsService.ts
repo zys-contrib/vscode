@@ -215,7 +215,7 @@ export interface IChatSessionsService {
 	getChatSessionContribution(chatSessionType: string): IChatSessionsExtensionPoint | undefined;
 
 	registerChatSessionItemProvider(provider: IChatSessionItemProvider): IDisposable;
-	activateChatSessionItemProvider(chatSessionType: string): Promise<IChatSessionItemProvider | undefined>;
+	activateChatSessionItemProvider(chatSessionType: string): Promise<void>;
 
 	getAllChatSessionContributions(): IChatSessionsExtensionPoint[];
 	getIconForSessionType(chatSessionType: string): ThemeIcon | URI | undefined;
