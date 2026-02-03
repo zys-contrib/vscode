@@ -189,7 +189,7 @@ const minifyVSCodeTask = task.define('minify-vscode', task.series(
 ));
 gulp.task(minifyVSCodeTask);
 
-const coreCI = task.define('core-ci', task.series(
+const coreCI = task.define('core-ci-OLD', task.series(
 	gulp.task('compile-build-with-mangling') as task.Task,
 	task.parallel(
 		gulp.task('minify-vscode') as task.Task,
@@ -199,7 +199,7 @@ const coreCI = task.define('core-ci', task.series(
 ));
 gulp.task(coreCI);
 
-const coreCIEsbuild = task.define('core-ci-esbuild', task.series(
+const coreCIEsbuild = task.define('core-ci', task.series(
 	cleanExtensionsBuildTask,
 	compileNonNativeExtensionsBuildTask,
 	compileExtensionMediaBuildTask,
