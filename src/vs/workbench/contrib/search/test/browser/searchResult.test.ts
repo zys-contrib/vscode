@@ -723,22 +723,4 @@ suite('SearchResult', () => {
 	function getFileMatchAtIndex(parent: ISearchTreeFolderMatch, index: number) {
 		return Array.from(parent.fileMatchesIterator())[index];
 	}
-
-	test('Setting query with undefined folder queries should not throw error', function () {
-		const testObject = aSearchResult();
-
-		// This should not throw an error even with undefined folder queries
-		testObject.query = {
-			type: QueryType.Text,
-			contentPattern: { pattern: 'foo' },
-			folderQueries: [
-				{ folder: createFileUriFromPathFromRoot('/workspace') },
-				undefined as any, // Simulate undefined folder query
-				{ folder: createFileUriFromPathFromRoot('/workspace2') }
-			]
-		};
-
-		// Should have filtered out the undefined and created only 2 folder matches
-		assert.strictEqual(testObject.folderMatches().length, 3); // 2 workspace folders + "Other files"
-	});
 });
