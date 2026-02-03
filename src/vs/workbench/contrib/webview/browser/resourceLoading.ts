@@ -5,6 +5,7 @@
 
 import { VSBufferReadableStream } from '../../../../base/common/buffer.js';
 import { CancellationToken } from '../../../../base/common/cancellation.js';
+import { isUNC } from '../../../../base/common/extpath.js';
 import { Schemas } from '../../../../base/common/network.js';
 import { URI } from '../../../../base/common/uri.js';
 import { FileOperationError, FileOperationResult, IFileService, IWriteFileOptions } from '../../../../platform/files/common/files.js';
@@ -101,6 +102,24 @@ export function getResourceToLoad(
 
 function containsResource(root: URI, resource: URI, uriIdentityService: IUriIdentityService): boolean {
 	if (uriIdentityService.extUri.isEqual(root, resource, /* ignoreFragment */ true)) {
+		return false;
+	}
+
+	// Compare unc paths case-insensitively
+	if (root.scheme === Schemas.file && isUNC(root.fsPath)) {
+		if (resource.scheme === Schemas.file && isUNC(resource.fsPath)) {
+			return uriIdentityService.extUri.isEqualOrParent(
+				resource.with({
+					path: resource.path.toLowerCase(),
+					authority: resource.authority.toLowerCase()
+				}),
+				root.with({
+					path: root.path.toLowerCase(),
+					authority: root.authority.toLowerCase()
+				}),
+				/* ignoreFragment */ true
+			);
+		}
 		return false;
 	}
 
