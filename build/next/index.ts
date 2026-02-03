@@ -705,7 +705,12 @@ ${tslib}`,
 	// Finalize NLS: sort entries, assign indices, write metadata files
 	let indexMap = new Map<string, number>();
 	if (doNls) {
-		const nlsResult = await finalizeNLS(nlsCollector, path.join(REPO_ROOT, outDir));
+		// Also write NLS files to out-build for backwards compatibility with test runner
+		const nlsResult = await finalizeNLS(
+			nlsCollector,
+			path.join(REPO_ROOT, outDir),
+			[path.join(REPO_ROOT, 'out-build')]
+		);
 		indexMap = nlsResult.indexMap;
 	}
 

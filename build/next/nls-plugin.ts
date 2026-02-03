@@ -63,7 +63,8 @@ export function createNLSCollector(): NLSCollector {
  */
 export async function finalizeNLS(
 	collector: NLSCollector,
-	outDir: string
+	outDir: string,
+	alsoWriteTo?: string[]
 ): Promise<{ indexMap: Map<string, number>; messageCount: number }> {
 	if (collector.entries.size === 0) {
 		return { indexMap: new Map(), messageCount: 0 };
@@ -115,29 +116,32 @@ export async function finalizeNLS(
 	};
 
 	// Write NLS files
-	await fs.promises.mkdir(outDir, { recursive: true });
+	const allOutDirs = [outDir, ...(alsoWriteTo ?? [])];
+	for (const dir of allOutDirs) {
+		await fs.promises.mkdir(dir, { recursive: true });
+	}
 
-	await Promise.all([
+	await Promise.all(allOutDirs.flatMap(dir => [
 		fs.promises.writeFile(
-			path.join(outDir, 'nls.messages.json'),
+			path.join(dir, 'nls.messages.json'),
 			JSON.stringify(allMessages)
 		),
 		fs.promises.writeFile(
-			path.join(outDir, 'nls.keys.json'),
+			path.join(dir, 'nls.keys.json'),
 			JSON.stringify(nlsKeysJson)
 		),
 		fs.promises.writeFile(
-			path.join(outDir, 'nls.metadata.json'),
+			path.join(dir, 'nls.metadata.json'),
 			JSON.stringify(nlsMetadataJson, null, '\t')
 		),
 		fs.promises.writeFile(
-			path.join(outDir, 'nls.messages.js'),
+			path.join(dir, 'nls.messages.js'),
 			`/*---------------------------------------------------------
  * Copyright (C) Microsoft Corporation. All rights reserved.
  *--------------------------------------------------------*/
 globalThis._VSCODE_NLS_MESSAGES=${JSON.stringify(allMessages)};`
 		)
-	]);
+	]));
 
 	console.log(`[nls] Extracted ${allMessages.length} messages from ${moduleToKeys.size} modules`);
 
