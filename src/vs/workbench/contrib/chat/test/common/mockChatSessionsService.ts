@@ -22,7 +22,7 @@ export class MockChatSessionsService implements IChatSessionsService {
 	private readonly _onDidChangeItemsProviders = new Emitter<IChatSessionItemProvider>();
 	readonly onDidChangeItemsProviders = this._onDidChangeItemsProviders.event;
 
-	private readonly _onDidChangeSessionItems = new Emitter<string>();
+	private readonly _onDidChangeSessionItems = new Emitter<{ readonly chatSessionType: string }>();
 	readonly onDidChangeSessionItems = this._onDidChangeSessionItems.event;
 
 	private readonly _onDidChangeAvailability = new Emitter<void>();
@@ -54,7 +54,7 @@ export class MockChatSessionsService implements IChatSessionsService {
 	}
 
 	fireDidChangeSessionItems(chatSessionType: string): void {
-		this._onDidChangeSessionItems.fire(chatSessionType);
+		this._onDidChangeSessionItems.fire({ chatSessionType });
 	}
 
 	fireDidChangeAvailability(): void {
@@ -168,7 +168,7 @@ export class MockChatSessionsService implements IChatSessionsService {
 	}
 
 	notifySessionItemsChanged(chatSessionType: string): void {
-		this._onDidChangeSessionItems.fire(chatSessionType);
+		this._onDidChangeSessionItems.fire({ chatSessionType });
 	}
 
 	getSessionOption(sessionResource: URI, optionId: string): string | undefined {
