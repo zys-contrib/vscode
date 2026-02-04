@@ -10,6 +10,9 @@ import { promisify } from 'util';
 import glob from 'glob';
 import * as watcher from '@parcel/watcher';
 import { nlsPlugin, createNLSCollector, finalizeNLS, postProcessNLS } from './nls-plugin.ts';
+import { getVersion } from '../lib/getVersion.ts';
+import product from '../../product.json' with { type: 'json' };
+import packageJson from '../../package.json' with { type: 'json' };
 
 const globAsync = promisify(glob);
 
@@ -18,6 +21,9 @@ const globAsync = promisify(glob);
 // ============================================================================
 
 const REPO_ROOT = path.dirname(path.dirname(import.meta.dirname));
+const commit = getVersion(REPO_ROOT);
+const quality = (product as { quality?: string }).quality;
+const version = (quality && quality !== 'stable') ? `${packageJson.version}-${quality}` : packageJson.version;
 
 // CLI: transpile [--watch] | bundle [--minify] [--nls] [--out <dir>]
 const command = process.argv[2]; // 'transpile' or 'bundle'
@@ -338,6 +344,94 @@ async function cleanDir(dir: string): Promise<void> {
 	console.log(`[clean] ${dir}`);
 	await fs.promises.rm(fullPath, { recursive: true, force: true });
 	await fs.promises.mkdir(fullPath, { recursive: true });
+}
+
+/**
+ * Scan for built-in extensions in the given directory.
+ * Returns an array of extension entries for the builtinExtensionsScannerService.
+ */
+function scanBuiltinExtensions(extensionsRoot: string): Array<{ extensionPath: string; packageJSON: unknown }> {
+	const result: Array<{ extensionPath: string; packageJSON: unknown }> = [];
+	const extensionsPath = path.join(REPO_ROOT, extensionsRoot);
+
+	if (!fs.existsSync(extensionsPath)) {
+		return result;
+	}
+
+	for (const entry of fs.readdirSync(extensionsPath, { withFileTypes: true })) {
+		if (!entry.isDirectory()) {
+			continue;
+		}
+		const packageJsonPath = path.join(extensionsPath, entry.name, 'package.json');
+		if (fs.existsSync(packageJsonPath)) {
+			try {
+				const packageJSON = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+				result.push({
+					extensionPath: entry.name,
+					packageJSON
+				});
+			} catch (e) {
+				// Skip invalid extensions
+			}
+		}
+	}
+
+	return result;
+}
+
+/**
+ * Get the date from the out directory date file, or return current date.
+ */
+function readISODate(outDir: string): string {
+	try {
+		return fs.readFileSync(path.join(REPO_ROOT, outDir, 'date'), 'utf8');
+	} catch {
+		return new Date().toISOString();
+	}
+}
+
+/**
+ * Creates a file content mapper for builds.
+ * This transforms JS files to inject build-time configuration.
+ * The placeholders get bundled into all entry points that import these modules.
+ */
+function createFileContentMapper(outDir: string, target: BuildTarget): (filePath: string, content: string) => string {
+	// Cache the replacement strings (computed once)
+	let productConfigReplacement: string | undefined;
+	let builtinExtensionsReplacement: string | undefined;
+
+	return (_filePath: string, content: string): string => {
+		// Inject product configuration (placeholder gets bundled into many files)
+		if (content.includes('/*BUILD->INSERT_PRODUCT_CONFIGURATION*/')) {
+			if (productConfigReplacement === undefined) {
+				// For server-web, remove webEndpointUrlTemplate
+				const productForTarget = target === 'server-web'
+					? { ...product, webEndpointUrlTemplate: undefined }
+					: product;
+				const productConfiguration = JSON.stringify({
+					...productForTarget,
+					version,
+					commit,
+					date: readISODate(outDir)
+				});
+				// Remove the outer braces since the placeholder is inside an object literal
+				productConfigReplacement = productConfiguration.substring(1, productConfiguration.length - 1);
+			}
+			content = content.replace('/*BUILD->INSERT_PRODUCT_CONFIGURATION*/', () => productConfigReplacement!);
+		}
+
+		// Inject built-in extensions list (placeholder gets bundled into files importing the scanner)
+		if (content.includes('/*BUILD->INSERT_BUILTIN_EXTENSIONS*/')) {
+			if (builtinExtensionsReplacement === undefined) {
+				const builtinExtensions = JSON.stringify(scanBuiltinExtensions('.build/extensions'));
+				// Remove the outer brackets since the placeholder is inside an array literal
+				builtinExtensionsReplacement = builtinExtensions.substring(1, builtinExtensions.length - 1);
+			}
+			content = content.replace('/*BUILD->INSERT_BUILTIN_EXTENSIONS*/', () => builtinExtensionsReplacement!);
+		}
+
+		return content;
+	};
 }
 
 /**
@@ -715,6 +809,9 @@ ${tslib}`,
 		indexMap = nlsResult.indexMap;
 	}
 
+	// Create file content mapper for web builds (injects product config, builtin extensions)
+	const fileContentMapper = createFileContentMapper(outDir, target);
+
 	// Post-process and write all output files
 	let bundled = 0;
 	for (const { result } of buildResults) {
@@ -725,10 +822,18 @@ ${tslib}`,
 		for (const file of result.outputFiles) {
 			await fs.promises.mkdir(path.dirname(file.path), { recursive: true });
 
-			if (doNls && file.path.endsWith('.js') && indexMap.size > 0) {
-				// Post-process JS files to replace NLS placeholders with indices
-				const processed = postProcessNLS(file.text, indexMap, preserveEnglish);
-				await fs.promises.writeFile(file.path, processed);
+			if (file.path.endsWith('.js')) {
+				let content = file.text;
+
+				// Apply NLS post-processing if enabled
+				if (doNls && indexMap.size > 0) {
+					content = postProcessNLS(content, indexMap, preserveEnglish);
+				}
+
+				// Apply file content mapping (product config, builtin extensions)
+				content = fileContentMapper(file.path, content);
+
+				await fs.promises.writeFile(file.path, content);
 			} else {
 				// Write other files (source maps, etc.) as-is
 				await fs.promises.writeFile(file.path, file.contents);
