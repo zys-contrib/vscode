@@ -42,11 +42,11 @@ const options = {
 	nls: process.argv.includes('--nls'),
 	excludeTests: process.argv.includes('--exclude-tests'),
 	out: getArgValue('--out'),
-	target: getArgValue('--target') ?? 'desktop', // 'desktop' | 'server' | 'server-web'
+	target: getArgValue('--target') ?? 'desktop', // 'desktop' | 'server' | 'server-web' | 'web'
 };
 
 // Build targets
-type BuildTarget = 'desktop' | 'server' | 'server-web';
+type BuildTarget = 'desktop' | 'server' | 'server-web' | 'web';
 
 const SRC_DIR = 'src';
 const OUT_DIR = 'out';
@@ -147,6 +147,12 @@ function getEntryPointsForTarget(target: BuildTarget): string[] {
 				...webEntryPoints,
 				...keyboardMapEntryPoints,
 			];
+		case 'web':
+			return [
+				...workerEntryPoints,
+				'vs/workbench/workbench.web.main.internal', // web workbench only (no browser shell)
+				...keyboardMapEntryPoints,
+			];
 		default:
 			throw new Error(`Unknown target: ${target}`);
 	}
@@ -162,6 +168,8 @@ function getBootstrapEntryPointsForTarget(target: BuildTarget): string[] {
 		case 'server':
 		case 'server-web':
 			return bootstrapEntryPointsServer;
+		case 'web':
+			return []; // Web has no bootstrap files (served by external server)
 		default:
 			throw new Error(`Unknown target: ${target}`);
 	}
@@ -185,6 +193,10 @@ function getCssBundleEntryPointsForTarget(target: BuildTarget): Set<string> {
 			return new Set([
 				'vs/workbench/workbench.web.main.internal',
 				'vs/code/browser/workbench/workbench',
+			]);
+		case 'web':
+			return new Set([
+				'vs/workbench/workbench.web.main.internal',
 			]);
 		default:
 			throw new Error(`Unknown target: ${target}`);
@@ -297,6 +309,32 @@ const serverWebResourcePatterns = [
 	'vs/workbench/services/extensionManagement/common/media/*.png',
 ];
 
+// Resources for standalone web target (browser-only, no server)
+const webResourcePatterns = [
+	...commonResourcePatterns,
+
+	// Web HTML
+	'vs/code/browser/workbench/workbench.html',
+	'vs/code/browser/workbench/workbench-dev.html',
+	'vs/code/browser/workbench/callback.html',
+	'vs/workbench/services/extensions/worker/webWorkerExtensionHostIframe.html',
+	'vs/workbench/contrib/webview/browser/pre/*.html',
+
+	// Webview pre scripts
+	'vs/workbench/contrib/webview/browser/pre/*.js',
+
+	// Media - audio
+	'vs/platform/accessibilitySignal/browser/media/*.mp3',
+
+	// Media - images
+	'vs/workbench/contrib/welcomeGettingStarted/common/media/**/*.svg',
+	'vs/workbench/contrib/welcomeGettingStarted/common/media/**/*.png',
+	'vs/workbench/contrib/extensions/browser/media/*.svg',
+	'vs/workbench/contrib/extensions/browser/media/*.png',
+	'vs/workbench/services/extensionManagement/common/media/*.svg',
+	'vs/workbench/services/extensionManagement/common/media/*.png',
+];
+
 /**
  * Get resource patterns for a build target.
  */
@@ -308,6 +346,8 @@ function getResourcePatternsForTarget(target: BuildTarget): string[] {
 			return serverResourcePatterns;
 		case 'server-web':
 			return serverWebResourcePatterns;
+		case 'web':
+			return webResourcePatterns;
 		default:
 			throw new Error(`Unknown target: ${target}`);
 	}
@@ -423,7 +463,10 @@ function createFileContentMapper(outDir: string, target: BuildTarget): (filePath
 		// Inject built-in extensions list (placeholder gets bundled into files importing the scanner)
 		if (content.includes('/*BUILD->INSERT_BUILTIN_EXTENSIONS*/')) {
 			if (builtinExtensionsReplacement === undefined) {
-				const builtinExtensions = JSON.stringify(scanBuiltinExtensions('.build/extensions'));
+				// Web target uses .build/web/extensions (from compileWebExtensionsBuildTask)
+				// Other targets use .build/extensions
+				const extensionsRoot = target === 'web' ? '.build/web/extensions' : '.build/extensions';
+				const builtinExtensions = JSON.stringify(scanBuiltinExtensions(extensionsRoot));
 				// Remove the outer brackets since the placeholder is inside an array literal
 				builtinExtensionsReplacement = builtinExtensions.substring(1, builtinExtensions.length - 1);
 			}
@@ -977,7 +1020,7 @@ Options for 'bundle':
 	--minify           Minify the output bundles
 	--nls              Process NLS (localization) strings
 	--out <dir>        Output directory (default: out-vscode)
-	--target <target>  Build target: desktop (default), server, server-web
+	--target <target>  Build target: desktop (default), server, server-web, web
 
 Examples:
 	npx tsx build/next/index.ts transpile
