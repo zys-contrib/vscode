@@ -1069,7 +1069,7 @@ export class SettingsEditor2 extends EditorPane {
 				}
 				if (element && (!e.browserEvent || !(<IFocusEventFromScroll>e.browserEvent).fromScroll)) {
 					let targetElement = element;
-					// Searches equvalent old Object currently living in the Tree nodes.
+					// Searches equivalent old Object currently living in the Tree nodes.
 					if (!this.settingsTree.hasElement(targetElement)) {
 						if (element instanceof SettingsTreeGroupElement) {
 							const targetId = element.id;
