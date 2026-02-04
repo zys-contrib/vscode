@@ -61,9 +61,9 @@ class ErrorTestingSettings {
 	public extensionPathToRetain: string = '.vscode/extensions/ms-python.python-2024.0.1/out/extension.js:144:145516';
 	public fullExtensionPath: string = '/Users/username/.vscode/extensions/ms-python.python-2024.0.1/out/extension.js:144:145516';
 	public anonymizedExtensionPath: string = '<REDACTED: user-file-path>/.vscode/extensions/ms-python.python-2024.0.1/out/extension.js:144:145516';
-	public builtinExtensionPathToRetain: string = 'resources/app/extensions/git/out/git.js:42:1234';
+	public builtinExtensionPathToRetain: string = 'Resources/app/extensions/git/out/git.js:42:1234';
 	public fullBuiltinExtensionPath: string = '/Applications/Visual Studio Code.app/Contents/Resources/app/extensions/git/out/git.js:42:1234';
-	public anonymizedBuiltinExtensionPath: string = '<REDACTED: user-file-path>/resources/app/extensions/git/out/git.js:42:1234';
+	public anonymizedBuiltinExtensionPath: string = '<REDACTED: user-file-path>/Resources/app/extensions/git/out/git.js:42:1234';
 
 	constructor() {
 		this.personalInfo = 'DANGEROUS/PATH';
