@@ -223,10 +223,11 @@ function replaceInOutput(
 	// Two types of placeholders:
 	// - %%NLS:moduleId#key%% for localize() - message replaced with null
 	// - %%NLS2:moduleId#key%% for localize2() - message preserved
+	// Note: esbuild may use single or double quotes, so we handle both
 
 	if (preserveEnglish) {
 		// Just replace the placeholder with the index (both NLS and NLS2)
-		return content.replace(/"%%NLS2?:([^%]+)%%"/g, (match, inner) => {
+		return content.replace(/["']%%NLS2?:([^%]+)%%["']/g, (match, inner) => {
 			// Try NLS first, then NLS2
 			let placeholder = `%%NLS:${inner}%%`;
 			let index = indexMap.get(placeholder);
@@ -244,10 +245,11 @@ function replaceInOutput(
 		// For NLS (localize): replace placeholder with index AND replace message with null
 		// For NLS2 (localize2): replace placeholder with index, keep message
 		// Note: Use (?:[^"\\]|\\.)* to properly handle escaped quotes like \" or \\
+		// Note: esbuild may use single or double quotes, so we handle both
 
 		// First handle NLS (localize) - replace both key and message
 		content = content.replace(
-			/"%%NLS:([^%]+)%%"(\s*,\s*)(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)/g,
+			/["']%%NLS:([^%]+)%%["'](\s*,\s*)(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)/g,
 			(match, inner, comma) => {
 				const placeholder = `%%NLS:${inner}%%`;
 				const index = indexMap.get(placeholder);
@@ -260,7 +262,7 @@ function replaceInOutput(
 
 		// Then handle NLS2 (localize2) - replace only key, keep message
 		content = content.replace(
-			/"%%NLS2:([^%]+)%%"/g,
+			/["']%%NLS2:([^%]+)%%["']/g,
 			(match, inner) => {
 				const placeholder = `%%NLS2:${inner}%%`;
 				const index = indexMap.get(placeholder);
