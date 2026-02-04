@@ -61,6 +61,9 @@ class ErrorTestingSettings {
 	public extensionPathToRetain: string = '.vscode/extensions/ms-python.python-2024.0.1/out/extension.js:144:145516';
 	public fullExtensionPath: string = '/Users/username/.vscode/extensions/ms-python.python-2024.0.1/out/extension.js:144:145516';
 	public anonymizedExtensionPath: string = '<REDACTED: user-file-path>/.vscode/extensions/ms-python.python-2024.0.1/out/extension.js:144:145516';
+	public serverInsidersExtensionPathToRetain: string = '.vscode-server-insiders/extensions/ms-vscode.remote-server-2024.1.0/out/server.js:99:8888';
+	public fullServerInsidersExtensionPath: string = '/home/user/.vscode-server-insiders/extensions/ms-vscode.remote-server-2024.1.0/out/server.js:99:8888';
+	public anonymizedServerInsidersExtensionPath: string = '<REDACTED: user-file-path>/.vscode-server-insiders/extensions/ms-vscode.remote-server-2024.1.0/out/server.js:99:8888';
 	public builtinExtensionPathToRetain: string = 'Resources/app/extensions/git/out/git.js:42:1234';
 	public fullBuiltinExtensionPath: string = '/Applications/Visual Studio Code.app/Contents/Resources/app/extensions/git/out/git.js:42:1234';
 	public anonymizedBuiltinExtensionPath: string = '<REDACTED: user-file-path>/Resources/app/extensions/git/out/git.js:42:1234';
@@ -88,6 +91,7 @@ class ErrorTestingSettings {
 		`    at t._onmessage (/${this.nodeModulePathToRetain})`,
 		`    at t.onmessage (${this.nodeModulePathToRetain})`,
 		`    at uv.provideCodeActions (${this.fullExtensionPath})`,
+		`    at remote.handleConnection (${this.fullServerInsidersExtensionPath})`,
 		`    at git.getRepositoryState (${this.fullBuiltinExtensionPath})`,
 			`    at DedicatedWorkerGlobalScope.self.onmessage`,
 		this.dangerousPathWithImportantInfo,
@@ -535,6 +539,12 @@ suite('TelemetryService', () => {
 			assert.notStrictEqual(testAppender.events[0].data.callstack.indexOf(settings.anonymizedExtensionPath), -1, 'User extension path should be anonymized with preserved extension name');
 			// Verify the username is removed
 			assert.strictEqual(testAppender.events[0].data.callstack.indexOf('/Users/username/'), -1, 'Username should be redacted from extension path');
+
+			// Verify server-insiders extension path is preserved (multi-segment suffix like .vscode-server-insiders)
+			assert.notStrictEqual(testAppender.events[0].data.callstack.indexOf(settings.serverInsidersExtensionPathToRetain), -1, 'Server-insiders extension path should be retained');
+			assert.notStrictEqual(testAppender.events[0].data.callstack.indexOf(settings.anonymizedServerInsidersExtensionPath), -1, 'Server-insiders extension path should be anonymized with preserved extension name');
+			// Verify the home directory is removed
+			assert.strictEqual(testAppender.events[0].data.callstack.indexOf('/home/user/'), -1, 'Home directory should be redacted from server-insiders extension path');
 
 			// Verify built-in extension path is preserved but app folder is redacted
 			assert.notStrictEqual(testAppender.events[0].data.callstack.indexOf(settings.builtinExtensionPathToRetain), -1, 'Built-in extension path should be retained');

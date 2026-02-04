@@ -311,10 +311,10 @@ function anonymizeFilePaths(stack: string, cleanupPatterns: RegExp[]): string {
 
 	const nodeModulesRegex = /^[\\\/]?(node_modules|node_modules\.asar)[\\\/]/;
 	// Match VS Code extension paths:
-	// 1. User extensions: .vscode/extensions/, .vscode-insiders/extensions/, .vscode-server/extensions/, etc.
+	// 1. User extensions: .vscode/extensions/, .vscode-insiders/extensions/, .vscode-server/extensions/, .vscode-server-insiders/extensions/, etc.
 	// 2. Built-in extensions: resources/app/extensions/
 	// Capture everything from the vscode folder or resources/app/extensions onwards
-	const vscodeExtensionsPathRegex = /^(.*?)((?:\.vscode(?:-[a-z]+)?|resources[\\\/]app)[\\\/]extensions[\\\/].*)$/i;
+	const vscodeExtensionsPathRegex = /^(.*?)((?:\.vscode(?:-[a-z]+)*|resources[\\\/]app)[\\\/]extensions[\\\/].*)$/i;
 	const fileRegex = /(file:\/\/)?([a-zA-Z]:(\\\\|\\|\/)|(\\\\|\\|\/))?([\w-\._]+(\\\\|\\|\/))+[\w-\._]*/g;
 	let lastIndex = 0;
 	updatedStack = '';
