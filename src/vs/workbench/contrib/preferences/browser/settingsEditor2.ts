@@ -1705,11 +1705,14 @@ export class SettingsEditor2 extends EditorPane {
 				// In paginated mode, set initial category to the first one (Commonly Used)
 				const scrollBehavior = this.configurationService.getValue<'paginated' | 'continuous'>(SCROLL_BEHAVIOR_KEY);
 				if (scrollBehavior === 'paginated') {
-					const firstCategory = this.settingsTreeModel.value.root.children[0];
-					if (firstCategory instanceof SettingsTreeGroupElement) {
-						this.viewState.filterToCategory = firstCategory;
-						this.tocTree.setFocus([firstCategory]);
-						this.tocTree.setSelection([firstCategory]);
+					const rootChildren = this.settingsTreeModel.value.root.children;
+					if (Array.isArray(rootChildren) && rootChildren.length > 0) {
+						const firstCategory = rootChildren[0];
+						if (firstCategory instanceof SettingsTreeGroupElement) {
+							this.viewState.filterToCategory = firstCategory;
+							this.tocTree.setFocus([firstCategory]);
+							this.tocTree.setSelection([firstCategory]);
+						}
 					}
 				}
 
