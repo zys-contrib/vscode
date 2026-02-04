@@ -154,6 +154,30 @@ const bundleVSCodeTask = task.define('bundle-vscode', task.series(
 gulp.task(bundleVSCodeTask);
 
 // esbuild-based bundle tasks (drop-in replacement for bundle-vscode / minify-vscode)
+function runEsbuildTranspile(outDir: string, excludeTests: boolean): Promise<void> {
+	return new Promise((resolve, reject) => {
+		const scriptPath = path.join(root, 'build/next/index.ts');
+		const args = [scriptPath, 'transpile', '--out', outDir];
+		if (excludeTests) {
+			args.push('--exclude-tests');
+		}
+
+		const proc = cp.spawn(process.execPath, args, {
+			cwd: root,
+			stdio: 'inherit'
+		});
+
+		proc.on('error', reject);
+		proc.on('close', code => {
+			if (code === 0) {
+				resolve();
+			} else {
+				reject(new Error(`esbuild transpile failed with exit code ${code} (outDir: ${outDir})`));
+			}
+		});
+	});
+}
+
 function runEsbuildBundle(outDir: string, minify: boolean, nls: boolean, target: 'desktop' | 'server' | 'server-web' = 'desktop'): Promise<void> {
 	return new Promise((resolve, reject) => {
 		// const tsxPath = path.join(root, 'build/node_modules/tsx/dist/cli.mjs');
@@ -205,6 +229,9 @@ const coreCIEsbuild = task.define('core-ci', task.series(
 	cleanExtensionsBuildTask,
 	compileNonNativeExtensionsBuildTask,
 	compileExtensionMediaBuildTask,
+	// Transpile individual files to out-build first (for unit tests)
+	task.define('esbuild-out-build', () => runEsbuildTranspile('out-build', false)),
+	// Then bundle for shipping (bundles also write NLS files to out-build)
 	task.parallel(
 		task.define('esbuild-vscode-min', () => runEsbuildBundle('out-vscode-min', true, true, 'desktop')),
 		task.define('esbuild-vscode-reh-min', () => runEsbuildBundle('out-vscode-reh-min', true, true, 'server')),

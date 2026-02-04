@@ -34,6 +34,7 @@ const options = {
 	watch: process.argv.includes('--watch'),
 	minify: process.argv.includes('--minify'),
 	nls: process.argv.includes('--nls'),
+	excludeTests: process.argv.includes('--exclude-tests'),
 	out: getArgValue('--out'),
 	target: getArgValue('--target') ?? 'desktop', // 'desktop' | 'server' | 'server-web'
 };
@@ -864,6 +865,8 @@ Commands:
 
 Options for 'transpile':
 	--watch            Watch for changes and rebuild incrementally
+	--out <dir>        Output directory (default: out)
+	--exclude-tests    Exclude test files from transpilation
 
 Options for 'bundle':
 	--minify           Minify the output bundles
@@ -874,6 +877,8 @@ Options for 'bundle':
 Examples:
 	npx tsx build/next/index.ts transpile
 	npx tsx build/next/index.ts transpile --watch
+	npx tsx build/next/index.ts transpile --out out-build
+	npx tsx build/next/index.ts transpile --out out-build --exclude-tests
 	npx tsx build/next/index.ts bundle
 	npx tsx build/next/index.ts bundle --minify --nls
 	npx tsx build/next/index.ts bundle --nls --out out-vscode-min
@@ -891,12 +896,18 @@ async function main(): Promise<void> {
 				if (options.watch) {
 					await watch();
 				} else {
-					const outDir = OUT_DIR;
+					const outDir = options.out ?? OUT_DIR;
 					await cleanDir(outDir);
-					console.log(`[transpile] ${SRC_DIR} → ${outDir}`);
+
+					// Write build date file (used by packaging to embed in product.json)
+					const outDirPath = path.join(REPO_ROOT, outDir);
+					await fs.promises.mkdir(outDirPath, { recursive: true });
+					await fs.promises.writeFile(path.join(outDirPath, 'date'), new Date().toISOString(), 'utf8');
+
+					console.log(`[transpile] ${SRC_DIR} → ${outDir}${options.excludeTests ? ' (excluding tests)' : ''}`);
 					const t1 = Date.now();
-					await transpile(outDir, false);
-					await copyResources(outDir, 'desktop', false, false);
+					await transpile(outDir, options.excludeTests);
+					await copyResources(outDir, 'desktop', false, options.excludeTests);
 					console.log(`[transpile] Done in ${Date.now() - t1}ms`);
 				}
 				break;
