@@ -512,14 +512,6 @@ export async function createTocTreeForExtensionSettings(extensionService: IExten
 	return Promise.all(processPromises).then(() => {
 		const extGroups: ITOCEntry<ISetting>[] = [];
 		for (const extensionRootEntry of extGroupTree.values()) {
-			for (const child of extensionRootEntry.children!) {
-				// Sort the individual settings of the child by order.
-				// Leave the undefined order settings untouched.
-				child.settings?.sort((a, b) => {
-					return compareTwoNullableNumbers(a.order, b.order);
-				});
-			}
-
 			if (extensionRootEntry.children!.length === 1) {
 				// There is a single category for this extension.
 				// Push a flattened setting.
@@ -645,7 +637,11 @@ function getMatchingSettings(allSettings: Set<ISetting>, filter: ITOCFilter): IS
 		}
 	});
 
-	return result.sort((a, b) => a.key.localeCompare(b.key));
+	// Sort settings by order, then alphabetically
+	return result.sort((a, b) => {
+		const orderComparison = compareTwoNullableNumbers(a.order, b.order);
+		return orderComparison !== 0 ? orderComparison : a.key.localeCompare(b.key);
+	});
 }
 
 const settingPatternCache = new Map<string, RegExp>();
