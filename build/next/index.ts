@@ -431,53 +431,6 @@ function readISODate(outDir: string): string {
 }
 
 /**
- * Creates a file content mapper for builds.
- * This transforms JS files to inject build-time configuration.
- * The placeholders get bundled into all entry points that import these modules.
- */
-function createFileContentMapper(outDir: string, target: BuildTarget): (filePath: string, content: string) => string {
-	// Cache the replacement strings (computed once)
-	let productConfigReplacement: string | undefined;
-	let builtinExtensionsReplacement: string | undefined;
-
-	return (_filePath: string, content: string): string => {
-		// Inject product configuration (placeholder gets bundled into many files)
-		if (content.includes('/*BUILD->INSERT_PRODUCT_CONFIGURATION*/')) {
-			if (productConfigReplacement === undefined) {
-				// For server-web, remove webEndpointUrlTemplate
-				const productForTarget = target === 'server-web'
-					? { ...product, webEndpointUrlTemplate: undefined }
-					: product;
-				const productConfiguration = JSON.stringify({
-					...productForTarget,
-					version,
-					commit,
-					date: readISODate(outDir)
-				});
-				// Remove the outer braces since the placeholder is inside an object literal
-				productConfigReplacement = productConfiguration.substring(1, productConfiguration.length - 1);
-			}
-			content = content.replace('/*BUILD->INSERT_PRODUCT_CONFIGURATION*/', () => productConfigReplacement!);
-		}
-
-		// Inject built-in extensions list (placeholder gets bundled into files importing the scanner)
-		if (content.includes('/*BUILD->INSERT_BUILTIN_EXTENSIONS*/')) {
-			if (builtinExtensionsReplacement === undefined) {
-				// Web target uses .build/web/extensions (from compileWebExtensionsBuildTask)
-				// Other targets use .build/extensions
-				const extensionsRoot = target === 'web' ? '.build/web/extensions' : '.build/extensions';
-				const builtinExtensions = JSON.stringify(scanBuiltinExtensions(extensionsRoot));
-				// Remove the outer brackets since the placeholder is inside an array literal
-				builtinExtensionsReplacement = builtinExtensions.substring(1, builtinExtensions.length - 1);
-			}
-			content = content.replace('/*BUILD->INSERT_BUILTIN_EXTENSIONS*/', () => builtinExtensionsReplacement!);
-		}
-
-		return content;
-	};
-}
-
-/**
  * Only used to make encoding tests happy. The source files don't have a BOM but the
  * tests expect one... so we add it here.
  */
@@ -641,6 +594,74 @@ function cssExternalPlugin(): esbuild.Plugin {
 	};
 }
 
+/**
+ * esbuild plugin that transforms source files to inject build-time configuration.
+ * This runs during onLoad so the transformation happens before esbuild processes the content,
+ * ensuring placeholders like `/*BUILD->INSERT_PRODUCT_CONFIGURATION* /` are replaced
+ * before esbuild strips them as non-legal comments.
+ */
+function fileContentMapperPlugin(outDir: string, target: BuildTarget): esbuild.Plugin {
+	// Cache the replacement strings (computed once)
+	let productConfigReplacement: string | undefined;
+	let builtinExtensionsReplacement: string | undefined;
+
+	return {
+		name: 'file-content-mapper',
+		setup(build) {
+			build.onLoad({ filter: /\.ts$/ }, async (args) => {
+				// Skip .d.ts files
+				if (args.path.endsWith('.d.ts')) {
+					return undefined;
+				}
+
+				let contents = await fs.promises.readFile(args.path, 'utf-8');
+				let modified = false;
+
+				// Inject product configuration
+				if (contents.includes('/*BUILD->INSERT_PRODUCT_CONFIGURATION*/')) {
+					if (productConfigReplacement === undefined) {
+						// For server-web, remove webEndpointUrlTemplate
+						const productForTarget = target === 'server-web'
+							? { ...product, webEndpointUrlTemplate: undefined }
+							: product;
+						const productConfiguration = JSON.stringify({
+							...productForTarget,
+							version,
+							commit,
+							date: readISODate(outDir)
+						});
+						// Remove the outer braces since the placeholder is inside an object literal
+						productConfigReplacement = productConfiguration.substring(1, productConfiguration.length - 1);
+					}
+					contents = contents.replace('/*BUILD->INSERT_PRODUCT_CONFIGURATION*/', () => productConfigReplacement!);
+					modified = true;
+				}
+
+				// Inject built-in extensions list
+				if (contents.includes('/*BUILD->INSERT_BUILTIN_EXTENSIONS*/')) {
+					if (builtinExtensionsReplacement === undefined) {
+						// Web target uses .build/web/extensions (from compileWebExtensionsBuildTask)
+						// Other targets use .build/extensions
+						const extensionsRoot = target === 'web' ? '.build/web/extensions' : '.build/extensions';
+						const builtinExtensions = JSON.stringify(scanBuiltinExtensions(extensionsRoot));
+						// Remove the outer brackets since the placeholder is inside an array literal
+						builtinExtensionsReplacement = builtinExtensions.substring(1, builtinExtensions.length - 1);
+					}
+					contents = contents.replace('/*BUILD->INSERT_BUILTIN_EXTENSIONS*/', () => builtinExtensionsReplacement!);
+					modified = true;
+				}
+
+				if (modified) {
+					return { contents, loader: 'ts' };
+				}
+
+				// No modifications, let esbuild handle normally
+				return undefined;
+			});
+		},
+	};
+}
+
 // ============================================================================
 // Transpile (Goal 1: TS → JS using esbuild.transform for maximum speed)
 // ============================================================================
@@ -741,6 +762,9 @@ ${tslib}`,
 	// Collect all build results (with write: false)
 	const buildResults: { outPath: string; result: esbuild.BuildResult }[] = [];
 
+	// Create the file content mapper plugin (injects product config, builtin extensions)
+	const contentMapperPlugin = fileContentMapperPlugin(outDir, target);
+
 	// Bundle each entry point directly from TypeScript source
 	await Promise.all(allEntryPoints.map(async (entryPoint) => {
 		const entryPath = path.join(REPO_ROOT, SRC_DIR, `${entryPoint}.ts`);
@@ -748,6 +772,8 @@ ${tslib}`,
 
 		// Use CSS external plugin for entry points that don't need bundled CSS
 		const plugins: esbuild.Plugin[] = bundleCssEntryPoints.has(entryPoint) ? [] : [cssExternalPlugin()];
+		// Add content mapper plugin to inject product config and builtin extensions
+		plugins.push(contentMapperPlugin);
 		if (doNls) {
 			plugins.unshift(nlsPlugin({
 				baseDir: path.join(REPO_ROOT, SRC_DIR),
@@ -807,7 +833,7 @@ ${tslib}`,
 
 		const outPath = path.join(REPO_ROOT, outDir, `${entry}.js`);
 
-		const bootstrapPlugins: esbuild.Plugin[] = [inlineMinimistPlugin()];
+		const bootstrapPlugins: esbuild.Plugin[] = [inlineMinimistPlugin(), contentMapperPlugin];
 		if (doNls) {
 			bootstrapPlugins.unshift(nlsPlugin({
 				baseDir: path.join(REPO_ROOT, SRC_DIR),
@@ -852,9 +878,6 @@ ${tslib}`,
 		indexMap = nlsResult.indexMap;
 	}
 
-	// Create file content mapper for web builds (injects product config, builtin extensions)
-	const fileContentMapper = createFileContentMapper(outDir, target);
-
 	// Post-process and write all output files
 	let bundled = 0;
 	for (const { result } of buildResults) {
@@ -872,9 +895,6 @@ ${tslib}`,
 				if (doNls && indexMap.size > 0) {
 					content = postProcessNLS(content, indexMap, preserveEnglish);
 				}
-
-				// Apply file content mapping (product config, builtin extensions)
-				content = fileContentMapper(file.path, content);
 
 				await fs.promises.writeFile(file.path, content);
 			} else {
