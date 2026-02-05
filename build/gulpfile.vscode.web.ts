@@ -19,6 +19,7 @@ import { getProductionDependencies } from './lib/dependencies.ts';
 import vfs from 'vinyl-fs';
 import packageJson from '../package.json' with { type: 'json' };
 import { compileBuildWithManglingTask } from './gulpfile.compile.ts';
+import { copyCodiconsTask } from './lib/compilation.ts';
 import * as extensions from './lib/extensions.ts';
 import jsonEditor from 'gulp-json-editor';
 import buildfile from './buildfile.ts';
@@ -230,6 +231,7 @@ const dashed = (str: string) => (str ? `-${str}` : ``);
 	const destinationFolderName = `vscode-web`;
 
 	const vscodeWebTaskCI = task.define(`vscode-web${dashed(minified)}-ci`, task.series(
+		copyCodiconsTask,
 		compileWebExtensionsBuildTask,
 		minified ? esbuildBundleVSCodeWebMinTask : esbuildBundleVSCodeWebTask,
 		util.rimraf(path.join(BUILD_ROOT, destinationFolderName)),
