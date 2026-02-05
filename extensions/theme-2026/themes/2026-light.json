@@ -48,6 +48,7 @@
 		"inputValidation.warningForeground": "#202020",
 		"scrollbar.shadow": "#00000000",
 		"widget.shadow": "#00000000",
+		"widget.border": "#F2F3F4FF",
 		"editorStickyScroll.shadow": "#00000000",
 		"sideBarStickyScroll.shadow": "#00000000",
 		"panelStickyScroll.shadow": "#00000000",

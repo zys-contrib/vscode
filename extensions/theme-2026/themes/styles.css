@@ -104,11 +104,6 @@
 	z-index: 45;
 }
 
-.monaco-workbench.vs .activitybar.left.bordered::before,
-.monaco-workbench.vs .activitybar.right.bordered::before {
-	border: none;
-}
-
 /* Editor */
 .monaco-workbench .part.editor {
 	position: relative;
@@ -219,10 +214,6 @@
 	border-radius: 6px;
 }
 
-/* .monaco-workbench .quick-input-widget .monaco-list.list_id_6:not(.drop-target):not(.dragging) .monaco-list-row:hover:not(.selected):not(.focused) {
-	background-color: color-mix(in srgb, var(--vscode-list-hoverBackground) 40%, transparent);
-} */
-
 /* Chat Widget */
 .monaco-workbench .interactive-session .chat-input-container {
 	box-shadow: inset var(--shadow-sm);
@@ -292,7 +283,6 @@
 /* Context Menus */
 .monaco-workbench .monaco-menu .monaco-action-bar.vertical {
 	box-shadow: var(--shadow-lg);
-	border: none;
 	border-radius: var(--radius-xl);
 	backdrop-filter: var(--backdrop-blur-md);
 	-webkit-backdrop-filter: var(--backdrop-blur-md);
@@ -331,8 +321,7 @@
 
 /* Find Widget */
 .monaco-workbench .monaco-editor .find-widget {
-	box-shadow: var(--shadow-hover);
-	border: none;
+	box-shadow: var(--shadow-lg);
 	border-radius: var(--radius-lg);
 	backdrop-filter: var(--backdrop-blur-md);
 	-webkit-backdrop-filter: var(--backdrop-blur-md);
@@ -342,7 +331,6 @@
 /* Dialog */
 .monaco-workbench .monaco-dialog-box {
 	box-shadow: var(--shadow-2xl);
-	border: none;
 	border-radius: var(--radius-xl);
 	backdrop-filter: var(--backdrop-blur-lg);
 	-webkit-backdrop-filter: var(--backdrop-blur-lg);
@@ -356,7 +344,6 @@
 /* Peek View */
 .monaco-workbench .monaco-editor .peekview-widget {
 	box-shadow: var(--shadow-hover);
-	border: none;
 	background: color-mix(in srgb, var(--vscode-peekViewEditor-background) 60%, transparent) !important;
 	backdrop-filter: var(--backdrop-blur-sm);
 	-webkit-backdrop-filter: var(--backdrop-blur-sm);
@@ -380,10 +367,11 @@
 }
 
 .monaco-workbench .monaco-hover.workbench-hover,
-.monaco-hover.workbench-hover.compact {
+.monaco-hover.workbench-hover {
 	background-color: color-mix(in srgb, var(--vscode-editorHoverWidget-background) 60%, transparent) !important;
 	backdrop-filter: var(--backdrop-blur-lg) !important;
 	-webkit-backdrop-filter: var(--backdrop-blur-lg) !important;
+	box-shadow: var(--shadow-sm-strong);
 }
 
 .monaco-workbench .defineKeybindingWidget {
@@ -504,7 +492,6 @@
 /* Dropdowns */
 .monaco-workbench .monaco-dropdown .dropdown-menu {
 	box-shadow: var(--shadow-lg);
-	border: none;
 	border-radius: var(--radius-lg);
 }
 
@@ -522,14 +509,13 @@
 /* Debug Toolbar */
 .monaco-workbench .debug-toolbar {
 	box-shadow: var(--shadow-lg);
-	border: none;
 	border-radius: var(--radius-lg);
 	backdrop-filter: var(--backdrop-blur-lg) !important;
 	-webkit-backdrop-filter: var(--backdrop-blur-lg) !important;
 }
 
 .monaco-workbench .debug-hover-widget {
-	box-shadow: var(--shadow-hover);
+	box-shadow: var(--shadow-lg);
 	border-radius: var(--radius-lg);
 	backdrop-filter: var(--backdrop-blur-md);
 	-webkit-backdrop-filter: var(--backdrop-blur-md);
@@ -548,8 +534,7 @@
 
 /* Parameter Hints */
 .monaco-workbench .monaco-editor .parameter-hints-widget {
-	box-shadow: var(--shadow-hover);
-	border: none;
+	box-shadow: var(--shadow-lg);
 	border-radius: var(--radius-xl);
 	backdrop-filter: var(--backdrop-blur-md);
 	-webkit-backdrop-filter: var(--backdrop-blur-md);
