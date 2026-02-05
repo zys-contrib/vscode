@@ -637,8 +637,30 @@ function getMatchingSettings(allSettings: Set<ISetting>, filter: ITOCFilter): IS
 		}
 	});
 
-	// Sort settings by order, then alphabetically
+	const SETTING_STATUS_NORMAL = 0;
+	const SETTING_STATUS_PREVIEW = 1;
+	const SETTING_STATUS_EXPERIMENTAL = 2;
+
+	const getExperimentalStatus = (setting: ISetting) => {
+		if (setting.tags?.includes('experimental')) {
+			return SETTING_STATUS_EXPERIMENTAL;
+		} else if (setting.tags?.includes('preview')) {
+			return SETTING_STATUS_PREVIEW;
+		}
+		return SETTING_STATUS_NORMAL;
+	};
+
+	// Sort settings by order, then alphabetically, deprioritizing experimental and preview settings
 	return result.sort((a, b) => {
+		const experimentalStatusA = getExperimentalStatus(a);
+		const experimentalStatusB = getExperimentalStatus(b);
+
+		// If priorities differ, sort by priority (lower first)
+		if (experimentalStatusA !== experimentalStatusB) {
+			return experimentalStatusA - experimentalStatusB;
+		}
+
+		// Within same priority tier, sort by order then alphabetically
 		const orderComparison = compareTwoNullableNumbers(a.order, b.order);
 		return orderComparison !== 0 ? orderComparison : a.key.localeCompare(b.key);
 	});
