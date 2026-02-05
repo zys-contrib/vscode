@@ -650,17 +650,15 @@ function getMatchingSettings(allSettings: Set<ISetting>, filter: ITOCFilter): IS
 		return SETTING_STATUS_NORMAL;
 	};
 
-	// Sort settings by order, then alphabetically, deprioritizing experimental and preview settings
+	// Sort settings so that preview and experimental settings are deprioritized.
+	// Within each tier, sort the settings by order, then alphabetically.
 	return result.sort((a, b) => {
 		const experimentalStatusA = getExperimentalStatus(a);
 		const experimentalStatusB = getExperimentalStatus(b);
-
-		// If priorities differ, sort by priority (lower first)
 		if (experimentalStatusA !== experimentalStatusB) {
 			return experimentalStatusA - experimentalStatusB;
 		}
 
-		// Within same priority tier, sort by order then alphabetically
 		const orderComparison = compareTwoNullableNumbers(a.order, b.order);
 		return orderComparison !== 0 ? orderComparison : a.key.localeCompare(b.key);
 	});
