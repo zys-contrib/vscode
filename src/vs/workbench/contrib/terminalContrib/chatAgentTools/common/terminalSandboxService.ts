@@ -163,10 +163,11 @@ export class TerminalSandboxService extends Disposable implements ITerminalSandb
 					allowedDomainsSet.add(domain);
 				}
 			}
+			const allowedDomains = Array.from(allowedDomainsSet);
 
 			const sandboxSettings = {
 				network: {
-					allowedDomains: Array.from(allowedDomainsSet),
+					allowedDomains,
 					deniedDomains: networkSetting.deniedDomains ?? []
 				},
 				filesystem: {
