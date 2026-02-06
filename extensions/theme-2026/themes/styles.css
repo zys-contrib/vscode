@@ -37,9 +37,12 @@
 
 /* Activity Bar */
 .monaco-workbench .part.activitybar {
-	box-shadow: var(--shadow-md);
 	z-index: 50;
 	position: relative;
+}
+
+.monaco-workbench.nosidebar .part.activitybar {
+	box-shadow: var(--shadow-md);
 }
 
 .monaco-workbench.activitybar-right .part.activitybar {
