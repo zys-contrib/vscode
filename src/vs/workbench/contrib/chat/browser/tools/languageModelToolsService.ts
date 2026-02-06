@@ -206,6 +206,13 @@ export class LanguageModelToolsService extends Disposable implements ILanguageMo
 		if (agentModeEnabled !== false) {
 			return true;
 		}
+
+		// Internal tools that cannot be referenced in prompts are always permitted
+		// since they are infrastructure tools (e.g. inline_chat_exit), not user-facing agent tools
+		if (!isToolSet(toolOrToolSet) && !toolOrToolSet.canBeReferencedInPrompt && toolOrToolSet.source === ToolDataSource.Internal) {
+			return true;
+		}
+
 		const permittedInternalToolSetIds = [SpecedToolAliases.read, SpecedToolAliases.search, SpecedToolAliases.web];
 		if (isToolSet(toolOrToolSet)) {
 			const permitted = toolOrToolSet.source.type === 'internal' && permittedInternalToolSetIds.includes(toolOrToolSet.referenceName);
