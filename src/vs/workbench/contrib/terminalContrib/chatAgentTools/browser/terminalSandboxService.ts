@@ -146,14 +146,13 @@ export class TerminalSandboxService extends Disposable implements ITerminalSandb
 				: {};
 			const configFileUri = URI.joinPath(this._tempDir, `vscode-sandbox-settings-${this._sandboxSettingsId}.json`);
 
-			const allowedDomains = [...(networkSetting.allowedDomains ?? [])];
+			const allowedDomainsSet = new Set(networkSetting.allowedDomains ?? []);
 			if (networkSetting.allowTrustedDomains) {
 				for (const domain of this._trustedDomainService.trustedDomains) {
-					if (!allowedDomains.includes(domain)) {
-						allowedDomains.push(domain);
-					}
+					allowedDomainsSet.add(domain);
 				}
 			}
+			const allowedDomains = Array.from(allowedDomainsSet);
 
 			const sandboxSettings = {
 				network: {
