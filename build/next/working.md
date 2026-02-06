@@ -105,3 +105,23 @@ npm run gulp vscode-reh-web-darwin-arm64-min
 2. **Mangling** - The new build doesn't do TypeScript-based mangling yet. Old `core-ci` with mangling is now `core-ci-OLD`.
 
 3. **Entry point duplication** - Entry points are duplicated between [buildfile.ts](../buildfile.ts) and [index.ts](index.ts). Consider consolidating.
+
+---
+
+## Self-hosting Setup
+
+The default `VS Code - Build` task now runs three parallel watchers:
+
+| Task | What it does | Script |
+|------|-------------|--------|
+| **Core - Transpile** | esbuild single-file TS→JS (fast, no type checking) | `watch-client-transpiled` → `npx tsx build/next/index.ts transpile --watch` |
+| **Core - Typecheck** | gulp-tsb `noEmit` watch (type errors only, no output) | `watch-clientd` → `gulp watch-client` (with `noEmit: true`) |
+| **Ext - Build** | Extension compilation (unchanged) | `watch-extensionsd` |
+
+### Key Changes
+
+- **`compilation.ts`**: `ICompileTaskOptions` gained `noEmit?: boolean`. When set, `overrideOptions.noEmit = true` is passed to tsb. `watchTask()` accepts an optional 4th parameter `{ noEmit?: boolean }`.
+- **`gulpfile.ts`**: `watchClientTask` no longer runs `rimraf('out')` (the transpiler owns that). Passes `{ noEmit: true }` to `watchTask`.
+- **`index.ts`**: Watch mode emits `Starting transpilation...` / `Finished transpilation with N errors after X ms` for VS Code problem matcher.
+- **`tasks.json`**: Old "Core - Build" split into "Core - Transpile" + "Core - Typecheck" with separate problem matchers (owners: `esbuild` vs `typescript`).
+- **`package.json`**: Added `watch-client-transpile`, `watch-client-transpiled`, `kill-watch-client-transpiled` scripts.

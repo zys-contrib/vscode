@@ -32,7 +32,7 @@ gulp.task(transpileClientTask);
 const compileClientTask = task.define('compile-client', task.series(util.rimraf('out'), compilation.copyCodiconsTask, compilation.compileApiProposalNamesTask, compilation.compileTask('src', 'out', false)));
 gulp.task(compileClientTask);
 
-const watchClientTask = task.define('watch-client', task.series(util.rimraf('out'), task.parallel(compilation.watchTask('out', false), compilation.watchApiProposalNamesTask, compilation.watchCodiconsTask)));
+const watchClientTask = task.define('watch-client', task.parallel(compilation.watchTask('out', false, 'src', { noEmit: true }), compilation.watchApiProposalNamesTask, compilation.watchCodiconsTask));
 gulp.task(watchClientTask);
 
 // All

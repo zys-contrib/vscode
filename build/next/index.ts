@@ -919,7 +919,7 @@ ${tslib}`,
 // ============================================================================
 
 async function watch(): Promise<void> {
-	console.log('[watch] Starting...');
+	console.log('Starting transpilation...');
 
 	const outDir = OUT_DIR;
 
@@ -932,9 +932,10 @@ async function watch(): Promise<void> {
 	try {
 		await transpile(outDir, false);
 		await copyResources(outDir, 'desktop', false, false);
-		console.log(`[transpile] Done in ${Date.now() - t1}ms`);
+		console.log(`Finished transpilation with 0 errors after ${Date.now() - t1} ms`);
 	} catch (err) {
 		console.error('[watch] Initial build failed:', err);
+		console.log(`Finished transpilation with 1 errors after ${Date.now() - t1} ms`);
 		// Continue watching anyway
 	}
 
@@ -942,6 +943,7 @@ async function watch(): Promise<void> {
 	let pendingCopyFiles: Set<string> = new Set();
 
 	const processChanges = async () => {
+		console.log('Starting transpilation...');
 		const t1 = Date.now();
 		const tsFiles = [...pendingTsFiles];
 		const filesToCopy = [...pendingCopyFiles];
@@ -971,10 +973,11 @@ async function watch(): Promise<void> {
 			}
 
 			if (tsFiles.length > 0 || filesToCopy.length > 0) {
-				console.log(`[watch] Done in ${Date.now() - t1}ms`);
+				console.log(`Finished transpilation with 0 errors after ${Date.now() - t1} ms`);
 			}
 		} catch (err) {
 			console.error('[watch] Rebuild failed:', err);
+			console.log(`Finished transpilation with 1 errors after ${Date.now() - t1} ms`);
 			// Continue watching
 		}
 	};
