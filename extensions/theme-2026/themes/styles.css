@@ -153,22 +153,11 @@
 	box-shadow: var(--shadow-md);
 }
 
-.monaco-workbench .part.titlebar {
-	position: relative;
-	background: linear-gradient(
-		to bottom,
-		color-mix(in srgb, var(--vscode-focusBorder) 10%, transparent) 0%,
-		transparent 100%
-	), var(--vscode-titleBar-activeBackground) !important;
-}
-
 .monaco-workbench .part.titlebar.inactive {
 	background: var(--vscode-titleBar-inactiveBackground) !important;
 
-	.command-center .monaco-action-bar,
-	.command-center .actions-container,
-	.agent-status-pill, .agent-status-badge {
-		background-color: transparent !important;
+	& > * {
+		opacity: 0.3;
 	}
 }
 
