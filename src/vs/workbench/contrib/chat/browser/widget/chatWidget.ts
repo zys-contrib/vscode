@@ -1517,9 +1517,9 @@ export class ChatWidget extends Disposable implements IChatWidget {
 				if (request.id === currentElement.id) {
 					request.setShouldBeBlocked(false); // unblocking just this request.
 					request.attachedContext?.forEach(addToContext);
-					currentElement.variables.forEach(addToContext);
 				}
 			}
+			currentElement.variables.forEach(addToContext);
 
 			// set states
 			this.viewModel?.setEditing(currentElement);
@@ -1546,7 +1546,6 @@ export class ChatWidget extends Disposable implements IChatWidget {
 			if (currentContext.length > 0) {
 				this.input.attachmentModel.addContext(...currentContext);
 			}
-
 
 			// rerenders
 			this.inputPart.dnd.setDisabledOverlay(!isInput);
