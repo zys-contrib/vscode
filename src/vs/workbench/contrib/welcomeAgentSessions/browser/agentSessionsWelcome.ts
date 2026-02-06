@@ -577,13 +577,17 @@ export class AgentSessionsWelcomePage extends EditorPane {
 
 
 	private buildSessionsGrid(container: HTMLElement, _sessions: IAgentSession[]): void {
-		// Show loading skeleton initially
+		// Show cached sessions immediately if available, otherwise show loading skeleton
+		const hasCachedSessions = _sessions.length > 0;
+
 		this.sessionsLoadingContainer = this.buildLoadingSkeleton(container);
-
 		this.sessionsControlContainer = append(container, $('.agentSessionsWelcome-sessionsGrid'));
-		// Hide the control initially until loading completes
-		this.sessionsControlContainer.style.display = 'none';
-
+		if (!hasCachedSessions) {
+			// Only hide the control if there are no cached sessions to show
+			this.sessionsControlContainer.style.display = 'none';
+		} else {
+			this.sessionsLoadingContainer.style.display = 'none';
+		}
 		const options: IAgentSessionsControlOptions = {
 			overrideStyles: getListStyles({
 				listBackground: editorBackground,
