@@ -496,7 +496,7 @@ export interface IEditorOptions {
 	 * Enable quick suggestions (shadow suggestions)
 	 * Defaults to true.
 	 */
-	quickSuggestions?: boolean | IQuickSuggestionsOptions;
+	quickSuggestions?: boolean | QuickSuggestionsValue | IQuickSuggestionsOptions;
 	/**
 	 * Quick suggestions show delay (in ms)
 	 * Defaults to 10 (ms)
@@ -3729,7 +3729,7 @@ export interface InternalQuickSuggestionsOptions {
 	readonly strings: QuickSuggestionsValue;
 }
 
-class EditorQuickSuggestions extends BaseEditorOption<EditorOption.quickSuggestions, boolean | IQuickSuggestionsOptions, InternalQuickSuggestionsOptions> {
+class EditorQuickSuggestions extends BaseEditorOption<EditorOption.quickSuggestions, boolean | QuickSuggestionsValue | IQuickSuggestionsOptions, InternalQuickSuggestionsOptions> {
 
 	public override readonly defaultValue: InternalQuickSuggestionsOptions;
 
@@ -3748,25 +3748,35 @@ class EditorQuickSuggestions extends BaseEditorOption<EditorOption.quickSuggesti
 			}
 		];
 		super(EditorOption.quickSuggestions, 'quickSuggestions', defaults, {
-			type: 'object',
-			additionalProperties: false,
-			properties: {
-				strings: {
-					anyOf: types,
-					default: defaults.strings,
-					description: nls.localize('quickSuggestions.strings', "Enable quick suggestions inside strings.")
+			anyOf: [
+				{ type: 'boolean' },
+				{
+					type: 'string',
+					enum: ['on', 'inline', 'off', 'offWhenInlineCompletions'],
+					enumDescriptions: [nls.localize('quickSuggestions.topLevel.on', "Quick suggestions are enabled for all token types"), nls.localize('quickSuggestions.topLevel.inline', "Quick suggestions show as ghost text for all token types"), nls.localize('quickSuggestions.topLevel.off', "Quick suggestions are disabled for all token types"), nls.localize('quickSuggestions.topLevel.offWhenInlineCompletions', "Quick suggestions are disabled for all token types when an inline completion provider is available")]
 				},
-				comments: {
-					anyOf: types,
-					default: defaults.comments,
-					description: nls.localize('quickSuggestions.comments', "Enable quick suggestions inside comments.")
-				},
-				other: {
-					anyOf: types,
-					default: defaults.other,
-					description: nls.localize('quickSuggestions.other', "Enable quick suggestions outside of strings and comments.")
-				},
-			},
+				{
+					type: 'object',
+					additionalProperties: false,
+					properties: {
+						strings: {
+							anyOf: types,
+							default: defaults.strings,
+							description: nls.localize('quickSuggestions.strings', "Enable quick suggestions inside strings.")
+						},
+						comments: {
+							anyOf: types,
+							default: defaults.comments,
+							description: nls.localize('quickSuggestions.comments', "Enable quick suggestions inside comments.")
+						},
+						other: {
+							anyOf: types,
+							default: defaults.other,
+							description: nls.localize('quickSuggestions.other', "Enable quick suggestions outside of strings and comments.")
+						},
+					},
+				}
+			],
 			default: defaults,
 			markdownDescription: nls.localize('quickSuggestions', "Controls whether suggestions should automatically show up while typing. This can be controlled for typing in comments, strings, and other code. Quick suggestion can be configured to show as ghost text or with the suggest widget. Also be aware of the {0}-setting which controls if suggestions are triggered by special characters.", '`#editor.suggestOnTriggerCharacters#`'),
 			experiment: {
@@ -3782,8 +3792,14 @@ class EditorQuickSuggestions extends BaseEditorOption<EditorOption.quickSuggesti
 			const value = input ? 'on' : 'off';
 			return { comments: value, strings: value, other: value };
 		}
+		if (typeof input === 'string') {
+			// string shorthand -> apply same value to all token types
+			const allowedValues: QuickSuggestionsValue[] = ['on', 'inline', 'off', 'offWhenInlineCompletions'];
+			const validated = stringSet<QuickSuggestionsValue>(input as QuickSuggestionsValue, this.defaultValue.other, allowedValues);
+			return { comments: validated, strings: validated, other: validated };
+		}
 		if (!input || typeof input !== 'object') {
-			// invalid object
+			// invalid input
 			return this.defaultValue;
 		}
 

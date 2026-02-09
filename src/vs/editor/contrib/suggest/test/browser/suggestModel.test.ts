@@ -1306,4 +1306,60 @@ suite('SuggestModel - TriggerAndCancelOracle', function () {
 			});
 		});
 	});
+
+	test('string shorthand - "off" disables quick suggestions for all token types', function () {
+
+		disposables.add(registry.register({ scheme: 'test' }, alwaysSomethingSupport));
+
+		return withOracle((suggestOracle, editor) => {
+			// Use string shorthand instead of object form
+			editor.updateOptions({ quickSuggestions: 'off' as any });
+
+			return new Promise<void>((resolve, reject) => {
+				const sub = suggestOracle.onDidSuggest(() => {
+					sub.dispose();
+					reject(new Error('Quick suggestions should have been suppressed by string shorthand "off"'));
+				});
+
+				editor.setPosition({ lineNumber: 1, column: 4 });
+				editor.trigger('keyboard', Handler.Type, { text: 'd' });
+
+				setTimeout(() => {
+					sub.dispose();
+					resolve();
+				}, 200);
+			});
+		});
+	});
+
+	test('string shorthand - "offWhenInlineCompletions" suppresses when inline provider exists', function () {
+
+		disposables.add(registry.register({ scheme: 'test' }, alwaysSomethingSupport));
+
+		const inlineProvider: InlineCompletionsProvider = {
+			provideInlineCompletions: () => ({ items: [] }),
+			disposeInlineCompletions: () => { }
+		};
+		disposables.add(languageFeaturesService.inlineCompletionsProvider.register({ scheme: 'test' }, inlineProvider));
+
+		return withOracle((suggestOracle, editor) => {
+			// Use string shorthand — applies to all token types
+			editor.updateOptions({ quickSuggestions: 'offWhenInlineCompletions' as any });
+
+			return new Promise<void>((resolve, reject) => {
+				const sub = suggestOracle.onDidSuggest(() => {
+					sub.dispose();
+					reject(new Error('Quick suggestions should have been suppressed by offWhenInlineCompletions shorthand'));
+				});
+
+				editor.setPosition({ lineNumber: 1, column: 4 });
+				editor.trigger('keyboard', Handler.Type, { text: 'd' });
+
+				setTimeout(() => {
+					sub.dispose();
+					resolve();
+				}, 200);
+			});
+		});
+	});
 });

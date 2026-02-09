@@ -3645,7 +3645,7 @@ declare namespace monaco.editor {
 		 * Enable quick suggestions (shadow suggestions)
 		 * Defaults to true.
 		 */
-		quickSuggestions?: boolean | IQuickSuggestionsOptions;
+		quickSuggestions?: boolean | QuickSuggestionsValue | IQuickSuggestionsOptions;
 		/**
 		 * Quick suggestions show delay (in ms)
 		 * Defaults to 10 (ms)
