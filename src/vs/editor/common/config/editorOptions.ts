@@ -3712,7 +3712,7 @@ class PlaceholderOption extends BaseEditorOption<EditorOption.placeholder, strin
 
 //#region quickSuggestions
 
-export type QuickSuggestionsValue = 'on' | 'inline' | 'off';
+export type QuickSuggestionsValue = 'on' | 'inline' | 'off' | 'offWhenInlineCompletions';
 
 /**
  * Configuration options for quick suggestions
@@ -3743,8 +3743,8 @@ class EditorQuickSuggestions extends BaseEditorOption<EditorOption.quickSuggesti
 			{ type: 'boolean' },
 			{
 				type: 'string',
-				enum: ['on', 'inline', 'off'],
-				enumDescriptions: [nls.localize('on', "Quick suggestions show inside the suggest widget"), nls.localize('inline', "Quick suggestions show as ghost text"), nls.localize('off', "Quick suggestions are disabled")]
+				enum: ['on', 'inline', 'off', 'offWhenInlineCompletions'],
+				enumDescriptions: [nls.localize('on', "Quick suggestions show inside the suggest widget"), nls.localize('inline', "Quick suggestions show as ghost text"), nls.localize('off', "Quick suggestions are disabled"), nls.localize('offWhenInlineCompletions', "Quick suggestions are disabled when an inline completion provider is available")]
 			}
 		];
 		super(EditorOption.quickSuggestions, 'quickSuggestions', defaults, {
@@ -3768,7 +3768,10 @@ class EditorQuickSuggestions extends BaseEditorOption<EditorOption.quickSuggesti
 				},
 			},
 			default: defaults,
-			markdownDescription: nls.localize('quickSuggestions', "Controls whether suggestions should automatically show up while typing. This can be controlled for typing in comments, strings, and other code. Quick suggestion can be configured to show as ghost text or with the suggest widget. Also be aware of the {0}-setting which controls if suggestions are triggered by special characters.", '`#editor.suggestOnTriggerCharacters#`')
+			markdownDescription: nls.localize('quickSuggestions', "Controls whether suggestions should automatically show up while typing. This can be controlled for typing in comments, strings, and other code. Quick suggestion can be configured to show as ghost text or with the suggest widget. Also be aware of the {0}-setting which controls if suggestions are triggered by special characters.", '`#editor.suggestOnTriggerCharacters#`'),
+			experiment: {
+				mode: 'auto'
+			}
 		});
 		this.defaultValue = defaults;
 	}
@@ -3785,7 +3788,7 @@ class EditorQuickSuggestions extends BaseEditorOption<EditorOption.quickSuggesti
 		}
 
 		const { other, comments, strings } = (<IQuickSuggestionsOptions>input);
-		const allowedValues: QuickSuggestionsValue[] = ['on', 'inline', 'off'];
+		const allowedValues: QuickSuggestionsValue[] = ['on', 'inline', 'off', 'offWhenInlineCompletions'];
 		let validatedOther: QuickSuggestionsValue;
 		let validatedComments: QuickSuggestionsValue;
 		let validatedStrings: QuickSuggestionsValue;

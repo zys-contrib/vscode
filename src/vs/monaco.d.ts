@@ -4587,7 +4587,7 @@ declare namespace monaco.editor {
 		cycle?: boolean;
 	}
 
-	export type QuickSuggestionsValue = 'on' | 'inline' | 'off';
+	export type QuickSuggestionsValue = 'on' | 'inline' | 'off' | 'offWhenInlineCompletions';
 
 	/**
 	 * Configuration options for quick suggestions
