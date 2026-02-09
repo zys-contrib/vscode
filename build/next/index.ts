@@ -207,17 +207,21 @@ function getCssBundleEntryPointsForTarget(target: BuildTarget): Set<string> {
 
 // Common resources needed by all targets
 const commonResourcePatterns = [
-	// Fonts
-	'vs/base/browser/ui/codicons/codicon/codicon.ttf',
-
-	// Vendor JavaScript libraries (not transpiled)
-	'vs/base/common/marked/marked.js',
-	'vs/base/common/semver/semver.js',
-	'vs/base/browser/dompurify/dompurify.js',
-
 	// Tree-sitter queries
 	'vs/editor/common/languages/highlights/*.scm',
 	'vs/editor/common/languages/injections/*.scm',
+];
+
+// Resources only needed for dev/transpile builds (these get bundled into the main
+// JS/CSS bundles for production, so separate copies are redundant)
+const devOnlyResourcePatterns = [
+	// Fonts (esbuild file loader copies to media/codicon.ttf for production)
+	'vs/base/browser/ui/codicons/codicon/codicon.ttf',
+
+	// Vendor JavaScript libraries (bundled into workbench main JS for production)
+	'vs/base/common/marked/marked.js',
+	'vs/base/common/semver/semver.js',
+	'vs/base/browser/dompurify/dompurify.js',
 ];
 
 // Resources for desktop target
@@ -547,6 +551,21 @@ async function copyResources(outDir: string, target: BuildTarget, excludeDevFile
 				const destPath = path.join(REPO_ROOT, outDir, file);
 
 				await copyFile(srcPath, destPath);
+				copied++;
+			}
+		}
+	}
+
+	// Copy dev-only resources (vendor JS, codicon font) - only for development/transpile
+	// builds. In production bundles these are inlined by esbuild.
+	if (!excludeDevFiles) {
+		for (const pattern of devOnlyResourcePatterns) {
+			const files = await globAsync(pattern, {
+				cwd: path.join(REPO_ROOT, SRC_DIR),
+				ignore: ignorePatterns,
+			});
+			for (const file of files) {
+				await copyFile(path.join(REPO_ROOT, SRC_DIR, file), path.join(REPO_ROOT, outDir, file));
 				copied++;
 			}
 		}
