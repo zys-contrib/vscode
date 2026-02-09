@@ -31,6 +31,7 @@ import minimist from 'minimist';
 import { compileBuildWithoutManglingTask, compileBuildWithManglingTask } from './gulpfile.compile.ts';
 import { compileNonNativeExtensionsBuildTask, compileNativeExtensionsBuildTask, compileAllExtensionsBuildTask, compileExtensionMediaBuildTask, cleanExtensionsBuildTask } from './gulpfile.extensions.ts';
 import { copyCodiconsTask } from './lib/compilation.ts';
+import { useEsbuildTranspile } from './buildConfig.ts';
 import { promisify } from 'util';
 import globCallback from 'glob';
 import rceditCallback from 'rcedit';
@@ -215,7 +216,7 @@ const minifyVSCodeTask = task.define('minify-vscode', task.series(
 ));
 gulp.task(minifyVSCodeTask);
 
-const coreCI = task.define('core-ci-OLD', task.series(
+const coreCIOld = task.define('core-ci-old', task.series(
 	gulp.task('compile-build-with-mangling') as task.Task,
 	task.parallel(
 		gulp.task('minify-vscode') as task.Task,
@@ -223,9 +224,9 @@ const coreCI = task.define('core-ci-OLD', task.series(
 		gulp.task('minify-vscode-reh-web') as task.Task,
 	)
 ));
-gulp.task(coreCI);
+gulp.task(coreCIOld);
 
-const coreCIEsbuild = task.define('core-ci', task.series(
+const coreCIEsbuild = task.define('core-ci-esbuild', task.series(
 	copyCodiconsTask,
 	cleanExtensionsBuildTask,
 	compileNonNativeExtensionsBuildTask,
@@ -240,6 +241,8 @@ const coreCIEsbuild = task.define('core-ci', task.series(
 	)
 ));
 gulp.task(coreCIEsbuild);
+
+gulp.task(task.define('core-ci', useEsbuildTranspile ? coreCIEsbuild : coreCIOld));
 
 const coreCIPR = task.define('core-ci-pr', task.series(
 	gulp.task('compile-build-without-mangling') as task.Task,
@@ -676,7 +679,7 @@ const innoSetupConfig: Record<string, { codePage: string; defaultInfo?: { name: 
 gulp.task(task.define(
 	'vscode-translations-export',
 	task.series(
-		coreCI,
+		gulp.task('core-ci') as task.Task,
 		compileAllExtensionsBuildTask,
 		function () {
 			const pathToMetadata = './out-build/nls.metadata.json';
