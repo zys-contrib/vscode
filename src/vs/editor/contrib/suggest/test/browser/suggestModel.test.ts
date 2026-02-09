@@ -41,6 +41,7 @@ import { IInstantiationService } from '../../../../../platform/instantiation/com
 import { getSnippetSuggestSupport, setSnippetSuggestSupport } from '../../browser/suggest.js';
 import { IEnvironmentService } from '../../../../../platform/environment/common/environment.js';
 import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../../base/test/common/utils.js';
+import { runWithFakedTimers } from '../../../../../base/test/common/timeTravelScheduler.js';
 
 
 function createMockEditor(model: TextModel, languageFeaturesService: ILanguageFeaturesService): ITestCodeEditor {
@@ -1281,84 +1282,88 @@ suite('SuggestModel - TriggerAndCancelOracle', function () {
 	});
 
 	test('offWhenInlineCompletions - allows quick suggest when inlineSuggest is disabled', function () {
+		return runWithFakedTimers({ useFakeTimers: true }, () => {
+			disposables.add(registry.register({ scheme: 'test' }, alwaysSomethingSupport));
 
-		disposables.add(registry.register({ scheme: 'test' }, alwaysSomethingSupport));
+			// Register a dummy inline completions provider
+			const inlineProvider: InlineCompletionsProvider = {
+				provideInlineCompletions: () => ({ items: [] }),
+				disposeInlineCompletions: () => { }
+			};
+			disposables.add(languageFeaturesService.inlineCompletionsProvider.register({ scheme: 'test' }, inlineProvider));
 
-		// Register a dummy inline completions provider
-		const inlineProvider: InlineCompletionsProvider = {
-			provideInlineCompletions: () => ({ items: [] }),
-			disposeInlineCompletions: () => { }
-		};
-		disposables.add(languageFeaturesService.inlineCompletionsProvider.register({ scheme: 'test' }, inlineProvider));
+			return withOracle((suggestOracle, editor) => {
+				editor.updateOptions({
+					quickSuggestions: { comments: 'off', strings: 'off', other: 'offWhenInlineCompletions' },
+					inlineSuggest: { enabled: false }
+				});
 
-		return withOracle((suggestOracle, editor) => {
-			editor.updateOptions({
-				quickSuggestions: { comments: 'off', strings: 'off', other: 'offWhenInlineCompletions' },
-				inlineSuggest: { enabled: false }
-			});
-
-			return assertEvent(suggestOracle.onDidSuggest, () => {
-				editor.setPosition({ lineNumber: 1, column: 4 });
-				editor.trigger('keyboard', Handler.Type, { text: 'd' });
-			}, suggestEvent => {
-				assert.strictEqual(suggestEvent.triggerOptions.auto, true);
-				assert.strictEqual(suggestEvent.completionModel.items.length, 1);
+				return assertEvent(suggestOracle.onDidSuggest, () => {
+					editor.setPosition({ lineNumber: 1, column: 4 });
+					editor.trigger('keyboard', Handler.Type, { text: 'd' });
+				}, suggestEvent => {
+					assert.strictEqual(suggestEvent.triggerOptions.auto, true);
+					assert.strictEqual(suggestEvent.completionModel.items.length, 1);
+				});
 			});
 		});
 	});
 
 	test('string shorthand - "off" disables quick suggestions for all token types', function () {
+		return runWithFakedTimers({ useFakeTimers: true }, () => {
 
-		disposables.add(registry.register({ scheme: 'test' }, alwaysSomethingSupport));
+			disposables.add(registry.register({ scheme: 'test' }, alwaysSomethingSupport));
 
-		return withOracle((suggestOracle, editor) => {
-			// Use string shorthand instead of object form
-			editor.updateOptions({ quickSuggestions: 'off' });
+			return withOracle((suggestOracle, editor) => {
+				// Use string shorthand instead of object form
+				editor.updateOptions({ quickSuggestions: 'off' });
 
-			return new Promise<void>((resolve, reject) => {
-				const sub = suggestOracle.onDidSuggest(() => {
-					sub.dispose();
-					reject(new Error('Quick suggestions should have been suppressed by string shorthand "off"'));
+				return new Promise<void>((resolve, reject) => {
+					const sub = suggestOracle.onDidSuggest(() => {
+						sub.dispose();
+						reject(new Error('Quick suggestions should have been suppressed by string shorthand "off"'));
+					});
+
+					editor.setPosition({ lineNumber: 1, column: 4 });
+					editor.trigger('keyboard', Handler.Type, { text: 'd' });
+
+					setTimeout(() => {
+						sub.dispose();
+						resolve();
+					}, 200);
 				});
-
-				editor.setPosition({ lineNumber: 1, column: 4 });
-				editor.trigger('keyboard', Handler.Type, { text: 'd' });
-
-				setTimeout(() => {
-					sub.dispose();
-					resolve();
-				}, 200);
 			});
 		});
 	});
 
 	test('string shorthand - "offWhenInlineCompletions" suppresses when inline provider exists', function () {
+		return runWithFakedTimers({ useFakeTimers: true }, () => {
+			disposables.add(registry.register({ scheme: 'test' }, alwaysSomethingSupport));
 
-		disposables.add(registry.register({ scheme: 'test' }, alwaysSomethingSupport));
+			const inlineProvider: InlineCompletionsProvider = {
+				provideInlineCompletions: () => ({ items: [] }),
+				disposeInlineCompletions: () => { }
+			};
+			disposables.add(languageFeaturesService.inlineCompletionsProvider.register({ scheme: 'test' }, inlineProvider));
 
-		const inlineProvider: InlineCompletionsProvider = {
-			provideInlineCompletions: () => ({ items: [] }),
-			disposeInlineCompletions: () => { }
-		};
-		disposables.add(languageFeaturesService.inlineCompletionsProvider.register({ scheme: 'test' }, inlineProvider));
+			return withOracle((suggestOracle, editor) => {
+				// Use string shorthand — applies to all token types
+				editor.updateOptions({ quickSuggestions: 'offWhenInlineCompletions' });
 
-		return withOracle((suggestOracle, editor) => {
-			// Use string shorthand — applies to all token types
-			editor.updateOptions({ quickSuggestions: 'offWhenInlineCompletions' });
+				return new Promise<void>((resolve, reject) => {
+					const sub = suggestOracle.onDidSuggest(() => {
+						sub.dispose();
+						reject(new Error('Quick suggestions should have been suppressed by offWhenInlineCompletions shorthand'));
+					});
 
-			return new Promise<void>((resolve, reject) => {
-				const sub = suggestOracle.onDidSuggest(() => {
-					sub.dispose();
-					reject(new Error('Quick suggestions should have been suppressed by offWhenInlineCompletions shorthand'));
+					editor.setPosition({ lineNumber: 1, column: 4 });
+					editor.trigger('keyboard', Handler.Type, { text: 'd' });
+
+					setTimeout(() => {
+						sub.dispose();
+						resolve();
+					}, 200);
 				});
-
-				editor.setPosition({ lineNumber: 1, column: 4 });
-				editor.trigger('keyboard', Handler.Type, { text: 'd' });
-
-				setTimeout(() => {
-					sub.dispose();
-					resolve();
-				}, 200);
 			});
 		});
 	});
