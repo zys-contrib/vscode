@@ -11,23 +11,23 @@ import './motion.css';
  * Duration in milliseconds for panel open (entrance) animations.
  * Per Fluent 2 Enter/Exit pattern - entrance should feel smooth but not sluggish.
  */
-export const PANEL_OPEN_DURATION = 300;
+export const PANEL_OPEN_DURATION = 200;
 
 /**
  * Duration in milliseconds for panel close (exit) animations.
  * Exits are faster than entrances - feels snappy and responsive.
  */
-export const PANEL_CLOSE_DURATION = 200;
+export const PANEL_CLOSE_DURATION = 75;
 
 /**
  * Duration in milliseconds for quick input open (entrance) animations.
  */
-export const QUICK_INPUT_OPEN_DURATION = 250;
+export const QUICK_INPUT_OPEN_DURATION = 125;
 
 /**
  * Duration in milliseconds for quick input close (exit) animations.
  */
-export const QUICK_INPUT_CLOSE_DURATION = 150;
+export const QUICK_INPUT_CLOSE_DURATION = 75;
 
 //#endregion
 
