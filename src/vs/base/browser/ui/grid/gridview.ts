@@ -633,6 +633,24 @@ class BranchNode implements ISplitView<ILayoutContext>, IDisposable {
 		}
 	}
 
+	setChildVisibleAnimated(index: number, visible: boolean, duration: number, easing: string, onComplete?: () => void): IDisposable {
+		index = validateIndex(index, this.children.length);
+
+		if (this.splitview.isViewVisible(index) === visible) {
+			return { dispose: () => { } };
+		}
+
+		const wereAllChildrenHidden = this.splitview.contentSize === 0;
+		const disposable = this.splitview.setViewVisibleAnimated(index, visible, duration, easing, onComplete);
+		const areAllChildrenHidden = this.splitview.contentSize === 0;
+
+		if ((visible && wereAllChildrenHidden) || (!visible && areAllChildrenHidden)) {
+			this._onDidVisibilityChange.fire(visible);
+		}
+
+		return disposable;
+	}
+
 	getChildCachedVisibleSize(index: number): number | undefined {
 		index = validateIndex(index, this.children.length);
 
@@ -1675,6 +1693,31 @@ export class GridView implements IDisposable {
 		}
 
 		parent.setChildVisible(index, visible);
+	}
+
+	/**
+	 * Set the visibility state of a {@link IView view} with a smooth animation.
+	 *
+	 * @param location The {@link GridLocation location} of the view.
+	 * @param visible Whether the view should be visible.
+	 * @param duration The transition duration in milliseconds.
+	 * @param easing The CSS easing function string.
+	 * @returns A disposable that cancels the animation.
+	 */
+	setViewVisibleAnimated(location: GridLocation, visible: boolean, duration: number, easing: string, onComplete?: () => void): IDisposable {
+		if (this.hasMaximizedView()) {
+			this.exitMaximizedView();
+			return { dispose: () => { } };
+		}
+
+		const [rest, index] = tail(location);
+		const [, parent] = this.getNode(rest);
+
+		if (!(parent instanceof BranchNode)) {
+			throw new Error('Invalid from location');
+		}
+
+		return parent.setChildVisibleAnimated(index, visible, duration, easing, onComplete);
 	}
 
 	/**

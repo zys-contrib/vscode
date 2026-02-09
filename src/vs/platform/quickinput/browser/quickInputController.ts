@@ -37,6 +37,7 @@ import { TriStateCheckbox, createToggleActionViewItemProvider } from '../../../b
 import { defaultCheckboxStyles } from '../../theme/browser/defaultStyles.js';
 import { QuickInputTreeController } from './tree/quickInputTreeController.js';
 import { QuickTree } from './tree/quickTree.js';
+import { isMotionReduced, QUICK_INPUT_OPEN_DURATION, QUICK_INPUT_CLOSE_DURATION, EASE_OUT, EASE_IN } from '../../../base/browser/ui/motion/motion.js';
 
 const $ = dom.$;
 
@@ -713,6 +714,23 @@ export class QuickInputController extends Disposable {
 		this.dndController?.layoutContainer();
 		ui.inputBox.setFocus();
 		this.quickInputTypeContext.set(controller.type);
+
+		// Animate entrance: fade in + slide down
+		if (!isMotionReduced(ui.container)) {
+			ui.container.style.opacity = '0';
+			ui.container.style.transform = 'translateY(-8px)';
+			ui.container.style.transition = `opacity ${QUICK_INPUT_OPEN_DURATION}ms ${EASE_OUT}, transform ${QUICK_INPUT_OPEN_DURATION}ms ${EASE_OUT}`;
+			// Trigger reflow so the initial state is registered before applying target
+			void ui.container.offsetHeight;
+			ui.container.style.opacity = '1';
+			ui.container.style.transform = 'translateY(0)';
+			const onDone = () => {
+				ui.container.style.transition = '';
+				ui.container.style.willChange = '';
+				ui.container.removeEventListener('transitionend', onDone);
+			};
+			ui.container.addEventListener('transitionend', onDone);
+		}
 	}
 
 	isVisible(): boolean {
@@ -779,7 +797,26 @@ export class QuickInputController extends Disposable {
 		this.controller = null;
 		this.onHideEmitter.fire();
 		if (container) {
-			container.style.display = 'none';
+			// Animate exit: fade out + slide up (faster than open)
+			if (!isMotionReduced(container)) {
+				container.style.transition = `opacity ${QUICK_INPUT_CLOSE_DURATION}ms ${EASE_IN}, transform ${QUICK_INPUT_CLOSE_DURATION}ms ${EASE_IN}`;
+				container.style.opacity = '0';
+				container.style.transform = 'translateY(-8px)';
+				const onDone = () => {
+					container.style.display = 'none';
+					container.style.transition = '';
+					container.style.opacity = '';
+					container.style.transform = '';
+					container.style.willChange = '';
+					container.removeEventListener('transitionend', onDone);
+				};
+				container.addEventListener('transitionend', onDone);
+				// Safety timeout in case transitionend doesn't fire
+				const window = dom.getWindow(container);
+				window.setTimeout(onDone, QUICK_INPUT_CLOSE_DURATION + 50);
+			} else {
+				container.style.display = 'none';
+			}
 		}
 		if (!focusChanged) {
 			let currentElement = this.previousFocusElement;

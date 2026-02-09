@@ -14,6 +14,7 @@ import { combinedDisposable, Disposable, dispose, IDisposable, toDisposable } fr
 import { clamp } from '../../../common/numbers.js';
 import { Scrollable, ScrollbarVisibility, ScrollEvent } from '../../../common/scrollable.js';
 import * as types from '../../../common/types.js';
+import { isMotionReduced, parseCubicBezier, solveCubicBezier } from '../motion/motion.js';
 import './splitview.css';
 export { Orientation } from '../sash/sash.js';
 
@@ -817,6 +818,155 @@ export class SplitView<TLayoutContext = undefined, TView extends IView<TLayoutCo
 		this.layoutViews();
 		this.saveProportions();
 	}
+
+	/**
+	 * Set a {@link IView view}'s visibility with a smooth animation.
+	 *
+	 * Uses `requestAnimationFrame` to interpolate all view sizes on each frame,
+	 * which naturally cascades layout changes through nested splitviews in the
+	 * grid hierarchy (e.g., the bottom panel resizing when the sidebar animates).
+	 *
+	 * If motion is reduced (via accessibility settings), falls back to instant
+	 * {@link setViewVisible}.
+	 *
+	 * @param index The {@link IView view} index.
+	 * @param visible Whether the {@link IView view} should be visible.
+	 * @param duration The transition duration in milliseconds.
+	 * @param easing The CSS `cubic-bezier(...)` easing function string.
+	 * @param onComplete Optional callback invoked when the animation finishes.
+	 *   NOT called if the animation is canceled via {@link IDisposable.dispose}.
+	 * @returns A disposable that cancels the animation if disposed before completion.
+	 */
+	setViewVisibleAnimated(index: number, visible: boolean, duration: number, easing: string, onComplete?: () => void): IDisposable {
+		if (index < 0 || index >= this.viewItems.length) {
+			throw new Error('Index out of bounds');
+		}
+
+		// Cancel any in-flight animation
+		this._cleanupMotion?.();
+		this._cleanupMotion = undefined;
+
+		const viewItem = this.viewItems[index];
+
+		// If motion is reduced or already in target state, use instant path
+		if (viewItem.visible === visible || isMotionReduced(this.el)) {
+			this.setViewVisible(index, visible);
+			return toDisposable(() => { });
+		}
+
+		const container = this.viewContainer.children[index] as HTMLElement;
+		const window = getWindow(this.el);
+		let disposed = false;
+		let rafId: number | undefined;
+
+		// 1. Snapshot sizes BEFORE the visibility change (the animation start state)
+		const startSizes = this.viewItems.map(v => v.size);
+
+		// 2. Apply the target visibility to the model instantly.
+		//    This computes final sizes, fires events, updates sashes, etc.
+		this.setViewVisible(index, visible);
+
+		// 3. Snapshot sizes AFTER the visibility change (the animation end state)
+		const finalSizes = this.viewItems.map(v => v.size);
+
+		// 4. Restore start sizes so we can animate FROM them
+		for (let i = 0; i < this.viewItems.length; i++) {
+			this.viewItems[i].size = startSizes[i];
+		}
+
+		// 5. For hiding: the target container lost .visible class (→ display:none).
+		//    Restore it so content stays visible during the animation.
+		if (!visible) {
+			container.classList.add('visible');
+		}
+
+		// 6. Clip overflow on the target container while it shrinks.
+		//    Only apply for HIDE animations - for SHOW, we leave overflow alone
+		//    so that box-shadow / visual effects on the child Part are not clipped
+		//    by the parent container during the animation.
+		if (!visible) {
+			container.style.overflow = 'hidden';
+		}
+
+		// 7. Render the start state
+		this.layoutViews();
+
+		// 8. Parse easing for JS evaluation
+		const [x1, y1, x2, y2] = parseCubicBezier(easing);
+
+		// Helper: snap all sizes to final state and clean up
+		const applyFinalState = () => {
+			for (let i = 0; i < this.viewItems.length; i++) {
+				this.viewItems[i].size = finalSizes[i];
+			}
+			if (!visible) {
+				container.classList.remove('visible');
+				container.style.overflow = '';
+			}
+			this.layoutViews();
+			this.saveProportions();
+		};
+
+		const cleanup = (completed: boolean) => {
+			if (disposed) {
+				return;
+			}
+			disposed = true;
+			if (rafId !== undefined) {
+				window.cancelAnimationFrame(rafId);
+				rafId = undefined;
+			}
+			applyFinalState();
+			this._cleanupMotion = undefined;
+			if (completed) {
+				onComplete?.();
+			}
+		};
+		this._cleanupMotion = () => cleanup(false);
+
+		// 9. Animate via requestAnimationFrame
+		const startTime = performance.now();
+		const totalSize = this.size;
+
+		const animate = () => {
+			if (disposed) {
+				return;
+			}
+
+			const elapsed = performance.now() - startTime;
+			const t = Math.min(elapsed / duration, 1);
+			const easedT = solveCubicBezier(x1, y1, x2, y2, t);
+
+			// Interpolate all view sizes
+			let runningTotal = 0;
+			for (let i = 0; i < this.viewItems.length; i++) {
+				if (i === this.viewItems.length - 1) {
+					// Last item absorbs rounding errors to maintain total = this.size
+					this.viewItems[i].size = totalSize - runningTotal;
+				} else {
+					const size = Math.round(
+						startSizes[i] + (finalSizes[i] - startSizes[i]) * easedT
+					);
+					this.viewItems[i].size = size;
+					runningTotal += size;
+				}
+			}
+
+			this.layoutViews();
+
+			if (t < 1) {
+				rafId = window.requestAnimationFrame(animate);
+			} else {
+				cleanup(true);
+			}
+		};
+
+		rafId = window.requestAnimationFrame(animate);
+
+		return toDisposable(() => cleanup(false));
+	}
+
+	private _cleanupMotion: (() => void) | undefined;
 
 	/**
 	 * Returns the {@link IView view}'s size previously to being hidden.

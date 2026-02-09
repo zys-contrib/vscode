@@ -6,7 +6,7 @@
 import { IBoundarySashes, Orientation } from '../sash/sash.js';
 import { equals, tail } from '../../../common/arrays.js';
 import { Event } from '../../../common/event.js';
-import { Disposable } from '../../../common/lifecycle.js';
+import { Disposable, IDisposable } from '../../../common/lifecycle.js';
 import './gridview.css';
 import { Box, GridView, IGridViewOptions, IGridViewStyles, IView as IGridViewView, IViewSize, orthogonal, Sizing as GridViewSizing, GridLocation } from './gridview.js';
 import type { SplitView, AutoSizing as SplitViewAutoSizing } from '../splitview/splitview.js';
@@ -653,6 +653,20 @@ export class Grid<T extends IView = IView> extends Disposable {
 	setViewVisible(view: T, visible: boolean): void {
 		const location = this.getViewLocation(view);
 		this.gridview.setViewVisible(location, visible);
+	}
+
+	/**
+	 * Set the visibility state of a {@link IView view} with a smooth animation.
+	 *
+	 * @param view The {@link IView view}.
+	 * @param visible Whether the view should be visible.
+	 * @param duration The transition duration in milliseconds.
+	 * @param easing The CSS easing function string.
+	 * @returns A disposable that cancels the animation.
+	 */
+	setViewVisibleAnimated(view: T, visible: boolean, duration: number, easing: string, onComplete?: () => void): IDisposable {
+		const location = this.getViewLocation(view);
+		return this.gridview.setViewVisibleAnimated(location, visible, duration, easing, onComplete);
 	}
 
 	/**
