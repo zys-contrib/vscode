@@ -811,6 +811,14 @@ export class SplitView<TLayoutContext = undefined, TView extends IView<TLayoutCo
 			throw new Error('Index out of bounds');
 		}
 
+		// Cancel any in-flight animation before changing visibility.
+		// An animated setViewVisibleAnimated interpolates ALL view sizes each
+		// frame, so a concurrent non-animated visibility change on a different
+		// view in this splitview would be overwritten on the next frame.
+		// Snapping the animation to its final state first prevents that.
+		this._cleanupMotion?.();
+		this._cleanupMotion = undefined;
+
 		const viewItem = this.viewItems[index];
 		viewItem.setVisible(visible);
 
