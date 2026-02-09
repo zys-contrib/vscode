@@ -22,7 +22,8 @@ function _validateUri(ret: URI, _strict?: boolean): void {
 	// scheme, https://tools.ietf.org/html/rfc3986#section-3.1
 	// ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
 	if (ret.scheme && !_schemePattern.test(ret.scheme)) {
-		throw new Error(`[UriError]: Scheme contains illegal characters. scheme:"${ret.scheme.substring(0, 50)}" (len:${ret.scheme.length})`);
+		const illegalChar = ret.scheme.match(/[^\w\d+.-]/)?.[0] ?? (ret.scheme.length > 0 && !/^\w/.test(ret.scheme) ? ret.scheme[0] : '?');
+		throw new Error(`[UriError]: Scheme contains illegal characters. Found '${illegalChar}'`);
 	}
 
 	// path, http://tools.ietf.org/html/rfc3986#section-3.3
