@@ -208,6 +208,25 @@ function runEsbuildBundle(outDir: string, minify: boolean, nls: boolean, target:
 	});
 }
 
+function runTsGoTypeCheck(): Promise<void> {
+	return new Promise((resolve, reject) => {
+		const proc = cp.spawn('tsgo', ['--project', 'src/tsconfig.json', '--noEmit', '--skipLibCheck'], {
+			cwd: root,
+			stdio: 'inherit',
+			shell: true
+		});
+
+		proc.on('error', reject);
+		proc.on('close', code => {
+			if (code === 0) {
+				resolve();
+			} else {
+				reject(new Error(`tsgo typecheck failed with exit code ${code}`));
+			}
+		});
+	});
+}
+
 const sourceMappingURLBase = `https://main.vscode-cdn.net/sourcemaps/${commit}`;
 const minifyVSCodeTask = task.define('minify-vscode', task.series(
 	bundleVSCodeTask,
@@ -231,6 +250,8 @@ const coreCIEsbuild = task.define('core-ci-esbuild', task.series(
 	cleanExtensionsBuildTask,
 	compileNonNativeExtensionsBuildTask,
 	compileExtensionMediaBuildTask,
+	// Type-check with tsgo (no emit)
+	task.define('tsgo-typecheck', () => runTsGoTypeCheck()),
 	// Transpile individual files to out-build first (for unit tests)
 	task.define('esbuild-out-build', () => runEsbuildTranspile('out-build', false)),
 	// Then bundle for shipping (bundles also write NLS files to out-build)
