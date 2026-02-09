@@ -22,7 +22,7 @@ export const PANEL_CLOSE_DURATION = 75;
 /**
  * Duration in milliseconds for quick input open (entrance) animations.
  */
-export const QUICK_INPUT_OPEN_DURATION = 125;
+export const QUICK_INPUT_OPEN_DURATION = 200;
 
 /**
  * Duration in milliseconds for quick input close (exit) animations.

@@ -717,11 +717,14 @@ export class QuickInputController extends Disposable {
 
 		// Animate entrance: fade in + slide down
 		if (!isMotionReduced(ui.container)) {
+			// Set initial state without transition
+			ui.container.style.transition = 'none';
 			ui.container.style.opacity = '0';
 			ui.container.style.transform = 'translateY(-8px)';
-			ui.container.style.transition = `opacity ${QUICK_INPUT_OPEN_DURATION}ms ${EASE_OUT}, transform ${QUICK_INPUT_OPEN_DURATION}ms ${EASE_OUT}`;
-			// Trigger reflow so the initial state is registered before applying target
+			// Trigger reflow so the browser registers the initial state
 			void ui.container.offsetHeight;
+			// Now apply transition and target state
+			ui.container.style.transition = `opacity ${QUICK_INPUT_OPEN_DURATION}ms ${EASE_OUT}, transform ${QUICK_INPUT_OPEN_DURATION}ms ${EASE_OUT}`;
 			ui.container.style.opacity = '1';
 			ui.container.style.transform = 'translateY(0)';
 			const onDone = () => {
