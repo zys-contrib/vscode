@@ -13,6 +13,7 @@ import { nlsPlugin, createNLSCollector, finalizeNLS, postProcessNLS } from './nl
 import { getVersion } from '../lib/getVersion.ts';
 import product from '../../product.json' with { type: 'json' };
 import packageJson from '../../package.json' with { type: 'json' };
+import { useEsbuildTranspile } from '../buildConfig.ts';
 
 const globAsync = promisify(glob);
 
@@ -919,6 +920,14 @@ ${tslib}`,
 // ============================================================================
 
 async function watch(): Promise<void> {
+	if (!useEsbuildTranspile) {
+		console.log('Starting transpilation...');
+		console.log('Finished transpilation with 0 errors after 0 ms');
+		console.log('[watch] esbuild transpile disabled (useEsbuildTranspile=false). Keeping process alive as no-op.');
+		await new Promise(() => { }); // keep alive
+		return;
+	}
+
 	console.log('Starting transpilation...');
 
 	const outDir = OUT_DIR;
