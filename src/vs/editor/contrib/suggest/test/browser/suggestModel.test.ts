@@ -1279,4 +1279,31 @@ suite('SuggestModel - TriggerAndCancelOracle', function () {
 			});
 		});
 	});
+
+	test('offWhenInlineCompletions - allows quick suggest when inlineSuggest is disabled', function () {
+
+		disposables.add(registry.register({ scheme: 'test' }, alwaysSomethingSupport));
+
+		// Register a dummy inline completions provider
+		const inlineProvider: InlineCompletionsProvider = {
+			provideInlineCompletions: () => ({ items: [] }),
+			disposeInlineCompletions: () => { }
+		};
+		disposables.add(languageFeaturesService.inlineCompletionsProvider.register({ scheme: 'test' }, inlineProvider));
+
+		return withOracle((suggestOracle, editor) => {
+			editor.updateOptions({
+				quickSuggestions: { comments: 'off', strings: 'off', other: 'offWhenInlineCompletions' },
+				inlineSuggest: { enabled: false }
+			});
+
+			return assertEvent(suggestOracle.onDidSuggest, () => {
+				editor.setPosition({ lineNumber: 1, column: 4 });
+				editor.trigger('keyboard', Handler.Type, { text: 'd' });
+			}, suggestEvent => {
+				assert.strictEqual(suggestEvent.triggerOptions.auto, true);
+				assert.strictEqual(suggestEvent.completionModel.items.length, 1);
+			});
+		});
+	});
 });
