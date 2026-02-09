@@ -1313,7 +1313,7 @@ suite('SuggestModel - TriggerAndCancelOracle', function () {
 
 		return withOracle((suggestOracle, editor) => {
 			// Use string shorthand instead of object form
-			editor.updateOptions({ quickSuggestions: 'off' as any });
+			editor.updateOptions({ quickSuggestions: 'off' });
 
 			return new Promise<void>((resolve, reject) => {
 				const sub = suggestOracle.onDidSuggest(() => {
@@ -1344,7 +1344,7 @@ suite('SuggestModel - TriggerAndCancelOracle', function () {
 
 		return withOracle((suggestOracle, editor) => {
 			// Use string shorthand — applies to all token types
-			editor.updateOptions({ quickSuggestions: 'offWhenInlineCompletions' as any });
+			editor.updateOptions({ quickSuggestions: 'offWhenInlineCompletions' });
 
 			return new Promise<void>((resolve, reject) => {
 				const sub = suggestOracle.onDidSuggest(() => {
