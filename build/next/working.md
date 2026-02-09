@@ -108,6 +108,66 @@ npm run gulp vscode-reh-web-darwin-arm64-min
 
 ---
 
+## Build Comparison: OLD (gulp-tsb) vs NEW (esbuild) — Desktop Build
+
+### Summary
+
+| Metric | OLD | NEW | Delta |
+|--------|-----|-----|-------|
+| Total files in `out/` | 3993 | 4301 | +309 extra, 1 missing |
+| Total size of `out/` | 25.8 MB | 64.6 MB | +38.8 MB (2.5×) |
+| `workbench.desktop.main.js` | 13.0 MB | 15.5 MB | +2.5 MB |
+
+### 1 Missing File (in OLD, not in NEW)
+
+| File | Why Missing | Fix |
+|------|-------------|-----|
+| `out/vs/platform/browserView/electron-browser/preload-browserView.js` | Not listed in `desktopStandaloneFiles` in index.ts. Only `preload.ts` and `preload-aux.ts` are compiled as standalone files. | **Add** `'vs/platform/browserView/electron-browser/preload-browserView.ts'` to the `desktopStandaloneFiles` array in `index.ts`. |
+
+### 309 Extra Files (in NEW, not in OLD) — Breakdown
+
+| Category | Count | Explanation |
+|----------|-------|-------------|
+| **CSS files** | 291 | `copyCssFiles()` copies ALL `.css` from `src/` to the output. The old bundler inlines CSS into the main `.css` bundle (e.g., `workbench.desktop.main.css`) and never ships individual CSS files. These individual files ARE needed at runtime because the new ESM system uses `import './foo.css'` resolved by an import map. |
+| **Vendor JS files** | 3 | `dompurify.js`, `marked.js`, `semver.js` — listed in `commonResourcePatterns`. The old bundler inlines these into the main bundle. The new system keeps them as separate files because they're plain JS (not TS). They're needed. |
+| **Web workbench bundle** | 1 | `vs/code/browser/workbench/workbench.js` (15.4 MB). This is the web workbench entry point bundle. It should NOT be in a desktop build — the old build explicitly excludes `out-build/vs/code/browser/**`. The `desktopResourcePatterns` in index.ts includes `vs/code/browser/workbench/*.html` and `callback.html` which is correct, but the actual bundle gets written by the esbuild desktop bundle step because the desktop entry points include web entry points. |
+| **Web workbench internal** | 1 | `vs/workbench/workbench.web.main.internal.js` (15.4 MB). Similar: shouldn't ship in a desktop build. It's output by the esbuild bundler. |
+| **Keyboard layout contributions** | 3 | `layout.contribution.{darwin,linux,win}.js` — the old bundler inlines these into the main bundle. These are new separate files from the esbuild bundler. |
+| **NLS files** | 2 | `nls.messages.js` (new) and `nls.metadata.json` (new). The old build has `nls.messages.json` and `nls.keys.json` but not a `.js` version or metadata. The `.js` version is produced by the NLS plugin. |
+| **HTML files** | 2 | `vs/code/browser/workbench/workbench.html` and `callback.html` — correctly listed in `desktopResourcePatterns` (these are needed for desktop's built-in web server). |
+| **SVG loading spinners** | 3 | `loading-dark.svg`, `loading-hc.svg`, `loading.svg` in `vs/workbench/contrib/extensions/browser/media/`. The old build only copies `theme-icon.png` and `language-icon.svg` from that folder; the new build's `desktopResourcePatterns` uses `*.svg` which is broader. |
+| **codicon.ttf (duplicate)** | 1 | At `vs/base/browser/ui/codicons/codicon/codicon.ttf`. The old build copies this to `out/media/codicon.ttf` only. The new build has BOTH: the copy in `out/media/` (from esbuild's `file` loader) AND the original path (from `commonResourcePatterns`). Duplicate. |
+| **PSReadLine.psm1** | 1 | `vs/workbench/contrib/terminal/common/scripts/psreadline/PSReadLine.psm1` — the old build uses `*.psm1` in `terminal/common/scripts/` (non-recursive?). The new build uses `**/*.psm1` (recursive), picking up this subdirectory file. Check if it's needed. |
+| **date file** | 1 | `out/date` — build timestamp, produced by the new build's `bundle()` function. The old build doesn't write this; it reads `package.json.date` instead. |
+
+### Size Increase Breakdown by Area
+
+| Area | OLD | NEW | Delta | Why |
+|------|-----|-----|-------|-----|
+| `vs/code` | 1.5 MB | 17.4 MB | +15.9 MB | Web workbench bundle (15.4 MB) shouldn't be in desktop build |
+| `vs/workbench` | 18.9 MB | 38.7 MB | +19.8 MB | `workbench.web.main.internal.js` (15.4 MB) + unmangled desktop bundle (+2.5 MB) + individual CSS files (~1 MB) |
+| `vs/base` | 0 MB | 0.4 MB | +0.4 MB | Individual CSS files + vendor JS |
+| `vs/editor` | 0.3 MB | 0.5 MB | +0.1 MB | Individual CSS files |
+| `vs/platform` | 1.7 MB | 1.9 MB | +0.2 MB | Individual CSS files |
+
+### JS Files with >2× Size Change
+
+| File | OLD | NEW | Ratio | Reason |
+|------|-----|-----|-------|--------|
+| `vs/workbench/contrib/webview/browser/pre/service-worker.js` | 7 KB | 15 KB | 2.2× | Not minified / includes more inlined code |
+| `vs/code/electron-browser/workbench/workbench.js` | 10 KB | 28 KB | 2.75× | OLD is minified to 6 lines; NEW is 380 lines (not compressed, includes tslib banner) |
+
+### Action Items
+
+1. **[CRITICAL] Missing `preload-browserView.ts`** — Add to `desktopStandaloneFiles` in index.ts. Without it, BrowserView (used for Simple Browser) may fail.
+2. **[SIZE] Web bundles in desktop build** — `workbench.web.main.internal.js` and `vs/code/browser/workbench/workbench.js` together add ~31 MB. These are written by the esbuild bundler and not filtered out. Consider: either don't bundle web entry points for the desktop target, or ensure the packaging step excludes them (currently `packageTask` takes `out-vscode-min/**` without filtering).
+3. **[SIZE] No mangling** — The desktop main bundle is 2.5 MB larger due to no property mangling. Known open item.
+4. **[MINOR] Duplicate codicon.ttf** — Exists at both `out/media/codicon.ttf` (from esbuild `file` loader) and `out/vs/base/browser/ui/codicons/codicon/codicon.ttf` (from `commonResourcePatterns`). Consider removing from `commonResourcePatterns` if it's already handled by the loader.
+5. **[MINOR] Extra SVGs** — `desktopResourcePatterns` uses `*.svg` for extensions media but old build only ships `language-icon.svg`. The loading spinners may be unused in the desktop build.
+6. **[MINOR] Extra PSReadLine.psm1** from recursive glob — verify if needed.
+
+---
+
 ## Self-hosting Setup
 
 The default `VS Code - Build` task now runs three parallel watchers:

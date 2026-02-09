@@ -134,7 +134,6 @@ function getEntryPointsForTarget(target: BuildTarget): string[] {
 				...desktopWorkerEntryPoints,
 				...desktopEntryPoints,
 				...codeEntryPoints,
-				...webEntryPoints, // Desktop also includes web for remote development
 				...keyboardMapEntryPoints,
 			];
 		case 'server':
@@ -184,9 +183,7 @@ function getCssBundleEntryPointsForTarget(target: BuildTarget): Set<string> {
 		case 'desktop':
 			return new Set([
 				'vs/workbench/workbench.desktop.main',
-				'vs/workbench/workbench.web.main.internal',
 				'vs/code/electron-browser/workbench/workbench',
-				'vs/code/browser/workbench/workbench',
 			]);
 		case 'server':
 			return new Set(); // Server has no UI
@@ -230,9 +227,6 @@ const desktopResourcePatterns = [
 	// HTML
 	'vs/code/electron-browser/workbench/workbench.html',
 	'vs/code/electron-browser/workbench/workbench-dev.html',
-	'vs/code/browser/workbench/workbench.html',
-	'vs/code/browser/workbench/workbench-dev.html',
-	'vs/code/browser/workbench/callback.html',
 	'vs/workbench/services/extensions/worker/webWorkerExtensionHostIframe.html',
 	'vs/workbench/contrib/webview/browser/pre/*.html',
 
@@ -241,11 +235,11 @@ const desktopResourcePatterns = [
 
 	// Shell scripts
 	'vs/base/node/*.sh',
-	'vs/workbench/contrib/terminal/common/scripts/**/*.sh',
-	'vs/workbench/contrib/terminal/common/scripts/**/*.ps1',
-	'vs/workbench/contrib/terminal/common/scripts/**/*.psm1',
-	'vs/workbench/contrib/terminal/common/scripts/**/*.fish',
-	'vs/workbench/contrib/terminal/common/scripts/**/*.zsh',
+	'vs/workbench/contrib/terminal/common/scripts/*.sh',
+	'vs/workbench/contrib/terminal/common/scripts/*.ps1',
+	'vs/workbench/contrib/terminal/common/scripts/*.psm1',
+	'vs/workbench/contrib/terminal/common/scripts/*.fish',
+	'vs/workbench/contrib/terminal/common/scripts/*.zsh',
 	'vs/workbench/contrib/externalTerminal/**/*.scpt',
 
 	// Media - audio
@@ -254,8 +248,7 @@ const desktopResourcePatterns = [
 	// Media - images
 	'vs/workbench/contrib/welcomeGettingStarted/common/media/**/*.svg',
 	'vs/workbench/contrib/welcomeGettingStarted/common/media/**/*.png',
-	'vs/workbench/contrib/extensions/browser/media/*.svg',
-	'vs/workbench/contrib/extensions/browser/media/*.png',
+	'vs/workbench/contrib/extensions/browser/media/{theme-icon.png,language-icon.svg}',
 	'vs/workbench/services/extensionManagement/common/media/*.svg',
 	'vs/workbench/services/extensionManagement/common/media/*.png',
 	'vs/workbench/browser/parts/editor/media/*.png',
@@ -460,6 +453,7 @@ async function copyFile(srcPath: string, destPath: string): Promise<void> {
 const desktopStandaloneFiles = [
 	'vs/base/parts/sandbox/electron-browser/preload.ts',
 	'vs/base/parts/sandbox/electron-browser/preload-aux.ts',
+	'vs/platform/browserView/electron-browser/preload-browserView.ts',
 ];
 
 async function compileStandaloneFiles(outDir: string, doMinify: boolean, target: BuildTarget): Promise<void> {
@@ -558,11 +552,15 @@ async function copyResources(outDir: string, target: BuildTarget, excludeDevFile
 		}
 	}
 
-	// Copy CSS files
-	const cssCount = await copyCssFiles(outDir, excludeTests);
-	copied += cssCount;
-
-	console.log(`[resources] Copied ${copied} files (${cssCount} CSS)`);
+	// Copy CSS files (only for development/transpile builds, not production bundles
+	// where CSS is already bundled into combined files like workbench.desktop.main.css)
+	if (!excludeDevFiles) {
+		const cssCount = await copyCssFiles(outDir, excludeTests);
+		copied += cssCount;
+		console.log(`[resources] Copied ${copied} files (${cssCount} CSS)`);
+	} else {
+		console.log(`[resources] Copied ${copied} files (CSS skipped - bundled)`);
+	}
 }
 
 // ============================================================================
