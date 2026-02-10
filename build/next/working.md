@@ -79,6 +79,24 @@ Two placeholders that need injection:
 - Removes `webEndpointUrlTemplate` from product config (see `tweakProductForServerWeb` in old build)
 - Uses `.build/extensions` for builtin extensions (not `.build/web/extensions`)
 
+### 5. Entry Point Parity with Old Build
+
+**Problem:** The desktop target had `keyboardMapEntryPoints` as separate esbuild entry points, producing `layout.contribution.darwin.js`, `layout.contribution.linux.js`, and `layout.contribution.win.js` as standalone files in the output.
+
+**Root cause:** In the old build (`gulpfile.vscode.ts`), `vscodeEntryPoints` does NOT include `buildfile.keyboardMaps`. These files are only separate entry points for server-web (`gulpfile.reh.ts`) and web (`gulpfile.vscode.web.ts`). For desktop, they're imported as dependencies of `workbench.desktop.main` and get bundled into it.
+
+**Fix:** Removed `...keyboardMapEntryPoints` from the `desktop` case in `getEntryPointsForTarget()`. Keep for `server-web` and `web`.
+
+**Lesson:** Always verify new build entry points against the old build's per-target definitions in `buildfile.ts` and the respective gulpfiles.
+
+### 6. NLS Output File Parity
+
+**Problem:** `finalizeNLS()` was generating `nls.messages.js` (with `globalThis._VSCODE_NLS_MESSAGES=...`) in addition to the standard `.json` files. The old build only produces `nls.messages.json`, `nls.keys.json`, and `nls.metadata.json`.
+
+**Fix:** Removed `nls.messages.js` generation from `finalizeNLS()` in `nls-plugin.ts`.
+
+**Lesson:** Don't add new output file formats that create parity differences with the old build. The old build is the reference.
+
 ---
 
 ## Testing the Fix

@@ -135,7 +135,6 @@ function getEntryPointsForTarget(target: BuildTarget): string[] {
 				...desktopWorkerEntryPoints,
 				...desktopEntryPoints,
 				...codeEntryPoints,
-				...keyboardMapEntryPoints,
 			];
 		case 'server':
 			return [

@@ -134,13 +134,6 @@ export async function finalizeNLS(
 			path.join(dir, 'nls.metadata.json'),
 			JSON.stringify(nlsMetadataJson, null, '\t')
 		),
-		fs.promises.writeFile(
-			path.join(dir, 'nls.messages.js'),
-			`/*---------------------------------------------------------
- * Copyright (C) Microsoft Corporation. All rights reserved.
- *--------------------------------------------------------*/
-globalThis._VSCODE_NLS_MESSAGES=${JSON.stringify(allMessages)};`
-		)
 	]));
 
 	console.log(`[nls] Extracted ${allMessages.length} messages from ${moduleToKeys.size} modules`);
