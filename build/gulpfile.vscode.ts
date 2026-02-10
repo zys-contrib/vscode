@@ -610,76 +610,55 @@ BUILD_TARGETS.forEach(buildTarget => {
 	const arch = buildTarget.arch;
 	const opts = buildTarget.opts;
 
-	// Traditional gulp-based builds: vscode-{platform}-{arch} and vscode-{platform}-{arch}-min
 	const [vscode, vscodeMin] = ['', 'min'].map(minified => {
 		const sourceFolderName = `out-vscode${dashed(minified)}`;
 		const destinationFolderName = `VSCode${dashed(platform)}${dashed(arch)}`;
 
-		const tasks = [
+		const packageTasks: task.Task[] = [
 			compileNativeExtensionsBuildTask,
 			util.rimraf(path.join(buildRoot, destinationFolderName)),
 			packageTask(platform, arch, sourceFolderName, destinationFolderName, opts)
 		];
 
 		if (platform === 'win32') {
-			tasks.push(patchWin32DependenciesTask(destinationFolderName));
+			packageTasks.push(patchWin32DependenciesTask(destinationFolderName));
 		}
 
-		const vscodeTaskCI = task.define(`vscode${dashed(platform)}${dashed(arch)}${dashed(minified)}-ci`, task.series(...tasks));
+		const vscodeTaskCI = task.define(`vscode${dashed(platform)}${dashed(arch)}${dashed(minified)}-ci`, task.series(...packageTasks));
 		gulp.task(vscodeTaskCI);
 
-		const vscodeTask = task.define(`vscode${dashed(platform)}${dashed(arch)}${dashed(minified)}`, task.series(
-			minified ? compileBuildWithManglingTask : compileBuildWithoutManglingTask,
-			cleanExtensionsBuildTask,
-			compileNonNativeExtensionsBuildTask,
-			compileExtensionMediaBuildTask,
-			minified ? minifyVSCodeTask : bundleVSCodeTask,
-			vscodeTaskCI
-		));
+		let vscodeTask: task.Task;
+		if (useEsbuildTranspile) {
+			const esbuildBundleTask = task.define(
+				`esbuild-bundle${dashed(platform)}${dashed(arch)}${dashed(minified)}`,
+				() => runEsbuildBundle(sourceFolderName, !!minified, true, 'desktop', minified ? `${sourceMappingURLBase}/core` : undefined)
+			);
+			vscodeTask = task.define(`vscode${dashed(platform)}${dashed(arch)}${dashed(minified)}`, task.series(
+				copyCodiconsTask,
+				cleanExtensionsBuildTask,
+				compileNonNativeExtensionsBuildTask,
+				compileExtensionMediaBuildTask,
+				esbuildBundleTask,
+				vscodeTaskCI
+			));
+		} else {
+			vscodeTask = task.define(`vscode${dashed(platform)}${dashed(arch)}${dashed(minified)}`, task.series(
+				minified ? compileBuildWithManglingTask : compileBuildWithoutManglingTask,
+				cleanExtensionsBuildTask,
+				compileNonNativeExtensionsBuildTask,
+				compileExtensionMediaBuildTask,
+				minified ? minifyVSCodeTask : bundleVSCodeTask,
+				vscodeTaskCI
+			));
+		}
 		gulp.task(vscodeTask);
 
 		return vscodeTask;
 	});
 
-	// esbuild-based builds: vscode-{platform}-{arch}-esbuild and vscode-{platform}-{arch}-esbuild-min
-	// These skip TypeScript compilation and bundle directly from source
-	const [vscodeEsbuild, vscodeEsbuildMin] = ['', 'min'].map(minified => {
-		const sourceFolderName = `out-vscode${dashed(minified)}`;
-		const destinationFolderName = `VSCode${dashed(platform)}${dashed(arch)}`;
-
-		const esbuildBundleTask = task.define(
-			`esbuild-bundle${dashed(platform)}${dashed(arch)}${dashed(minified)}`,
-			() => runEsbuildBundle(sourceFolderName, !!minified, true, 'desktop', minified ? `${sourceMappingURLBase}/core` : undefined)
-		);
-
-		const tasks = [
-			compileNativeExtensionsBuildTask,
-			util.rimraf(path.join(buildRoot, destinationFolderName)),
-			packageTask(platform, arch, sourceFolderName, destinationFolderName, opts)
-		];
-
-		if (platform === 'win32') {
-			tasks.push(patchWin32DependenciesTask(destinationFolderName));
-		}
-
-		const vscodeEsbuildTask = task.define(`vscode${dashed(platform)}${dashed(arch)}-esbuild${dashed(minified)}`, task.series(
-			copyCodiconsTask,
-			cleanExtensionsBuildTask,
-			compileNonNativeExtensionsBuildTask,
-			compileExtensionMediaBuildTask,
-			esbuildBundleTask,
-			...tasks
-		));
-		gulp.task(vscodeEsbuildTask);
-
-		return vscodeEsbuildTask;
-	});
-
 	if (process.platform === platform && process.arch === arch) {
 		gulp.task(task.define('vscode', task.series(vscode)));
 		gulp.task(task.define('vscode-min', task.series(vscodeMin)));
-		gulp.task(task.define('vscode-esbuild', task.series(vscodeEsbuild)));
-		gulp.task(task.define('vscode-esbuild-min', task.series(vscodeEsbuildMin)));
 	}
 });
 
