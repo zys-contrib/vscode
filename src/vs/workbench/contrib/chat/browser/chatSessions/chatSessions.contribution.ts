@@ -851,6 +851,7 @@ export class ChatSessionsService extends Disposable implements IChatSessionsServ
 
 		return {
 			dispose: () => {
+				initialRefreshCts.cancel();
 				disposables.dispose();
 
 				const controller = this._itemControllers.get(chatSessionType);
