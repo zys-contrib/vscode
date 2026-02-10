@@ -3,19 +3,23 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { createDecorator } from '../../../../platform/instantiation/common/instantiation.js';
-import { IProductService } from '../../../../platform/product/common/productService.js';
+import { Emitter, Event } from '../../../../base/common/event.js';
 import { MarkdownString } from '../../../../base/common/htmlContent.js';
-import { localize } from '../../../../nls.js';
 import { ContextKeyExpr, ContextKeyExpression, IContextKeyService } from '../../../../platform/contextkey/common/contextkey.js';
+import { createDecorator, IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
+import { IProductService } from '../../../../platform/product/common/productService.js';
 import { ChatContextKeys } from '../common/actions/chatContextKeys.js';
 import { ChatModeKind } from '../common/constants.js';
 import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
 import { Disposable, MutableDisposable } from '../../../../base/common/lifecycle.js';
 import { ICommandService } from '../../../../platform/commands/common/commands.js';
 import { IStorageService, StorageScope, StorageTarget } from '../../../../platform/storage/common/storage.js';
-import { IPromptsService } from '../common/promptSyntax/service/promptsService.js';
+import { AgentFileType, IPromptsService } from '../common/promptSyntax/service/promptsService.js';
+import { PromptsType } from '../common/promptSyntax/promptTypes.js';
 import { CancellationToken } from '../../../../base/common/cancellation.js';
+import { localize } from '../../../../nls.js';
+import { ILogService } from '../../../../platform/log/common/log.js';
+import { ILanguageModelToolsService } from '../common/tools/languageModelToolsService.js';
 
 export const IChatTipService = createDecorator<IChatTipService>('chatTipService');
 
@@ -28,6 +32,16 @@ export interface IChatTipService {
 	readonly _serviceBrand: undefined;
 
 	/**
+	 * Fired when the current tip is dismissed.
+	 */
+	readonly onDidDismissTip: Event<void>;
+
+	/**
+	 * Fired when tips are disabled.
+	 */
+	readonly onDidDisableTips: Event<void>;
+
+	/**
 	 * Gets a tip to show for a request, or undefined if a tip has already been shown this session.
 	 * Only one tip is shown per VS Code session (resets on reload).
 	 * Tips are only shown for requests created after the service was instantiated.
@@ -36,6 +50,17 @@ export interface IChatTipService {
 	 * @param contextKeyService The context key service to evaluate tip eligibility.
 	 */
 	getNextTip(requestId: string, requestTimestamp: number, contextKeyService: IContextKeyService): IChatTip | undefined;
+
+	/**
+	 * Dismisses the current tip and allows a new one to be picked for the same request.
+	 * The dismissed tip will not be shown again in this workspace.
+	 */
+	dismissTip(): void;
+
+	/**
+	 * Disables tips permanently by setting the `chat.tips.enabled` configuration to false.
+	 */
+	disableTips(): Promise<void>;
 }
 
 export interface ITipDefinition {
@@ -61,6 +86,21 @@ export interface ITipDefinition {
 	 * Matches against both mode kind (e.g. 'agent') and mode name (e.g. 'Plan').
 	 */
 	readonly excludeWhenModesUsed?: string[];
+	/**
+	 * Tool IDs that, if ever invoked in this workspace, make this tip ineligible.
+	 * The tip won't be shown if the tool it describes has already been used.
+	 */
+	readonly excludeWhenToolsInvoked?: string[];
+	/**
+	 * If set, exclude this tip when prompt files of the specified type exist in the workspace.
+	 */
+	readonly excludeWhenPromptFilesExist?: {
+		readonly promptType: PromptsType;
+		/** Also check for this specific agent instruction file type. */
+		readonly agentFileType?: AgentFileType;
+		/** If true, exclude the tip until the async file check completes. Default: false. */
+		readonly excludeUntilChecked?: boolean;
+	};
 }
 
 /**
@@ -84,10 +124,12 @@ const TIP_CATALOG: ITipDefinition[] = [
 	{
 		id: 'tip.attachFiles',
 		message: localize('tip.attachFiles', "Tip: Attach files or folders with # to give Copilot more context."),
+		excludeWhenCommandsExecuted: ['workbench.action.chat.attachContext', 'workbench.action.chat.attachFile', 'workbench.action.chat.attachFolder', 'workbench.action.chat.attachSelection'],
 	},
 	{
 		id: 'tip.codeActions',
 		message: localize('tip.codeActions', "Tip: Select code and right-click for Copilot actions in the context menu."),
+		excludeWhenCommandsExecuted: ['inlineChat.start'],
 	},
 	{
 		id: 'tip.undoChanges',
@@ -102,7 +144,78 @@ const TIP_CATALOG: ITipDefinition[] = [
 		id: 'tip.customInstructions',
 		message: localize('tip.customInstructions', "Tip: [Generate workspace instructions](command:workbench.action.chat.generateInstructions) so Copilot always has the context it needs when starting a task."),
 		enabledCommands: ['workbench.action.chat.generateInstructions'],
-	}
+		excludeWhenPromptFilesExist: { promptType: PromptsType.instructions, agentFileType: AgentFileType.copilotInstructionsMd, excludeUntilChecked: true },
+	},
+	{
+		id: 'tip.customAgent',
+		message: localize('tip.customAgent', "Tip: [Create a custom agent](command:workbench.command.new.agent) to define reusable personas with tailored instructions and tools for your workflow."),
+		when: ChatContextKeys.chatModeKind.isEqualTo(ChatModeKind.Agent),
+		enabledCommands: ['workbench.command.new.agent'],
+		excludeWhenCommandsExecuted: ['workbench.command.new.agent'],
+		excludeWhenPromptFilesExist: { promptType: PromptsType.agent, excludeUntilChecked: true },
+	},
+	{
+		id: 'tip.skill',
+		message: localize('tip.skill', "Tip: [Create a skill](command:workbench.command.new.skill) so agents can perform domain-specific tasks with reusable prompts and tools."),
+		when: ChatContextKeys.chatModeKind.isEqualTo(ChatModeKind.Agent),
+		enabledCommands: ['workbench.command.new.skill'],
+		excludeWhenCommandsExecuted: ['workbench.command.new.skill'],
+		excludeWhenPromptFilesExist: { promptType: PromptsType.skill, excludeUntilChecked: true },
+	},
+	{
+		id: 'tip.messageQueueing',
+		message: localize('tip.messageQueueing', "Tip: You can send follow-up messages and steering while the agent is working. They'll be queued and processed in order."),
+		when: ChatContextKeys.chatModeKind.isEqualTo(ChatModeKind.Agent),
+		excludeWhenCommandsExecuted: ['workbench.action.chat.queueMessage', 'workbench.action.chat.steerWithMessage'],
+	},
+	{
+		id: 'tip.yoloMode',
+		message: localize('tip.yoloMode', "Tip: Enable [auto approval](command:workbench.action.openSettings?%5B%22chat.tools.global.autoApprove%22%5D) to let the agent run tools without manual confirmation."),
+		when: ContextKeyExpr.and(
+			ChatContextKeys.chatModeKind.isEqualTo(ChatModeKind.Agent),
+			ContextKeyExpr.notEquals('config.chat.tools.global.autoApprove', true),
+		),
+		enabledCommands: ['workbench.action.openSettings'],
+	},
+	{
+		id: 'tip.mermaid',
+		message: localize('tip.mermaid', "Tip: Ask the agent to draw an architectural diagram or flow chart; it can render Mermaid diagrams directly in chat."),
+		when: ChatContextKeys.chatModeKind.isEqualTo(ChatModeKind.Agent),
+		excludeWhenToolsInvoked: ['renderMermaidDiagram'],
+	},
+	{
+		id: 'tip.githubRepo',
+		message: localize('tip.githubRepo', "Tip: Mention a GitHub repository (e.g. @owner/repo) in your prompt to let the agent search code, browse issues, and explore pull requests from that repo."),
+		when: ContextKeyExpr.and(
+			ChatContextKeys.chatModeKind.isEqualTo(ChatModeKind.Agent),
+			ContextKeyExpr.notEquals('gitOpenRepositoryCount', '0'),
+		),
+		excludeWhenToolsInvoked: ['github-pull-request_doSearch', 'github-pull-request_issue_fetch', 'github-pull-request_formSearchQuery'],
+	},
+	{
+		id: 'tip.subagents',
+		message: localize('tip.subagents', "Tip: For large tasks, ask the agent to work in parallel. It can split the work across subagents to finish faster."),
+		when: ChatContextKeys.chatModeKind.isEqualTo(ChatModeKind.Agent),
+		excludeWhenToolsInvoked: ['runSubagent'],
+	},
+	{
+		id: 'tip.contextUsage',
+		message: localize('tip.contextUsage', "Tip: [View your context window usage](command:workbench.action.chat.showContextUsage) to see how many tokens are being used and what's consuming them."),
+		when: ContextKeyExpr.and(
+			ChatContextKeys.chatModeKind.isEqualTo(ChatModeKind.Agent),
+			ChatContextKeys.contextUsageHasBeenOpened.negate(),
+			ChatContextKeys.chatSessionIsEmpty.negate(),
+		),
+		enabledCommands: ['workbench.action.chat.showContextUsage'],
+		excludeWhenCommandsExecuted: ['workbench.action.chat.showContextUsage'],
+	},
+	{
+		id: 'tip.sendToNewChat',
+		message: localize('tip.sendToNewChat', "Tip: Use [Send to New Chat](command:workbench.action.chat.sendToNewChat) to start a fresh conversation with a clean context window."),
+		when: ChatContextKeys.chatSessionIsEmpty.negate(),
+		enabledCommands: ['workbench.action.chat.sendToNewChat'],
+		excludeWhenCommandsExecuted: ['workbench.action.chat.sendToNewChat'],
+	},
 ];
 
 /**
@@ -114,26 +227,38 @@ export class TipEligibilityTracker extends Disposable {
 
 	private static readonly _COMMANDS_STORAGE_KEY = 'chat.tips.executedCommands';
 	private static readonly _MODES_STORAGE_KEY = 'chat.tips.usedModes';
+	private static readonly _TOOLS_STORAGE_KEY = 'chat.tips.invokedTools';
 
 	private readonly _executedCommands: Set<string>;
 	private readonly _usedModes: Set<string>;
+	private readonly _invokedTools: Set<string>;
 
 	private readonly _pendingCommands: Set<string>;
 	private readonly _pendingModes: Set<string>;
+	private readonly _pendingTools: Set<string>;
 
 	private readonly _commandListener = this._register(new MutableDisposable());
+	private readonly _toolListener = this._register(new MutableDisposable());
 
 	/**
-	 * Whether agent instruction files exist in the workspace.
-	 * Defaults to `true` (hide the tip) until the async check completes.
+	 * Tip IDs excluded because prompt files of the required type exist in the workspace.
+	 * Tips with `excludeUntilChecked` are pre-added and removed if no files are found.
 	 */
-	private _hasInstructionFiles = true;
+	private readonly _excludedByFiles = new Set<string>();
+
+	/** Tips that have file-based exclusions, kept for re-checks. */
+	private readonly _tipsWithFileExclusions: readonly ITipDefinition[];
+
+	/** Generation counter per tip ID to discard stale async file-check results. */
+	private readonly _fileCheckGeneration = new Map<string, number>();
 
 	constructor(
 		tips: readonly ITipDefinition[],
-		commandService: ICommandService,
-		private readonly _storageService: IStorageService,
-		promptsService: IPromptsService,
+		@ICommandService commandService: ICommandService,
+		@IStorageService private readonly _storageService: IStorageService,
+		@IPromptsService private readonly _promptsService: IPromptsService,
+		@ILanguageModelToolsService languageModelToolsService: ILanguageModelToolsService,
+		@ILogService private readonly _logService: ILogService,
 	) {
 		super();
 
@@ -144,6 +269,9 @@ export class TipEligibilityTracker extends Disposable {
 
 		const storedModes = this._storageService.get(TipEligibilityTracker._MODES_STORAGE_KEY, StorageScope.WORKSPACE);
 		this._usedModes = new Set<string>(storedModes ? JSON.parse(storedModes) : []);
+
+		const storedTools = this._storageService.get(TipEligibilityTracker._TOOLS_STORAGE_KEY, StorageScope.WORKSPACE);
+		this._invokedTools = new Set<string>(storedTools ? JSON.parse(storedTools) : []);
 
 		// --- Derive what still needs tracking ----------------------------------
 
@@ -165,6 +293,15 @@ export class TipEligibilityTracker extends Disposable {
 			}
 		}
 
+		this._pendingTools = new Set<string>();
+		for (const tip of tips) {
+			for (const toolId of tip.excludeWhenToolsInvoked ?? []) {
+				if (!this._invokedTools.has(toolId)) {
+					this._pendingTools.add(toolId);
+				}
+			}
+		}
+
 		// --- Set up command listener (auto-disposes when all seen) --------------
 
 		if (this._pendingCommands.size > 0) {
@@ -181,9 +318,40 @@ export class TipEligibilityTracker extends Disposable {
 			});
 		}
 
-		// --- Async file check --------------------------------------------------
+		// --- Set up tool listener (auto-disposes when all seen) -----------------
 
-		this._checkForInstructionFiles(promptsService);
+		if (this._pendingTools.size > 0) {
+			this._toolListener.value = languageModelToolsService.onDidInvokeTool(e => {
+				if (this._pendingTools.has(e.toolId)) {
+					this._invokedTools.add(e.toolId);
+					this._persistSet(TipEligibilityTracker._TOOLS_STORAGE_KEY, this._invokedTools);
+					this._pendingTools.delete(e.toolId);
+
+					if (this._pendingTools.size === 0) {
+						this._toolListener.clear();
+					}
+				}
+			});
+		}
+
+		// --- Async file checks -------------------------------------------------
+
+		this._tipsWithFileExclusions = tips.filter(t => t.excludeWhenPromptFilesExist);
+		for (const tip of this._tipsWithFileExclusions) {
+			if (tip.excludeWhenPromptFilesExist!.excludeUntilChecked) {
+				this._excludedByFiles.add(tip.id);
+			}
+			this._checkForPromptFiles(tip);
+		}
+
+		// Re-check agent file exclusions when custom agents change (covers late discovery)
+		this._register(this._promptsService.onDidChangeCustomAgents(() => {
+			for (const tip of this._tipsWithFileExclusions) {
+				if (tip.excludeWhenPromptFilesExist!.promptType === PromptsType.agent) {
+					this._checkForPromptFiles(tip);
+				}
+			}
+		}));
 	}
 
 	/**
@@ -221,6 +389,7 @@ export class TipEligibilityTracker extends Disposable {
 		if (tip.excludeWhenCommandsExecuted) {
 			for (const cmd of tip.excludeWhenCommandsExecuted) {
 				if (this._executedCommands.has(cmd)) {
+					this._logService.debug('#ChatTips: tip excluded because command was executed', tip.id, cmd);
 					return true;
 				}
 			}
@@ -228,22 +397,59 @@ export class TipEligibilityTracker extends Disposable {
 		if (tip.excludeWhenModesUsed) {
 			for (const mode of tip.excludeWhenModesUsed) {
 				if (this._usedModes.has(mode)) {
+					this._logService.debug('#ChatTips: tip excluded because mode was used', tip.id, mode);
 					return true;
 				}
 			}
 		}
-		if (tip.id === 'tip.customInstructions' && this._hasInstructionFiles) {
+		if (tip.excludeWhenToolsInvoked) {
+			for (const toolId of tip.excludeWhenToolsInvoked) {
+				if (this._invokedTools.has(toolId)) {
+					this._logService.debug('#ChatTips: tip excluded because tool was invoked', tip.id, toolId);
+					return true;
+				}
+			}
+		}
+		if (tip.excludeWhenPromptFilesExist && this._excludedByFiles.has(tip.id)) {
+			this._logService.debug('#ChatTips: tip excluded because prompt files exist', tip.id);
 			return true;
 		}
 		return false;
 	}
 
-	private async _checkForInstructionFiles(promptsService: IPromptsService): Promise<void> {
+	private async _checkForPromptFiles(tip: ITipDefinition): Promise<void> {
+		const config = tip.excludeWhenPromptFilesExist!;
+		const generation = (this._fileCheckGeneration.get(tip.id) ?? 0) + 1;
+		this._fileCheckGeneration.set(tip.id, generation);
+
 		try {
-			const files = await promptsService.listAgentInstructions(CancellationToken.None);
-			this._hasInstructionFiles = files.length > 0;
+			const [promptFiles, agentInstructions] = await Promise.all([
+				this._promptsService.listPromptFiles(config.promptType, CancellationToken.None),
+				config.agentFileType ? this._promptsService.listAgentInstructions(CancellationToken.None) : Promise.resolve([]),
+			]);
+
+			// Discard stale result if a newer check was started while we were awaiting
+			if (this._fileCheckGeneration.get(tip.id) !== generation) {
+				return;
+			}
+
+			const hasPromptFiles = promptFiles.length > 0;
+			const hasAgentFile = config.agentFileType
+				? agentInstructions.some(f => f.type === config.agentFileType)
+				: false;
+
+			if (hasPromptFiles || hasAgentFile) {
+				this._excludedByFiles.add(tip.id);
+			} else {
+				this._excludedByFiles.delete(tip.id);
+			}
 		} catch {
-			this._hasInstructionFiles = true;
+			if (this._fileCheckGeneration.get(tip.id) !== generation) {
+				return;
+			}
+			if (config.excludeUntilChecked) {
+				this._excludedByFiles.add(tip.id);
+			}
 		}
 	}
 
@@ -254,6 +460,12 @@ export class TipEligibilityTracker extends Disposable {
 
 export class ChatTipService extends Disposable implements IChatTipService {
 	readonly _serviceBrand: undefined;
+
+	private readonly _onDidDismissTip = this._register(new Emitter<void>());
+	readonly onDidDismissTip = this._onDidDismissTip.event;
+
+	private readonly _onDidDisableTips = this._register(new Emitter<void>());
+	readonly onDidDisableTips = this._onDidDisableTips.event;
 
 	/**
 	 * Timestamp when this service was instantiated.
@@ -277,19 +489,52 @@ export class ChatTipService extends Disposable implements IChatTipService {
 	 */
 	private _shownTip: ITipDefinition | undefined;
 
+	private static readonly _DISMISSED_TIP_KEY = 'chat.tip.dismissed';
 	private readonly _tracker: TipEligibilityTracker;
 
 	constructor(
 		@IProductService private readonly _productService: IProductService,
 		@IConfigurationService private readonly _configurationService: IConfigurationService,
-		@ICommandService commandService: ICommandService,
-		@IStorageService storageService: IStorageService,
-		@IPromptsService promptsService: IPromptsService,
+		@IStorageService private readonly _storageService: IStorageService,
+		@IInstantiationService instantiationService: IInstantiationService,
+		@ILogService private readonly _logService: ILogService,
 	) {
 		super();
-		this._tracker = this._register(new TipEligibilityTracker(
-			TIP_CATALOG, commandService, storageService, promptsService,
-		));
+		this._tracker = this._register(instantiationService.createInstance(TipEligibilityTracker, TIP_CATALOG));
+	}
+
+	dismissTip(): void {
+		if (this._shownTip) {
+			const dismissed = this._getDismissedTipIds();
+			dismissed.push(this._shownTip.id);
+			this._storageService.store(ChatTipService._DISMISSED_TIP_KEY, JSON.stringify(dismissed), StorageScope.WORKSPACE, StorageTarget.MACHINE);
+		}
+		this._hasShownTip = false;
+		this._shownTip = undefined;
+		this._tipRequestId = undefined;
+		this._onDidDismissTip.fire();
+	}
+
+	private _getDismissedTipIds(): string[] {
+		const raw = this._storageService.get(ChatTipService._DISMISSED_TIP_KEY, StorageScope.WORKSPACE);
+		if (!raw) {
+			return [];
+		}
+		try {
+			const parsed = JSON.parse(raw);
+			this._logService.debug('#ChatTips dismissed:', parsed);
+			return Array.isArray(parsed) ? parsed : [];
+		} catch {
+			return [];
+		}
+	}
+
+	async disableTips(): Promise<void> {
+		this._hasShownTip = false;
+		this._shownTip = undefined;
+		this._tipRequestId = undefined;
+		await this._configurationService.updateValue('chat.tips.enabled', false);
+		this._onDidDisableTips.fire();
 	}
 
 	getNextTip(requestId: string, requestTimestamp: number, contextKeyService: IContextKeyService): IChatTip | undefined {
@@ -319,11 +564,11 @@ export class ChatTipService extends Disposable implements IChatTipService {
 			return undefined;
 		}
 
+		// Find eligible tips (excluding dismissed ones)
+		const dismissedIds = new Set(this._getDismissedTipIds());
+		const eligibleTips = TIP_CATALOG.filter(tip => !dismissedIds.has(tip.id) && this._isEligible(tip, contextKeyService));
 		// Record the current mode for future eligibility decisions
 		this._tracker.recordCurrentMode(contextKeyService);
-
-		// Find eligible tips
-		const eligibleTips = TIP_CATALOG.filter(tip => this._isEligible(tip, contextKeyService));
 
 		if (eligibleTips.length === 0) {
 			return undefined;
@@ -343,9 +588,14 @@ export class ChatTipService extends Disposable implements IChatTipService {
 
 	private _isEligible(tip: ITipDefinition, contextKeyService: IContextKeyService): boolean {
 		if (tip.when && !contextKeyService.contextMatchesRules(tip.when)) {
+			this._logService.debug('#ChatTips: tip is not eligible due to when clause', tip.id, tip.when.serialize());
 			return false;
 		}
-		return !this._tracker.isExcluded(tip);
+		if (this._tracker.isExcluded(tip)) {
+			return false;
+		}
+		this._logService.debug('#ChatTips: tip is eligible', tip.id);
+		return true;
 	}
 
 	private _isCopilotEnabled(): boolean {

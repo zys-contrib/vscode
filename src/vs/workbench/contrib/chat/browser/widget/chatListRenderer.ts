@@ -1056,9 +1056,16 @@ export class ChatListItemRenderer extends Disposable implements ITreeRenderer<Ch
 		// Render tip above the request message (if available)
 		const tip = this.chatTipService.getNextTip(element.id, element.timestamp, this.contextKeyService);
 		if (tip) {
-			const tipPart = new ChatTipContentPart(tip, this.chatContentMarkdownRenderer);
+			const tipPart = this.instantiationService.createInstance(ChatTipContentPart,
+				tip,
+				this.chatContentMarkdownRenderer,
+				() => this.chatTipService.getNextTip(element.id, element.timestamp, this.contextKeyService),
+			);
 			templateData.value.appendChild(tipPart.domNode);
 			templateData.elementDisposables.add(tipPart);
+			templateData.elementDisposables.add(tipPart.onDidHide(() => {
+				tipPart.domNode.remove();
+			}));
 		}
 
 		let inlineSlashCommandRendered = false;
