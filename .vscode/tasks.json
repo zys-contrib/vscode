@@ -15,13 +15,15 @@
 				"owner": "esbuild",
 				"applyTo": "closedDocuments",
 				"fileLocation": [
-					"absolute"
+					"relative",
+					"${workspaceFolder}/src"
 				],
 				"pattern": {
-					"regexp": "Error: ([^(]+)\\((\\d+|\\d+,\\d+|\\d+,\\d+,\\d+,\\d+)\\): (.*)$",
+					"regexp": "^(.+?):(\\d+):(\\d+): ERROR: (.+)$",
 					"file": 1,
-					"location": 2,
-					"message": 3
+					"line": 2,
+					"column": 3,
+					"message": 4
 				},
 				"background": {
 					"beginsPattern": "Starting transpilation...",
