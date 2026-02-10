@@ -11,23 +11,23 @@ import './motion.css';
  * Duration in milliseconds for panel open (entrance) animations.
  * Per Fluent 2 Enter/Exit pattern - entrance should feel smooth but not sluggish.
  */
-export const PANEL_OPEN_DURATION = 200;
+export const PANEL_OPEN_DURATION = 150;
 
 /**
  * Duration in milliseconds for panel close (exit) animations.
  * Exits are faster than entrances - feels snappy and responsive.
  */
-export const PANEL_CLOSE_DURATION = 75;
+export const PANEL_CLOSE_DURATION = 50;
 
 /**
  * Duration in milliseconds for quick input open (entrance) animations.
  */
-export const QUICK_INPUT_OPEN_DURATION = 200;
+export const QUICK_INPUT_OPEN_DURATION = 150;
 
 /**
  * Duration in milliseconds for quick input close (exit) animations.
  */
-export const QUICK_INPUT_CLOSE_DURATION = 75;
+export const QUICK_INPUT_CLOSE_DURATION = 50;
 
 //#endregion
 
@@ -107,6 +107,40 @@ function bezierComponentDerivative(u: number, p1: number, p2: number): number {
 	// B'(u) = 3(1-u)^2*p1 + 6(1-u)*u*(p2-p1) + 3*u^2*(1-p2)
 	const oneMinusU = 1 - u;
 	return 3 * oneMinusU * oneMinusU * p1 + 6 * oneMinusU * u * (p2 - p1) + 3 * u * u * (1 - p2);
+}
+
+//#endregion
+
+//#region Duration Scaling
+
+/**
+ * Reference pixel distance at which the base duration constants apply.
+ * Duration scales linearly: a 600px animation takes twice as long as a 300px
+ * one, keeping perceived velocity constant.
+ */
+const REFERENCE_DISTANCE = 300;
+
+/** Minimum animation duration in milliseconds (avoids sub-frame flickers). */
+const MIN_DURATION = 50;
+
+/** Maximum animation duration in milliseconds (avoids sluggish feel). */
+const MAX_DURATION = 300;
+
+/**
+ * Scales a base animation duration proportionally to the pixel distance
+ * being animated, so that perceived velocity stays constant regardless of
+ * panel width.
+ *
+ * @param baseDuration The duration (ms) that applies at {@link REFERENCE_DISTANCE} pixels.
+ * @param pixelDistance The actual number of pixels the view will resize.
+ * @returns The scaled duration, clamped to [{@link MIN_DURATION}, {@link MAX_DURATION}].
+ */
+export function scaleDuration(baseDuration: number, pixelDistance: number): number {
+	if (pixelDistance <= 0) {
+		return baseDuration;
+	}
+	const scaled = baseDuration * (pixelDistance / REFERENCE_DISTANCE);
+	return Math.round(Math.max(MIN_DURATION, Math.min(MAX_DURATION, scaled)));
 }
 
 //#endregion

@@ -81,6 +81,7 @@ export class QuickInputController extends Disposable {
 
 	private viewState: QuickInputViewState | undefined;
 	private dndController: QuickInputDragAndDropController | undefined;
+	private _cancelExitAnimation: (() => void) | undefined;
 
 	private readonly inQuickInputContext: IContextKey<boolean>;
 	private readonly quickInputTypeContext: IContextKey<QuickInputType>;
@@ -712,15 +713,19 @@ export class QuickInputController extends Disposable {
 		const backKeybindingLabel = this.options.backKeybindingLabel();
 		backButton.tooltip = backKeybindingLabel ? localize('quickInput.backWithKeybinding', "Back ({0})", backKeybindingLabel) : localize('quickInput.back', "Back");
 
+		const wasVisible = ui.container.style.display !== 'none';
 		ui.container.style.display = '';
+		// Cancel any in-flight exit animation that would set display:none
+		this._cancelExitAnimation?.();
+		this._cancelExitAnimation = undefined;
 		this.updateLayout();
 		this.dndController?.setEnabled(!controller.anchor);
 		this.dndController?.layoutContainer();
 		ui.inputBox.setFocus();
 		this.quickInputTypeContext.set(controller.type);
 
-		// Animate entrance: fade in + slide down
-		if (!isMotionReduced(ui.container)) {
+		// Animate entrance: fade in + slide down (only when first appearing)
+		if (!wasVisible && !isMotionReduced(ui.container)) {
 			// Set initial state without transition
 			ui.container.style.transition = 'none';
 			ui.container.style.opacity = '0';
@@ -806,11 +811,24 @@ export class QuickInputController extends Disposable {
 		if (container) {
 			// Animate exit: fade out + slide up (faster than open)
 			if (!isMotionReduced(container)) {
+				let exitCancelled = false;
 				container.style.transition = `opacity ${QUICK_INPUT_CLOSE_DURATION}ms ${EASE_IN}, transform ${QUICK_INPUT_CLOSE_DURATION}ms ${EASE_IN}`;
 				container.style.opacity = '0';
 				container.style.transform = 'translateY(-8px)';
 				const onDone = () => {
+					if (exitCancelled) {
+						return;
+					}
+					exitCancelled = true;
 					container.style.display = 'none';
+					container.style.transition = '';
+					container.style.opacity = '';
+					container.style.transform = '';
+					container.style.willChange = '';
+					container.removeEventListener('transitionend', onDone);
+				};
+				this._cancelExitAnimation = () => {
+					exitCancelled = true;
 					container.style.transition = '';
 					container.style.opacity = '';
 					container.style.transform = '';

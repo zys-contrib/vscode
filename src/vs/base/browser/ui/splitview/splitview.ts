@@ -14,7 +14,7 @@ import { combinedDisposable, Disposable, dispose, IDisposable, toDisposable } fr
 import { clamp } from '../../../common/numbers.js';
 import { Scrollable, ScrollbarVisibility, ScrollEvent } from '../../../common/scrollable.js';
 import * as types from '../../../common/types.js';
-import { isMotionReduced, parseCubicBezier, solveCubicBezier } from '../motion/motion.js';
+import { isMotionReduced, parseCubicBezier, scaleDuration, solveCubicBezier } from '../motion/motion.js';
 import './splitview.css';
 export { Orientation } from '../sash/sash.js';
 
@@ -896,10 +896,17 @@ export class SplitView<TLayoutContext = undefined, TView extends IView<TLayoutCo
 			container.style.overflow = 'hidden';
 		}
 
-		// 7. Render the start state
+		// 6b. Set initial opacity for fade effect
+		container.style.opacity = visible ? '0' : '1';
+
+		// 7. Scale duration based on pixel distance for consistent perceived velocity
+		const pixelDistance = Math.abs(finalSizes[index] - startSizes[index]);
+		duration = scaleDuration(duration, pixelDistance);
+
+		// 8. Render the start state
 		this.layoutViews();
 
-		// 8. Parse easing for JS evaluation
+		// 9. Parse easing for JS evaluation
 		const [x1, y1, x2, y2] = parseCubicBezier(easing);
 
 		// Helper: snap all sizes to final state and clean up
@@ -907,6 +914,7 @@ export class SplitView<TLayoutContext = undefined, TView extends IView<TLayoutCo
 			for (let i = 0; i < this.viewItems.length; i++) {
 				this.viewItems[i].size = finalSizes[i];
 			}
+			container.style.opacity = '';
 			if (!visible) {
 				container.classList.remove('visible');
 				container.style.overflow = '';
@@ -932,7 +940,7 @@ export class SplitView<TLayoutContext = undefined, TView extends IView<TLayoutCo
 		};
 		this._cleanupMotion = () => cleanup(false);
 
-		// 9. Animate via requestAnimationFrame
+		// 10. Animate via requestAnimationFrame
 		const startTime = performance.now();
 		const totalSize = this.size;
 
@@ -944,6 +952,9 @@ export class SplitView<TLayoutContext = undefined, TView extends IView<TLayoutCo
 			const elapsed = performance.now() - startTime;
 			const t = Math.min(elapsed / duration, 1);
 			const easedT = solveCubicBezier(x1, y1, x2, y2, t);
+
+			// Interpolate opacity for fade effect
+			container.style.opacity = String(visible ? easedT : 1 - easedT);
 
 			// Interpolate all view sizes
 			let runningTotal = 0;
