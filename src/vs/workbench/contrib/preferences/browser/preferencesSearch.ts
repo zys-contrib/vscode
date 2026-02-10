@@ -242,9 +242,9 @@ export class SettingMatches {
 		// Search the description if we found non-contiguous key matches at best.
 		const hasContiguousKeyMatchTypes = this.matchType >= SettingMatchType.ContiguousWordsInSettingsLabel;
 		if (this.searchDescription && !hasContiguousKeyMatchTypes) {
-			// Search the description lines and any additional search terms.
-			const searchableLines = setting.searchTerms?.length
-				? [...setting.description, setting.searchTerms.join(' ')]
+			// Search the description lines and any additional keywords.
+			const searchableLines = setting.keywords?.length
+				? [...setting.description, setting.keywords.join(' ')]
 				: setting.description;
 			for (const word of queryWords) {
 				for (let lineIndex = 0; lineIndex < searchableLines.length; lineIndex++) {

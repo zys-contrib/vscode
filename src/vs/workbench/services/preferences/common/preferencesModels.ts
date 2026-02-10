@@ -723,7 +723,7 @@ export class DefaultSettings extends Disposable {
 			value,
 			description: descriptionLines,
 			descriptionIsMarkdown: !!prop.markdownDescription,
-			searchTerms: prop.searchTerms,
+			keywords: prop.keywords,
 			range: nullRange,
 			keyRange: nullRange,
 			valueRange: nullRange,
