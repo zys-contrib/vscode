@@ -116,6 +116,13 @@ const configurationEntrySchema: IJSONSchema = {
 								type: 'boolean',
 								description: nls.localize('scope.ignoreSync', 'When enabled, Settings Sync will not sync the user value of this configuration by default.')
 							},
+							searchTerms: {
+								type: 'array',
+								items: {
+									type: 'string'
+								},
+								description: nls.localize('scope.searchTerms', 'A list of additional search terms that help users find this setting in the Settings editor. These are not shown to the user.')
+							},
 							tags: {
 								type: 'array',
 								items: {

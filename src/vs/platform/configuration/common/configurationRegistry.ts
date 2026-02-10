@@ -201,6 +201,11 @@ export interface IConfigurationPropertySchema extends IJSONSchema {
 	enumItemLabels?: string[];
 
 	/**
+	 * Optional terms used for search purposes.
+	 */
+	searchTerms?: string[];
+
+	/**
 	 * When specified, controls the presentation format of string settings.
 	 * Otherwise, the presentation format defaults to `singleline`.
 	 */

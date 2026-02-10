@@ -64,6 +64,7 @@ export interface ISetting {
 	value: any;
 	valueRange: IRange;
 	description: string[];
+	searchTerms?: string[];
 	descriptionIsMarkdown?: boolean;
 	descriptionRanges: IRange[];
 	overrides?: ISetting[];
