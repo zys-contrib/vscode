@@ -49,8 +49,8 @@ export class ActivitybarPart extends Part {
 
 	//#region IView
 
-	readonly minimumWidth: number = 40;
-	readonly maximumWidth: number = 40;
+	readonly minimumWidth: number = 36;
+	readonly maximumWidth: number = 36;
 	readonly minimumHeight: number = 0;
 	readonly maximumHeight: number = Number.POSITIVE_INFINITY;
 
