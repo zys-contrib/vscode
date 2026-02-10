@@ -1031,10 +1031,6 @@ async function watch(): Promise<void> {
 	const watchStream = gulpWatch('src/**', { base: srcDir, readDelay: 200 });
 
 	watchStream.on('data', (file: { path: string }) => {
-		if (file.path.includes('/test/')) {
-			return;
-		}
-
 		if (file.path.endsWith('.ts') && !file.path.endsWith('.d.ts')) {
 			pendingTsFiles.add(file.path);
 		} else if (copyExtensions.some(ext => file.path.endsWith(ext))) {
