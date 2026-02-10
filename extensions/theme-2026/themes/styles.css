@@ -271,6 +271,8 @@
 	backdrop-filter: var(--backdrop-blur-md);
 	-webkit-backdrop-filter: var(--backdrop-blur-md);
 	background: color-mix(in srgb, var(--vscode-notifications-background) 60%, transparent) !important;
+	border: 1px solid var(--vscode-editorWidget-border) !important;
+	box-shadow: var(--shadow-lg) !important;
 }
 
 .monaco-workbench.vs-dark .notifications-center {
