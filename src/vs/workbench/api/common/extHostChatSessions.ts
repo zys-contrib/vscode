@@ -324,22 +324,24 @@ export class ExtHostChatSessions extends Disposable implements ExtHostChatSessio
 
 		const onDidChangeChatSessionItemStateEmitter = disposables.add(new Emitter<vscode.ChatSessionItem>());
 
-
 		// Helper to fetch and push items to main thread
 		const updateItems = async (items: readonly vscode.ChatSessionItem[]) => {
+			collection.replace(items);
 			const convertedItems: IChatSessionItem[] = [];
 			for (const sessionContent of items) {
 				this._sessionItems.set(sessionContent.resource, sessionContent);
 				convertedItems.push(this.convertChatSessionItem(sessionContent));
 			}
-			this._proxy.$setChatSessionItems(handle, convertedItems);
+			void this._proxy.$setChatSessionItems(handle, convertedItems);
 		};
+
+		const collection = new ChatSessionItemCollectionImpl(() => {
+			// Noop for providers
+		});
 
 		const controller: vscode.ChatSessionItemController = {
 			id: chatSessionType,
-			get items(): vscode.ChatSessionItemCollection {
-				throw new Error('not implemented');
-			},
+			items: collection,
 			createChatSessionItem: (_resource: vscode.Uri, _label: string) => {
 				throw new Error('not implemented');
 			},
@@ -392,7 +394,7 @@ export class ExtHostChatSessions extends Disposable implements ExtHostChatSessio
 				this._sessionItems.set(item.resource, item);
 				items.push(this.convertChatSessionItem(item));
 			}
-			this._proxy.$setChatSessionItems(controllerHandle, items);
+			void this._proxy.$setChatSessionItems(controllerHandle, items);
 		};
 
 		const collection = new ChatSessionItemCollectionImpl(onItemsChanged);

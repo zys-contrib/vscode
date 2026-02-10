@@ -796,6 +796,10 @@ export class ChatSessionsService extends Disposable implements IChatSessionsServ
 		const results: Array<{ readonly chatSessionType: string; readonly items: readonly IChatSessionItem[] }> = [];
 		await Promise.all(Array.from(this._itemControllers).map(async ([chatSessionType, controllerEntry]) => {
 			const resolvedType = this._resolveToPrimaryType(chatSessionType) ?? chatSessionType;
+			if (providersToResolve && !providersToResolve.includes(resolvedType)) {
+				return; // skip: not considered for resolving
+			}
+
 			try {
 				await controllerEntry.initialRefresh; // Ensure initial refresh is complete before accessing items
 
