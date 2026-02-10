@@ -2069,7 +2069,6 @@ export default tseslint.config(
 			'extensions/markdown-language-features/preview-src/**/*.ts',
 			'extensions/mermaid-chat-features/chat-webview-src/**/*.ts',
 			'extensions/mermaid-chat-features/src/**/*.ts',
-			'extensions/media-preview/preview-src/**/*.ts',
 			'extensions/media-preview/src/**/*.ts',
 			'extensions/simple-browser/**/*.ts',
 			'extensions/typescript-language-features/**/*.ts',
