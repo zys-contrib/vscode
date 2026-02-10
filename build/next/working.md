@@ -168,6 +168,36 @@ npm run gulp vscode-reh-web-darwin-arm64-min
 
 ---
 
+## Source Maps
+
+### Fixes Applied
+
+1. **`sourcesContent: true`** — Production bundles now embed original TypeScript source content in `.map` files, matching the old build's `includeContent: true` behavior. Without this, crash reports from CDN-hosted source maps can't show original source.
+
+2. **`--source-map-base-url` option** — The `bundle` command accepts an optional `--source-map-base-url <url>` flag. When set, post-processing rewrites `sourceMappingURL` comments in `.js` and `.css` output files to point to the CDN (e.g., `https://main.vscode-cdn.net/sourcemaps/<commit>/core/vs/...`). This matches the old build's `sourceMappingURL` function in `minifyTask()`. Wired up in `gulpfile.vscode.ts` for `core-ci-esbuild` and `vscode-esbuild-min` tasks.
+
+### NLS Source Map Accuracy (Decision: Accept Imprecision)
+
+**Problem:** `postProcessNLS()` replaces `"%%NLS:moduleId#key%%"` placeholders (~40 chars) with short index values like `null` (4 chars) in the final JS output. This shifts column positions without updating the `.map` files.
+
+**Options considered:**
+
+| Option | Description | Effort | Accuracy |
+|--------|-------------|--------|----------|
+| A. Fixed-width placeholders | Pad placeholders to match replacement length | Hard — indices unknown until all modules are collected across parallel bundles | Perfect |
+| B. Post-process source map | Parse `.map`, track replacement offsets per line, adjust VLQ mappings | Medium | Perfect |
+| C. Two-pass build | Assign NLS indices during plugin phase | Not feasible with parallel bundling | N/A |
+| **D. Accept imprecision** | NLS replacements only affect column positions; line-level debugging works | Zero | Line-level |
+
+**Decision: Option D — accept imprecision.** Rationale:
+
+- NLS replacements only shift **columns**, never lines — line-level stack traces and breakpoints remain correct.
+- Production crash reporting (the primary consumer of CDN source maps) uses line numbers; column-level accuracy is rarely needed.
+- The old gulp build had the same fundamental issue in its `nls.nls()` step and used `SourceMapConsumer`/`SourceMapGenerator` to fix it — but that approach was fragile and slow.
+- If column-level precision becomes important later (e.g., for minified+NLS bundles), Option B can be implemented: after NLS replacement, re-parse the source map, walk replacement sites, and adjust column offsets. This is a localized change in the post-processing loop.
+
+---
+
 ## Self-hosting Setup
 
 The default `VS Code - Build` task now runs three parallel watchers:

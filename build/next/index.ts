@@ -8,7 +8,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { promisify } from 'util';
 import glob from 'glob';
-import * as watcher from '@parcel/watcher';
+import gulpWatch from '../lib/watch/index.ts';
 import { nlsPlugin, createNLSCollector, finalizeNLS, postProcessNLS } from './nls-plugin.ts';
 import { getVersion } from '../lib/getVersion.ts';
 import product from '../../product.json' with { type: 'json' };
@@ -44,6 +44,7 @@ const options = {
 	excludeTests: process.argv.includes('--exclude-tests'),
 	out: getArgValue('--out'),
 	target: getArgValue('--target') ?? 'desktop', // 'desktop' | 'server' | 'server-web' | 'web'
+	sourceMapBaseUrl: getArgValue('--source-map-base-url'),
 };
 
 // Build targets
@@ -736,7 +737,7 @@ async function transpile(outDir: string, excludeTests: boolean): Promise<void> {
 // Bundle (Goal 2: JS → bundled JS)
 // ============================================================================
 
-async function bundle(outDir: string, doMinify: boolean, doNls: boolean, target: BuildTarget): Promise<void> {
+async function bundle(outDir: string, doMinify: boolean, doNls: boolean, target: BuildTarget, sourceMapBaseUrl?: string): Promise<void> {
 	await cleanDir(outDir);
 
 	// Write build date file (used by packaging to embed in product.json)
@@ -816,7 +817,7 @@ ${tslib}`,
 			target: ['es2024'],
 			packages: 'external',
 			sourcemap: 'external',
-			sourcesContent: false,
+			sourcesContent: true,
 			minify: doMinify,
 			treeShaking: true,
 			banner,
@@ -868,7 +869,7 @@ ${tslib}`,
 			target: ['es2024'],
 			packages: 'external',
 			sourcemap: 'external',
-			sourcesContent: false,
+			sourcesContent: true,
 			minify: doMinify,
 			treeShaking: true,
 			banner,
@@ -906,17 +907,30 @@ ${tslib}`,
 		for (const file of result.outputFiles) {
 			await fs.promises.mkdir(path.dirname(file.path), { recursive: true });
 
-			if (file.path.endsWith('.js')) {
+			if (file.path.endsWith('.js') || file.path.endsWith('.css')) {
 				let content = file.text;
 
-				// Apply NLS post-processing if enabled
-				if (doNls && indexMap.size > 0) {
+				// Apply NLS post-processing if enabled (JS only)
+				if (file.path.endsWith('.js') && doNls && indexMap.size > 0) {
 					content = postProcessNLS(content, indexMap, preserveEnglish);
+				}
+
+				// Rewrite sourceMappingURL to CDN URL if configured
+				if (sourceMapBaseUrl) {
+					const relativePath = path.relative(path.join(REPO_ROOT, outDir), file.path);
+					content = content.replace(
+						/\/\/# sourceMappingURL=.+$/m,
+						`//# sourceMappingURL=${sourceMapBaseUrl}/${relativePath}.map`
+					);
+					content = content.replace(
+						/\/\*# sourceMappingURL=.+\*\/$/m,
+						`/*# sourceMappingURL=${sourceMapBaseUrl}/${relativePath}.map*/`
+					);
 				}
 
 				await fs.promises.writeFile(file.path, content);
 			} else {
-				// Write other files (source maps, etc.) as-is
+				// Write other files (source maps, assets) as-is
 				await fs.promises.writeFile(file.path, file.contents);
 			}
 		}
@@ -1011,40 +1025,34 @@ async function watch(): Promise<void> {
 	// Extensions to watch and copy (non-TypeScript resources)
 	const copyExtensions = ['.css', '.html', '.js', '.json', '.ttf', '.svg', '.png', '.mp3', '.scm', '.sh', '.ps1', '.psm1', '.fish', '.zsh', '.scpt'];
 
-	// Watch src directory
-	const subscription = await watcher.subscribe(
-		path.join(REPO_ROOT, SRC_DIR),
-		(err, events) => {
-			if (err) {
-				console.error('[watch] Watcher error:', err);
-				return;
-			}
+	// Watch src directory using existing gulp-watch based watcher
+	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+	const srcDir = path.join(REPO_ROOT, SRC_DIR);
+	const watchStream = gulpWatch('src/**', { base: srcDir, readDelay: 200 });
 
-			for (const event of events) {
-				if (event.path.includes('/test/')) {
-					continue;
-				}
+	watchStream.on('data', (file: { path: string }) => {
+		if (file.path.includes('/test/')) {
+			return;
+		}
 
-				if (event.path.endsWith('.ts') && !event.path.endsWith('.d.ts')) {
-					pendingTsFiles.add(event.path);
-				} else if (copyExtensions.some(ext => event.path.endsWith(ext))) {
-					pendingCopyFiles.add(event.path);
-				}
-			}
+		if (file.path.endsWith('.ts') && !file.path.endsWith('.d.ts')) {
+			pendingTsFiles.add(file.path);
+		} else if (copyExtensions.some(ext => file.path.endsWith(ext))) {
+			pendingCopyFiles.add(file.path);
+		}
 
-			if (pendingTsFiles.size > 0 || pendingCopyFiles.size > 0) {
-				processChanges();
-			}
-		},
-		{ ignore: ['**/test/**', '**/node_modules/**'] }
-	);
+		if (pendingTsFiles.size > 0 || pendingCopyFiles.size > 0) {
+			clearTimeout(debounceTimer);
+			debounceTimer = setTimeout(processChanges, 200);
+		}
+	});
 
 	console.log('[watch] Watching src/**/*.{ts,css,...} (Ctrl+C to stop)');
 
 	// Keep process alive
-	process.on('SIGINT', async () => {
+	process.on('SIGINT', () => {
 		console.log('\n[watch] Stopping...');
-		await subscription.unsubscribe();
+		watchStream.end();
 		process.exit(0);
 	});
 }
@@ -1070,6 +1078,7 @@ Options for 'bundle':
 	--nls              Process NLS (localization) strings
 	--out <dir>        Output directory (default: out-vscode)
 	--target <target>  Build target: desktop (default), server, server-web, web
+	--source-map-base-url <url>  Rewrite sourceMappingURL to CDN URL
 
 Examples:
 	npx tsx build/next/index.ts transpile
@@ -1110,7 +1119,7 @@ async function main(): Promise<void> {
 				break;
 
 			case 'bundle':
-				await bundle(options.out ?? OUT_VSCODE_DIR, options.minify, options.nls, options.target as BuildTarget);
+				await bundle(options.out ?? OUT_VSCODE_DIR, options.minify, options.nls, options.target as BuildTarget, options.sourceMapBaseUrl);
 				break;
 
 			default:

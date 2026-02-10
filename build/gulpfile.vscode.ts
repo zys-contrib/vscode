@@ -180,7 +180,7 @@ function runEsbuildTranspile(outDir: string, excludeTests: boolean): Promise<voi
 	});
 }
 
-function runEsbuildBundle(outDir: string, minify: boolean, nls: boolean, target: 'desktop' | 'server' | 'server-web' = 'desktop'): Promise<void> {
+function runEsbuildBundle(outDir: string, minify: boolean, nls: boolean, target: 'desktop' | 'server' | 'server-web' = 'desktop', sourceMapBaseUrl?: string): Promise<void> {
 	return new Promise((resolve, reject) => {
 		// const tsxPath = path.join(root, 'build/node_modules/tsx/dist/cli.mjs');
 		const scriptPath = path.join(root, 'build/next/index.ts');
@@ -190,6 +190,9 @@ function runEsbuildBundle(outDir: string, minify: boolean, nls: boolean, target:
 		}
 		if (nls) {
 			args.push('--nls');
+		}
+		if (sourceMapBaseUrl) {
+			args.push('--source-map-base-url', sourceMapBaseUrl);
 		}
 
 		const proc = cp.spawn(process.execPath, args, {
@@ -256,9 +259,9 @@ const coreCIEsbuild = task.define('core-ci-esbuild', task.series(
 	task.define('esbuild-out-build', () => runEsbuildTranspile('out-build', false)),
 	// Then bundle for shipping (bundles also write NLS files to out-build)
 	task.parallel(
-		task.define('esbuild-vscode-min', () => runEsbuildBundle('out-vscode-min', true, true, 'desktop')),
-		task.define('esbuild-vscode-reh-min', () => runEsbuildBundle('out-vscode-reh-min', true, true, 'server')),
-		task.define('esbuild-vscode-reh-web-min', () => runEsbuildBundle('out-vscode-reh-web-min', true, true, 'server-web')),
+		task.define('esbuild-vscode-min', () => runEsbuildBundle('out-vscode-min', true, true, 'desktop', `${sourceMappingURLBase}/core`)),
+		task.define('esbuild-vscode-reh-min', () => runEsbuildBundle('out-vscode-reh-min', true, true, 'server', `${sourceMappingURLBase}/core`)),
+		task.define('esbuild-vscode-reh-web-min', () => runEsbuildBundle('out-vscode-reh-web-min', true, true, 'server-web', `${sourceMappingURLBase}/core`)),
 	)
 ));
 gulp.task(coreCIEsbuild);
@@ -646,7 +649,7 @@ BUILD_TARGETS.forEach(buildTarget => {
 
 		const esbuildBundleTask = task.define(
 			`esbuild-bundle${dashed(platform)}${dashed(arch)}${dashed(minified)}`,
-			() => runEsbuildBundle(sourceFolderName, !!minified, true)
+			() => runEsbuildBundle(sourceFolderName, !!minified, true, 'desktop', minified ? `${sourceMappingURLBase}/core` : undefined)
 		);
 
 		const tasks = [
