@@ -839,6 +839,7 @@ export class QuickInputController extends Disposable {
 						return;
 					}
 					exitCancelled = true;
+					// Set display after animation completes to actually hide the element
 					container.style.display = 'none';
 					container.classList.remove('animating-exit');
 					container.removeEventListener('transitionend', onTransitionEnd);
