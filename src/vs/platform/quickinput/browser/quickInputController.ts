@@ -735,9 +735,8 @@ export class QuickInputController extends Disposable {
 			ui.container.classList.add('animating-entrance');
 			// Trigger reflow so the browser registers the initial state
 			void ui.container.offsetHeight;
-			// Now add the visible class to trigger the transition
-			ui.container.classList.add('visible');
-			
+			// Now add the target class to trigger the transition
+			ui.container.classList.add('animating-entrance-target');
 			let entranceCleanedUp = false;
 			const window = dom.getWindow(ui.container);
 			let entranceCleanupTimeout: number | undefined;
@@ -746,7 +745,7 @@ export class QuickInputController extends Disposable {
 					return;
 				}
 				entranceCleanedUp = true;
-				ui.container.classList.remove('animating-entrance', 'visible');
+				ui.container.classList.remove('animating-entrance', 'animating-entrance-target');
 				ui.container.removeEventListener('transitionend', onTransitionEnd);
 				if (entranceCleanupTimeout !== undefined) {
 					clearTimeout(entranceCleanupTimeout);

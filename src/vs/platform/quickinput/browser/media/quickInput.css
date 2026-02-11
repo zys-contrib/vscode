@@ -534,7 +534,7 @@
 	will-change: opacity, transform;
 }
 
-.quick-input-widget.animating-entrance.visible {
+.quick-input-widget.animating-entrance.animating-entrance-target {
 	opacity: 1;
 	transform: translateY(0);
 }
