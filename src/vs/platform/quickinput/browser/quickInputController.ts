@@ -734,14 +734,34 @@ export class QuickInputController extends Disposable {
 			void ui.container.offsetHeight;
 			// Now apply transition and target state
 			ui.container.style.transition = `opacity ${QUICK_INPUT_OPEN_DURATION}ms ${EASE_OUT}, transform ${QUICK_INPUT_OPEN_DURATION}ms ${EASE_OUT}`;
+			ui.container.style.willChange = 'opacity, transform';
 			ui.container.style.opacity = '1';
 			ui.container.style.transform = 'translateY(0)';
-			const onDone = () => {
+			let entranceCleanedUp = false;
+			const window = dom.getWindow(ui.container);
+			let entranceCleanupTimeout: number | undefined;
+			const cleanupEntranceTransition = () => {
+				if (entranceCleanedUp) {
+					return;
+				}
+				entranceCleanedUp = true;
 				ui.container.style.transition = '';
 				ui.container.style.willChange = '';
-				ui.container.removeEventListener('transitionend', onDone);
+				ui.container.removeEventListener('transitionend', onTransitionEnd);
+				if (entranceCleanupTimeout !== undefined) {
+					clearTimeout(entranceCleanupTimeout);
+					entranceCleanupTimeout = undefined;
+				}
 			};
-			ui.container.addEventListener('transitionend', onDone);
+			const onTransitionEnd = (e: TransitionEvent) => {
+				if (e.target !== ui.container) {
+					return; // Ignore transitions from descendant elements
+				}
+				cleanupEntranceTransition();
+			};
+			ui.container.addEventListener('transitionend', onTransitionEnd);
+			// Safety timeout in case transitionend doesn't fire
+			entranceCleanupTimeout = window.setTimeout(cleanupEntranceTransition, QUICK_INPUT_OPEN_DURATION + 50);
 		}
 	}
 
@@ -812,6 +832,8 @@ export class QuickInputController extends Disposable {
 			// Animate exit: fade out + slide up (faster than open)
 			if (!isMotionReduced(container)) {
 				let exitCancelled = false;
+				const window = dom.getWindow(container);
+				let exitCleanupTimeout: number | undefined;
 				container.style.transition = `opacity ${QUICK_INPUT_CLOSE_DURATION}ms ${EASE_IN}, transform ${QUICK_INPUT_CLOSE_DURATION}ms ${EASE_IN}`;
 				container.style.opacity = '0';
 				container.style.transform = 'translateY(-8px)';
@@ -825,7 +847,17 @@ export class QuickInputController extends Disposable {
 					container.style.opacity = '';
 					container.style.transform = '';
 					container.style.willChange = '';
-					container.removeEventListener('transitionend', onDone);
+					container.removeEventListener('transitionend', onTransitionEnd);
+					if (exitCleanupTimeout !== undefined) {
+						clearTimeout(exitCleanupTimeout);
+						exitCleanupTimeout = undefined;
+					}
+				};
+				const onTransitionEnd = (e: TransitionEvent) => {
+					if (e.target !== container) {
+						return; // Ignore transitions from descendant elements
+					}
+					onDone();
 				};
 				this._cancelExitAnimation = () => {
 					exitCancelled = true;
@@ -833,12 +865,15 @@ export class QuickInputController extends Disposable {
 					container.style.opacity = '';
 					container.style.transform = '';
 					container.style.willChange = '';
-					container.removeEventListener('transitionend', onDone);
+					container.removeEventListener('transitionend', onTransitionEnd);
+					if (exitCleanupTimeout !== undefined) {
+						clearTimeout(exitCleanupTimeout);
+						exitCleanupTimeout = undefined;
+					}
 				};
-				container.addEventListener('transitionend', onDone);
+				container.addEventListener('transitionend', onTransitionEnd);
 				// Safety timeout in case transitionend doesn't fire
-				const window = dom.getWindow(container);
-				window.setTimeout(onDone, QUICK_INPUT_CLOSE_DURATION + 50);
+				exitCleanupTimeout = window.setTimeout(onDone, QUICK_INPUT_CLOSE_DURATION + 50);
 			} else {
 				container.style.display = 'none';
 			}
