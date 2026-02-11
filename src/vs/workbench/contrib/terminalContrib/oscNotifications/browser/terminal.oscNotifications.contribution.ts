@@ -11,7 +11,7 @@ import * as dom from '../../../../../base/browser/dom.js';
 import { Disposable, type IDisposable } from '../../../../../base/common/lifecycle.js';
 import { localize } from '../../../../../nls.js';
 import { IConfigurationService } from '../../../../../platform/configuration/common/configuration.js';
-import { INotificationService, NotificationPriority, Severity, type INotificationHandle } from '../../../../../platform/notification/common/notification.js';
+import { INotificationService, NotificationPriority, Severity, type INotification, type INotificationHandle } from '../../../../../platform/notification/common/notification.js';
 import { ITerminalLogService, TerminalSettingId } from '../../../../../platform/terminal/common/terminal.js';
 import type { ITerminalContribution, ITerminalInstance, IXtermTerminal } from '../../../terminal/browser/terminal.js';
 import { registerTerminalContribution, type ITerminalContributionContext } from '../../../terminal/browser/terminalExtensions.js';
@@ -49,29 +49,29 @@ interface IOsc99ActiveNotification {
 	focusOnActivate: boolean;
 }
 
-class TerminalOscNotificationsContribution extends Disposable implements ITerminalContribution {
-	static readonly ID = 'terminal.oscNotifications';
+export interface IOsc99NotificationHost {
+	isEnabled(): boolean;
+	isWindowFocused(): boolean;
+	isTerminalVisible(): boolean;
+	focusTerminal(): void;
+	notify(notification: INotification): INotificationHandle;
+	updateEnableNotifications(value: boolean): Promise<void>;
+	logWarn(message: string): void;
+	writeToProcess(data: string): void;
+}
 
-	private _isVisible = false;
+export class Osc99NotificationHandler extends Disposable {
 	private readonly _osc99PendingNotifications = new Map<string, IOsc99NotificationState>();
 	private _osc99PendingAnonymous: IOsc99NotificationState | undefined;
 	private readonly _osc99ActiveNotifications = new Map<string, IOsc99ActiveNotification>();
 
 	constructor(
-		private readonly _ctx: ITerminalContributionContext,
-		@IConfigurationService private readonly _configurationService: IConfigurationService,
-		@INotificationService private readonly _notificationService: INotificationService,
-		@ITerminalLogService private readonly _logService: ITerminalLogService,
+		private readonly _host: IOsc99NotificationHost
 	) {
 		super();
-		this._register(this._ctx.instance.onDidChangeVisibility(visible => this._isVisible = visible));
 	}
 
-	xtermReady(xterm: IXtermTerminal & { raw: RawXtermTerminal }): void {
-		this._register(xterm.raw.parser.registerOscHandler(99, data => this._handleOsc99(data)));
-	}
-
-	private _handleOsc99(data: string): boolean {
+	handleSequence(data: string): boolean {
 		const { metadata, payload } = this._splitOsc99Data(data);
 		const metadataEntries = this._parseOsc99Metadata(metadata);
 		const payloadTypes = metadataEntries.get('p');
@@ -79,7 +79,7 @@ class TerminalOscNotificationsContribution extends Disposable implements ITermin
 		const payloadType = rawPayloadType && rawPayloadType.length > 0 ? rawPayloadType : Osc99PayloadType.Title;
 		const id = this._sanitizeOsc99Id(metadataEntries.get('i')?.[0]);
 
-		if (!this._configurationService.getValue(TerminalSettingId.EnableNotifications)) {
+		if (!this._host.isEnabled()) {
 			return true;
 		}
 
@@ -175,7 +175,7 @@ class TerminalOscNotificationsContribution extends Disposable implements ITermin
 		try {
 			return decodeBase64(payload).toString();
 		} catch {
-			this._logService.warn('Failed to decode OSC 99 payload');
+			this._host.logWarn('Failed to decode OSC 99 payload');
 			return '';
 		}
 	}
@@ -288,12 +288,12 @@ class TerminalOscNotificationsContribution extends Disposable implements ITermin
 		if (!occasion || occasion === 'always') {
 			return true;
 		}
-		const windowFocused = dom.getActiveWindow().document.hasFocus();
+		const windowFocused = this._host.isWindowFocused();
 		switch (occasion) {
 			case 'unfocused':
 				return !windowFocused;
 			case 'invisible':
-				return !windowFocused && !this._isVisible;
+				return !windowFocused && !this._host.isTerminalVisible();
 			default:
 				return true;
 		}
@@ -316,7 +316,7 @@ class TerminalOscNotificationsContribution extends Disposable implements ITermin
 		const handleRef: { current: INotificationHandle | undefined } = { current: undefined };
 		const reportActivation = (buttonIndex?: number, forceFocus?: boolean) => {
 			if (forceFocus || state.focusOnActivate) {
-				this._ctx.instance.focus(true);
+				this._host.focusTerminal();
 			}
 			if (state.reportOnActivate) {
 				this._sendOsc99ActivationReport(state.id, buttonIndex);
@@ -359,7 +359,7 @@ class TerminalOscNotificationsContribution extends Disposable implements ITermin
 			undefined,
 			true,
 			async () => {
-				await this._configurationService.updateValue(TerminalSettingId.EnableNotifications, false);
+				await this._host.updateEnableNotifications(false);
 				handleRef.current?.close();
 			}
 		));
@@ -381,7 +381,7 @@ class TerminalOscNotificationsContribution extends Disposable implements ITermin
 			}
 		}
 
-		const handle = this._notificationService.notify({
+		const handle = this._host.notify({
 			id: state.id ? `terminal.osc99.${state.id}` : undefined,
 			severity,
 			message,
@@ -498,7 +498,38 @@ class TerminalOscNotificationsContribution extends Disposable implements ITermin
 
 	private _sendOsc99Response(metadataParts: string[], payload: string = ''): void {
 		const metadata = metadataParts.join(':');
-		void this._ctx.processManager.write(`\x1b]99;${metadata};${payload}\x1b\\`);
+		this._host.writeToProcess(`\x1b]99;${metadata};${payload}\x1b\\`);
+	}
+}
+
+class TerminalOscNotificationsContribution extends Disposable implements ITerminalContribution {
+	static readonly ID = 'terminal.oscNotifications';
+
+	private _isVisible = false;
+	private readonly _handler: Osc99NotificationHandler;
+
+	constructor(
+		private readonly _ctx: ITerminalContributionContext,
+		@IConfigurationService private readonly _configurationService: IConfigurationService,
+		@INotificationService private readonly _notificationService: INotificationService,
+		@ITerminalLogService private readonly _logService: ITerminalLogService,
+	) {
+		super();
+		this._handler = this._register(new Osc99NotificationHandler({
+			isEnabled: () => this._configurationService.getValue(TerminalSettingId.EnableNotifications),
+			isWindowFocused: () => dom.getActiveWindow().document.hasFocus(),
+			isTerminalVisible: () => this._isVisible,
+			focusTerminal: () => this._ctx.instance.focus(true),
+			notify: notification => this._notificationService.notify(notification),
+			updateEnableNotifications: value => this._configurationService.updateValue(TerminalSettingId.EnableNotifications, value),
+			logWarn: message => this._logService.warn(message),
+			writeToProcess: data => { void this._ctx.processManager.write(data); }
+		}));
+		this._register(this._ctx.instance.onDidChangeVisibility(visible => this._isVisible = visible));
+	}
+
+	xtermReady(xterm: IXtermTerminal & { raw: RawXtermTerminal }): void {
+		this._register(xterm.raw.parser.registerOscHandler(99, data => this._handler.handleSequence(data)));
 	}
 }
 
