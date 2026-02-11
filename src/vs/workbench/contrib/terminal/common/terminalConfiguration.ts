@@ -589,9 +589,9 @@ const terminalConfiguration: IStringDictionary<IConfigurationPropertySchema> = {
 	},
 	[TerminalSettingId.EnableKittyKeyboardProtocol]: {
 		restricted: true,
-		markdownDescription: localize('terminal.integrated.enableKittyKeyboardProtocol', "Whether to enable the kitty keyboard protocol, which provides more detailed keyboard input reporting to the terminal."),
+		markdownDescription: localize('terminal.integrated.enableKittyKeyboardProtocol', "Whether to enable the kitty keyboard protocol, which allows a program in the terminal to request more detailed keyboard input reporting. This can for example enable shift+enter to be handled by the program."),
 		type: 'boolean',
-		default: false,
+		default: true,
 		tags: ['experimental', 'advanced'],
 		experiment: {
 			mode: 'auto'
