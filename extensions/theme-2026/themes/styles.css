@@ -284,7 +284,6 @@
 /* Context Menus */
 .monaco-workbench .monaco-menu .monaco-action-bar.vertical {
 	border-radius: var(--radius-lg);
-	border-radius: inherit;
 }
 
 .monaco-workbench .context-view .monaco-menu {
