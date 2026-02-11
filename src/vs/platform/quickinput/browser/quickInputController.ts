@@ -37,7 +37,7 @@ import { TriStateCheckbox, createToggleActionViewItemProvider } from '../../../b
 import { defaultCheckboxStyles } from '../../theme/browser/defaultStyles.js';
 import { QuickInputTreeController } from './tree/quickInputTreeController.js';
 import { QuickTree } from './tree/quickTree.js';
-import { isMotionReduced, EASE_OUT, EASE_IN } from '../../../base/browser/ui/motion/motion.js';
+import { isMotionReduced } from '../../../base/browser/ui/motion/motion.js';
 import { AnchorAlignment, AnchorPosition, layout2d } from '../../../base/common/layout.js';
 import { getAnchorRect } from '../../../base/browser/ui/contextview/contextview.js';
 
@@ -732,17 +732,11 @@ export class QuickInputController extends Disposable {
 
 		// Animate entrance: fade in + slide down (only when first appearing)
 		if (!wasVisible && !isMotionReduced(ui.container)) {
-			// Set initial state without transition
-			ui.container.style.transition = 'none';
-			ui.container.style.opacity = '0';
-			ui.container.style.transform = 'translateY(-8px)';
+			ui.container.classList.add('animating-entrance');
 			// Trigger reflow so the browser registers the initial state
 			void ui.container.offsetHeight;
-			// Now apply transition and target state
-			ui.container.style.transition = `opacity ${QUICK_INPUT_OPEN_DURATION}ms ${EASE_OUT.toCssString()}, transform ${QUICK_INPUT_OPEN_DURATION}ms ${EASE_OUT.toCssString()}`;
-			ui.container.style.willChange = 'opacity, transform';
-			ui.container.style.opacity = '1';
-			ui.container.style.transform = 'translateY(0)';
+			// Now add the target class to trigger the transition
+			ui.container.classList.add('animating-entrance-target');
 			let entranceCleanedUp = false;
 			const window = dom.getWindow(ui.container);
 			let entranceCleanupTimeout: number | undefined;
@@ -751,8 +745,7 @@ export class QuickInputController extends Disposable {
 					return;
 				}
 				entranceCleanedUp = true;
-				ui.container.style.transition = '';
-				ui.container.style.willChange = '';
+				ui.container.classList.remove('animating-entrance', 'animating-entrance-target');
 				ui.container.removeEventListener('transitionend', onTransitionEnd);
 				if (entranceCleanupTimeout !== undefined) {
 					clearTimeout(entranceCleanupTimeout);
@@ -840,19 +833,15 @@ export class QuickInputController extends Disposable {
 				let exitCancelled = false;
 				const window = dom.getWindow(container);
 				let exitCleanupTimeout: number | undefined;
-				container.style.transition = `opacity ${QUICK_INPUT_CLOSE_DURATION}ms ${EASE_IN.toCssString()}, transform ${QUICK_INPUT_CLOSE_DURATION}ms ${EASE_IN.toCssString()}`;
-				container.style.opacity = '0';
-				container.style.transform = 'translateY(-8px)';
+				container.classList.add('animating-exit');
 				const onDone = () => {
 					if (exitCancelled) {
 						return;
 					}
 					exitCancelled = true;
+					// Set display after animation completes to actually hide the element
 					container.style.display = 'none';
-					container.style.transition = '';
-					container.style.opacity = '';
-					container.style.transform = '';
-					container.style.willChange = '';
+					container.classList.remove('animating-exit');
 					container.removeEventListener('transitionend', onTransitionEnd);
 					if (exitCleanupTimeout !== undefined) {
 						clearTimeout(exitCleanupTimeout);
@@ -867,10 +856,7 @@ export class QuickInputController extends Disposable {
 				};
 				this._cancelExitAnimation = () => {
 					exitCancelled = true;
-					container.style.transition = '';
-					container.style.opacity = '';
-					container.style.transform = '';
-					container.style.willChange = '';
+					container.classList.remove('animating-exit');
 					container.removeEventListener('transitionend', onTransitionEnd);
 					if (exitCleanupTimeout !== undefined) {
 						clearTimeout(exitCleanupTimeout);
