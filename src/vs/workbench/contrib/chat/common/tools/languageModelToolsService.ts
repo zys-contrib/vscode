@@ -204,7 +204,7 @@ export interface IToolInvocationContext {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function isToolInvocationContext(obj: any): obj is IToolInvocationContext {
-	return obj !== null && typeof obj === 'object' && URI.isUri((obj as any).sessionResource);
+	return obj !== null && typeof obj === 'object' && URI.isUri(obj.sessionResource);
 }
 
 export interface IToolInvocationPreparationContext {
