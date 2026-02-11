@@ -592,10 +592,7 @@ const terminalConfiguration: IStringDictionary<IConfigurationPropertySchema> = {
 		markdownDescription: localize('terminal.integrated.enableKittyKeyboardProtocol', "Whether to enable the kitty keyboard protocol, which allows a program in the terminal to request more detailed keyboard input reporting. This can for example enable shift+enter to be handled by the program."),
 		type: 'boolean',
 		default: true,
-		tags: ['experimental', 'advanced'],
-		experiment: {
-			mode: 'auto'
-		}
+		tags: ['advanced']
 	},
 	[TerminalSettingId.EnableWin32InputMode]: {
 		restricted: true,
