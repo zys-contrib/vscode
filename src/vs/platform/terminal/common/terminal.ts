@@ -82,6 +82,7 @@ export const enum TerminalSettingId {
 	ConfirmOnKill = 'terminal.integrated.confirmOnKill',
 	EnableBell = 'terminal.integrated.enableBell',
 	EnableVisualBell = 'terminal.integrated.enableVisualBell',
+	EnableNotifications = 'terminal.integrated.enableNotifications',
 	CommandsToSkipShell = 'terminal.integrated.commandsToSkipShell',
 	AllowChords = 'terminal.integrated.allowChords',
 	AllowMnemonics = 'terminal.integrated.allowMnemonics',

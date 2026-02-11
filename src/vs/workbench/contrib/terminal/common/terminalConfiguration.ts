@@ -413,6 +413,11 @@ const terminalConfiguration: IStringDictionary<IConfigurationPropertySchema> = {
 		type: 'boolean',
 		default: false
 	},
+	[TerminalSettingId.EnableNotifications]: {
+		description: localize('terminal.integrated.enableNotifications', "Controls whether notifications sent from the terminal via OSC 99 are shown."),
+		type: 'boolean',
+		default: true
+	},
 	[TerminalSettingId.CommandsToSkipShell]: {
 		markdownDescription: localize(
 			'terminal.integrated.commandsToSkipShell',
