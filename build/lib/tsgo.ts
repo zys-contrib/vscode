@@ -12,7 +12,7 @@ const root = path.dirname(path.dirname(import.meta.dirname));
 const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 const ansiRegex = /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;
 
-export function spawnTsgo(projectPath: string, config: { reporterId: string }, onComplete?: () => Promise<void> | void): Promise<void> {
+export function spawnTsgo(projectPath: string, config: { reporterId: string; noEmit?: boolean }, onComplete?: () => Promise<void> | void): Promise<void> {
 	const reporter = createReporter(config.reporterId);
 	let report: NodeJS.ReadWriteStream | undefined;
 
@@ -33,7 +33,12 @@ export function spawnTsgo(projectPath: string, config: { reporterId: string }, o
 
 	beginReport(false);
 
-	const args = ['tsgo', '--project', projectPath, '--pretty', 'false', '--sourceMap', '--inlineSources'];
+	const args = ['tsgo', '--project', projectPath, '--pretty', 'false'];
+	if (config.noEmit) {
+		args.push('--noEmit');
+	} else {
+		args.push('--sourceMap', '--inlineSources');
+	}
 	const child = cp.spawn(npx, args, {
 		cwd: root,
 		stdio: ['ignore', 'pipe', 'pipe'],
@@ -99,7 +104,7 @@ export function spawnTsgo(projectPath: string, config: { reporterId: string }, o
 	});
 }
 
-export function createTsgoStream(projectPath: string, config: { reporterId: string }, onComplete?: () => Promise<void> | void): NodeJS.ReadWriteStream {
+export function createTsgoStream(projectPath: string, config: { reporterId: string; noEmit?: boolean }, onComplete?: () => Promise<void> | void): NodeJS.ReadWriteStream {
 	const stream = es.through();
 
 	spawnTsgo(projectPath, config, onComplete).then(() => {
