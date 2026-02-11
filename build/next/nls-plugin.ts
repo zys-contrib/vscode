@@ -134,18 +134,11 @@ export async function finalizeNLS(
 			path.join(dir, 'nls.metadata.json'),
 			JSON.stringify(nlsMetadataJson, null, '\t')
 		),
+		fs.promises.writeFile(
+			path.join(dir, 'nls.messages.js'),
+			`/*---------------------------------------------------------\n * Copyright (C) Microsoft Corporation. All rights reserved.\n *--------------------------------------------------------*/\nglobalThis._VSCODE_NLS_MESSAGES=${JSON.stringify(allMessages)};`
+		),
 	]));
-
-	// Write nls.messages.js only to additional dirs (e.g., out-build) for CI NLS upload,
-	// not to the primary bundle output dir where it would be an extra file vs the old build
-	if (alsoWriteTo) {
-		await Promise.all(alsoWriteTo.map(dir =>
-			fs.promises.writeFile(
-				path.join(dir, 'nls.messages.js'),
-				`/*---------------------------------------------------------\n * Copyright (C) Microsoft Corporation. All rights reserved.\n *--------------------------------------------------------*/\nglobalThis._VSCODE_NLS_MESSAGES=${JSON.stringify(allMessages)};`
-			)
-		));
-	}
 
 	console.log(`[nls] Extracted ${allMessages.length} messages from ${moduleToKeys.size} modules`);
 
