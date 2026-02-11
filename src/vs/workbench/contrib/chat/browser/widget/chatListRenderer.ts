@@ -184,6 +184,8 @@ export class ChatListItemRenderer extends Disposable implements ITreeRenderer<Ch
 	/** Track pending question carousels by session resource for auto-skip on chat submission */
 	private readonly pendingQuestionCarousels = new ResourceMap<Set<ChatQuestionCarouselPart>>();
 
+	private _activeTipPart: ChatTipContentPart | undefined;
+
 	private readonly _notifiedQuestionCarousels = new WeakSet<IChatQuestionCarousel>();
 	private readonly _questionCarouselToast = this._register(new DisposableStore());
 
@@ -299,6 +301,18 @@ export class ChatListItemRenderer extends Disposable implements ITreeRenderer<Ch
 
 	editorsInUse(): Iterable<CodeBlockPart> {
 		return Iterable.concat(this._editorPool.inUse(), this._toolEditorPool.inUse());
+	}
+
+	hasTipFocus(): boolean {
+		return this._activeTipPart?.hasFocus() ?? false;
+	}
+
+	focusTip(): boolean {
+		if (!this._activeTipPart) {
+			return false;
+		}
+		this._activeTipPart.focus();
+		return true;
 	}
 
 	private traceLayout(method: string, message: string) {
@@ -1063,10 +1077,21 @@ export class ChatListItemRenderer extends Disposable implements ITreeRenderer<Ch
 				() => this.chatTipService.getNextTip(element.id, element.timestamp, this.contextKeyService),
 			);
 			templateData.value.appendChild(tipPart.domNode);
+			this._activeTipPart = tipPart;
 			templateData.elementDisposables.add(tipPart);
 			templateData.elementDisposables.add(tipPart.onDidHide(() => {
 				tipPart.domNode.remove();
+				if (this._activeTipPart === tipPart) {
+					this._activeTipPart = undefined;
+				}
 			}));
+			templateData.elementDisposables.add({
+				dispose: () => {
+					if (this._activeTipPart === tipPart) {
+						this._activeTipPart = undefined;
+					}
+				}
+			});
 		}
 
 		let inlineSlashCommandRendered = false;
