@@ -5,94 +5,90 @@
 
 import './motion.css';
 
-//#region Duration Constants
-
-/**
- * Duration in milliseconds for panel open (entrance) animations.
- * Per Fluent 2 Enter/Exit pattern - entrance should feel smooth but not sluggish.
- */
-export const PANEL_OPEN_DURATION = 150;
-
-/**
- * Duration in milliseconds for panel close (exit) animations.
- * Exits are faster than entrances - feels snappy and responsive.
- */
-export const PANEL_CLOSE_DURATION = 50;
-
-/**
- * Duration in milliseconds for quick input open (entrance) animations.
- */
-export const QUICK_INPUT_OPEN_DURATION = 150;
-
-/**
- * Duration in milliseconds for quick input close (exit) animations.
- */
-export const QUICK_INPUT_CLOSE_DURATION = 50;
-
-//#endregion
-
 //#region Easing Curves
+
+/**
+ * A pre-parsed cubic bezier easing curve that can be evaluated directly
+ * without reparsing a CSS string on every frame.
+ *
+ * Given control points `(x1, y1)` and `(x2, y2)` (the CSS `cubic-bezier`
+ * parameters), {@link solve} finds the bezier parameter `u` such that
+ * `Bx(u) = t` using Newton's method, then returns `By(u)`.
+ */
+export class CubicBezierCurve {
+
+	constructor(
+		readonly x1: number,
+		readonly y1: number,
+		readonly x2: number,
+		readonly y2: number,
+	) { }
+
+	/**
+	 * Evaluate the curve at time `t` (0-1), returning the eased value.
+	 */
+	solve(t: number): number {
+		if (t <= 0) {
+			return 0;
+		}
+		if (t >= 1) {
+			return 1;
+		}
+
+		// Newton's method to find u where Bx(u) = t
+		let u = t; // initial guess
+		for (let i = 0; i < 8; i++) {
+			const currentX = bezierComponent(u, this.x1, this.x2);
+			const error = currentX - t;
+			if (Math.abs(error) < 1e-6) {
+				break;
+			}
+			const dx = bezierComponentDerivative(u, this.x1, this.x2);
+			if (Math.abs(dx) < 1e-6) {
+				break;
+			}
+			u -= error / dx;
+		}
+
+		u = Math.max(0, Math.min(1, u));
+		return bezierComponent(u, this.y1, this.y2);
+	}
+
+	/**
+	 * Returns the CSS `cubic-bezier(…)` string representation, for use in
+	 * CSS `transition` or `animation` properties.
+	 */
+	toCssString(): string {
+		return `cubic-bezier(${this.x1}, ${this.y1}, ${this.x2}, ${this.y2})`;
+	}
+}
 
 /**
  * Fluent 2 ease-out curve - default for entrances and expansions.
  * Starts fast and decelerates to a stop.
  */
-export const EASE_OUT = 'cubic-bezier(0.1, 0.9, 0.2, 1)';
+export const EASE_OUT = new CubicBezierCurve(0.1, 0.9, 0.2, 1);
 
 /**
  * Fluent 2 ease-in curve - for exits and collapses.
  * Starts slow and accelerates out.
  */
-export const EASE_IN = 'cubic-bezier(0.9, 0.1, 1, 0.2)';
+export const EASE_IN = new CubicBezierCurve(0.9, 0.1, 1, 0.2);
 
 //#endregion
 
 //#region Cubic Bezier Evaluation
 
 /**
- * Parses a CSS `cubic-bezier(x1, y1, x2, y2)` string into its four control
- * point values. Returns `[0, 0, 1, 1]` (linear) on parse failure.
+ * Parses a CSS `cubic-bezier(x1, y1, x2, y2)` string into a
+ * {@link CubicBezierCurve}. Returns a linear curve on parse failure.
  */
-export function parseCubicBezier(css: string): [number, number, number, number] {
+export function parseCubicBezier(css: string): CubicBezierCurve {
 	const match = css.match(/cubic-bezier\(\s*([-\d.]+)\s*,\s*([-\d.]+)\s*,\s*([-\d.]+)\s*,\s*([-\d.]+)\s*\)/);
 	if (!match) {
-		return [0, 0, 1, 1];
+		return new CubicBezierCurve(0, 0, 1, 1);
 	}
-	return [parseFloat(match[1]), parseFloat(match[2]), parseFloat(match[3]), parseFloat(match[4])];
-}
-
-/**
- * Evaluates a cubic bezier curve at time `t` (0-1).
- *
- * Given control points `(x1, y1)` and `(x2, y2)` (the CSS `cubic-bezier`
- * parameters), this finds the bezier parameter `u` such that `Bx(u) = t`
- * using Newton's method, then returns `By(u)`.
- */
-export function solveCubicBezier(x1: number, y1: number, x2: number, y2: number, t: number): number {
-	if (t <= 0) {
-		return 0;
-	}
-	if (t >= 1) {
-		return 1;
-	}
-
-	// Newton's method to find u where Bx(u) = t
-	let u = t; // initial guess
-	for (let i = 0; i < 8; i++) {
-		const currentX = bezierComponent(u, x1, x2);
-		const error = currentX - t;
-		if (Math.abs(error) < 1e-6) {
-			break;
-		}
-		const dx = bezierComponentDerivative(u, x1, x2);
-		if (Math.abs(dx) < 1e-6) {
-			break;
-		}
-		u -= error / dx;
-	}
-
-	u = Math.max(0, Math.min(1, u));
-	return bezierComponent(u, y1, y2);
+	return new CubicBezierCurve(parseFloat(match[1]), parseFloat(match[2]), parseFloat(match[3]), parseFloat(match[4]));
 }
 
 /** Evaluates one component of a cubic bezier: B(u) with control points p1, p2, endpoints 0 and 1. */

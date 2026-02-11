@@ -37,9 +37,15 @@ import { TriStateCheckbox, createToggleActionViewItemProvider } from '../../../b
 import { defaultCheckboxStyles } from '../../theme/browser/defaultStyles.js';
 import { QuickInputTreeController } from './tree/quickInputTreeController.js';
 import { QuickTree } from './tree/quickTree.js';
-import { isMotionReduced, QUICK_INPUT_OPEN_DURATION, QUICK_INPUT_CLOSE_DURATION, EASE_OUT, EASE_IN } from '../../../base/browser/ui/motion/motion.js';
+import { isMotionReduced, EASE_OUT, EASE_IN } from '../../../base/browser/ui/motion/motion.js';
 import { AnchorAlignment, AnchorPosition, layout2d } from '../../../base/common/layout.js';
 import { getAnchorRect } from '../../../base/browser/ui/contextview/contextview.js';
+
+/** Duration (ms) for quick input open (entrance) animations. */
+const QUICK_INPUT_OPEN_DURATION = 150;
+
+/** Duration (ms) for quick input close (exit) animations. */
+const QUICK_INPUT_CLOSE_DURATION = 50;
 
 const $ = dom.$;
 
@@ -733,7 +739,7 @@ export class QuickInputController extends Disposable {
 			// Trigger reflow so the browser registers the initial state
 			void ui.container.offsetHeight;
 			// Now apply transition and target state
-			ui.container.style.transition = `opacity ${QUICK_INPUT_OPEN_DURATION}ms ${EASE_OUT}, transform ${QUICK_INPUT_OPEN_DURATION}ms ${EASE_OUT}`;
+			ui.container.style.transition = `opacity ${QUICK_INPUT_OPEN_DURATION}ms ${EASE_OUT.toCssString()}, transform ${QUICK_INPUT_OPEN_DURATION}ms ${EASE_OUT.toCssString()}`;
 			ui.container.style.willChange = 'opacity, transform';
 			ui.container.style.opacity = '1';
 			ui.container.style.transform = 'translateY(0)';
@@ -834,7 +840,7 @@ export class QuickInputController extends Disposable {
 				let exitCancelled = false;
 				const window = dom.getWindow(container);
 				let exitCleanupTimeout: number | undefined;
-				container.style.transition = `opacity ${QUICK_INPUT_CLOSE_DURATION}ms ${EASE_IN}, transform ${QUICK_INPUT_CLOSE_DURATION}ms ${EASE_IN}`;
+				container.style.transition = `opacity ${QUICK_INPUT_CLOSE_DURATION}ms ${EASE_IN.toCssString()}, transform ${QUICK_INPUT_CLOSE_DURATION}ms ${EASE_IN.toCssString()}`;
 				container.style.opacity = '0';
 				container.style.transform = 'translateY(-8px)';
 				const onDone = () => {
