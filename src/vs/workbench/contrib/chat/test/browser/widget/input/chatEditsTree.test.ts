@@ -202,7 +202,7 @@ suite('ChatEditsTree', () => {
 			store.dispose();
 		});
 
-		test('storage listener fires after clear', () => {
+		test.skip('storage listener fires after clear', () => {
 			// Stub create to avoid DOM/widget side effects in tests
 			let createCallCount = 0;
 			const origCreate = widget.create.bind(widget);
@@ -226,9 +226,9 @@ suite('ChatEditsTree', () => {
 			assert.strictEqual(createCallCount, 1, 'storage listener should trigger create after clear()');
 
 			widget.create = origCreate;
-		}).skip();
+		});
 
-		test('currentSession is updated on rebuild', () => {
+		test.skip('currentSession is updated on rebuild', () => {
 			// Stub create
 			widget.create = (c, s) => {
 				(widget as unknown as { _currentContainer: HTMLElement | undefined })._currentContainer = c;
@@ -242,9 +242,9 @@ suite('ChatEditsTree', () => {
 			const mockSession = {} as IChatEditingSession;
 			widget.rebuild(container, mockSession);
 			assert.strictEqual(widget.currentSession, mockSession);
-		}).skip();
+		});
 
-		test('setEntries replays after view mode toggle', () => {
+		test.skip('setEntries replays after view mode toggle', () => {
 			// Stub create and track setEntries calls
 			widget.create = (c, s) => {
 				(widget as unknown as { _currentContainer: HTMLElement | undefined })._currentContainer = c;
@@ -270,6 +270,6 @@ suite('ChatEditsTree', () => {
 			assert.strictEqual(setEntriesCalls[0].length, 2, 'should have replayed the 2 entries');
 
 			widget.setEntries = origSetEntries;
-		}).skip();
+		});
 	});
 });
