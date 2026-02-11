@@ -9,16 +9,17 @@ import { URI } from '../../../../../base/common/uri.js';
 import { joinPath } from '../../../../../base/common/resources.js';
 import { isAbsolute } from '../../../../../base/common/path.js';
 import { untildify } from '../../../../../base/common/labels.js';
-import * as platform from '../../../../../base/common/platform.js';
+import { OperatingSystem } from '../../../../../base/common/platform.js';
 
 /**
- * Enum of available hook types that can be configured in hooks.json
+ * Enum of available hook types that can be configured in hooks .json
  */
 export enum HookType {
 	SessionStart = 'SessionStart',
 	UserPromptSubmit = 'UserPromptSubmit',
 	PreToolUse = 'PreToolUse',
 	PostToolUse = 'PostToolUse',
+	PreCompact = 'PreCompact',
 	SubagentStart = 'SubagentStart',
 	SubagentStop = 'SubagentStop',
 	Stop = 'Stop',
@@ -36,7 +37,7 @@ export const HOOK_TYPES = [
 	{
 		id: HookType.SessionStart,
 		label: nls.localize('hookType.sessionStart.label', "Session Start"),
-		description: nls.localize('hookType.sessionStart.description', "Executed when a new agent session begins or when resuming an existing session.")
+		description: nls.localize('hookType.sessionStart.description', "Executed when a new agent session begins.")
 	},
 	{
 		id: HookType.UserPromptSubmit,
@@ -52,6 +53,11 @@ export const HOOK_TYPES = [
 		id: HookType.PostToolUse,
 		label: nls.localize('hookType.postToolUse.label', "Post-Tool Use"),
 		description: nls.localize('hookType.postToolUse.description', "Executed after a tool completes execution successfully.")
+	},
+	{
+		id: HookType.PreCompact,
+		label: nls.localize('hookType.preCompact.label', "Pre-Compact"),
+		description: nls.localize('hookType.preCompact.description', "Executed before the agent compacts the conversation context.")
 	},
 	{
 		id: HookType.SubagentStart,
@@ -86,7 +92,7 @@ export interface IHookCommand {
 	/** Resolved working directory URI. */
 	readonly cwd?: URI;
 	readonly env?: Record<string, string>;
-	readonly timeoutSec?: number;
+	readonly timeout?: number;
 	/** Original JSON field name that provided the windows command. */
 	readonly windowsSource?: 'windows' | 'powershell';
 	/** Original JSON field name that provided the linux command. */
@@ -104,6 +110,7 @@ export interface IChatRequestHooks {
 	readonly [HookType.UserPromptSubmit]?: readonly IHookCommand[];
 	readonly [HookType.PreToolUse]?: readonly IHookCommand[];
 	readonly [HookType.PostToolUse]?: readonly IHookCommand[];
+	readonly [HookType.PreCompact]?: readonly IHookCommand[];
 	readonly [HookType.SubagentStart]?: readonly IHookCommand[];
 	readonly [HookType.SubagentStop]?: readonly IHookCommand[];
 	readonly [HookType.Stop]?: readonly IHookCommand[];
@@ -157,10 +164,10 @@ const hookCommandSchema: IJSONSchema = {
 			additionalProperties: { type: 'string' },
 			description: nls.localize('hook.env', 'Additional environment variables that are merged with the existing environment.')
 		},
-		timeoutSec: {
+		timeout: {
 			type: 'number',
 			default: 30,
-			description: nls.localize('hook.timeoutSec', 'Maximum execution time in seconds (default: 30).')
+			description: nls.localize('hook.timeout', 'Maximum execution time in seconds (default: 30).')
 		}
 	}
 };
@@ -184,7 +191,7 @@ export const hookFileSchema: IJSONSchema = {
 			properties: {
 				SessionStart: {
 					...hookArraySchema,
-					description: nls.localize('hookFile.sessionStart', 'Executed when a new agent session begins or when resuming an existing session. Use to initialize environments, log session starts, validate project state, or set up temporary resources.')
+					description: nls.localize('hookFile.sessionStart', 'Executed when a new agent session begins. Use to initialize environments, log session starts, validate project state, or set up temporary resources.')
 				},
 				UserPromptSubmit: {
 					...hookArraySchema,
@@ -197,6 +204,10 @@ export const hookFileSchema: IJSONSchema = {
 				PostToolUse: {
 					...hookArraySchema,
 					description: nls.localize('hookFile.postToolUse', 'Executed after a tool completes execution successfully. Use to log execution results, track usage statistics, generate audit trails, or monitor performance.')
+				},
+				PreCompact: {
+					...hookArraySchema,
+					description: nls.localize('hookFile.preCompact', 'Executed before the agent compacts the conversation context. Use to save conversation state, export important information, or prepare for context reduction.')
 				},
 				SubagentStart: {
 					...hookArraySchema,
@@ -229,7 +240,7 @@ export const hookFileSchema: IJSONSchema = {
 						{
 							type: 'command',
 							command: '${2:./scripts/validate.sh}',
-							timeoutSec: 15
+							timeout: 15
 						}
 					]
 				}
@@ -246,7 +257,7 @@ export const HOOK_SCHEMA_URI = 'vscode://schemas/hooks';
 /**
  * Glob pattern for hook files.
  */
-export const HOOK_FILE_GLOB = 'hooks/hooks.json';
+export const HOOK_FILE_GLOB = '.github/hooks/*.json';
 
 /**
  * Normalizes a raw hook type identifier to the canonical HookType enum value.
@@ -267,7 +278,7 @@ export function toHookType(rawHookTypeId: string): HookType | undefined {
  * - powershell -> windows
  * This is an internal helper - use resolveHookCommand for the full resolution.
  */
-function normalizeHookCommand(raw: Record<string, unknown>): { command?: string; windows?: string; linux?: string; osx?: string; windowsSource?: 'windows' | 'powershell'; linuxSource?: 'linux' | 'bash'; osxSource?: 'osx' | 'bash'; cwd?: string; env?: Record<string, string>; timeoutSec?: number } | undefined {
+function normalizeHookCommand(raw: Record<string, unknown>): { command?: string; windows?: string; linux?: string; osx?: string; windowsSource?: 'windows' | 'powershell'; linuxSource?: 'linux' | 'bash'; osxSource?: 'osx' | 'bash'; cwd?: string; env?: Record<string, string>; timeout?: number } | undefined {
 	if (raw.type !== 'command') {
 		return undefined;
 	}
@@ -302,36 +313,37 @@ function normalizeHookCommand(raw: Record<string, unknown>): { command?: string;
 		...(osxSource && { osxSource }),
 		...(typeof raw.cwd === 'string' && { cwd: raw.cwd }),
 		...(typeof raw.env === 'object' && raw.env !== null && { env: raw.env as Record<string, string> }),
-		...(typeof raw.timeoutSec === 'number' && { timeoutSec: raw.timeoutSec }),
+		...(typeof raw.timeout !== 'number' && typeof raw.timeoutSec === 'number' && { timeout: raw.timeoutSec }),
+		...(typeof raw.timeout === 'number' && { timeout: raw.timeout }),
 	};
 }
 
 /**
- * Gets a label for the current platform.
+ * Gets a label for the given platform.
  */
-export function getCurrentPlatformLabel(): string {
-	if (platform.isWindows) {
+export function getPlatformLabel(os: OperatingSystem): string {
+	if (os === OperatingSystem.Windows) {
 		return 'Windows';
-	} else if (platform.isMacintosh) {
+	} else if (os === OperatingSystem.Macintosh) {
 		return 'macOS';
-	} else if (platform.isLinux) {
+	} else if (os === OperatingSystem.Linux) {
 		return 'Linux';
 	}
 	return '';
 }
 
 /**
- * Resolves the effective command for the current platform.
+ * Resolves the effective command for the given platform.
  * This applies OS-specific overrides (windows, linux, osx) to get the actual command that will be executed.
  * Similar to how launch.json handles platform-specific configurations in debugAdapter.ts.
  */
-export function resolveEffectiveCommand(hook: IHookCommand): string | undefined {
-	// Select the platform-specific override based on the current OS
-	if (platform.isWindows && hook.windows) {
+export function resolveEffectiveCommand(hook: IHookCommand, os: OperatingSystem): string | undefined {
+	// Select the platform-specific override based on the OS
+	if (os === OperatingSystem.Windows && hook.windows) {
 		return hook.windows;
-	} else if (platform.isMacintosh && hook.osx) {
+	} else if (os === OperatingSystem.Macintosh && hook.osx) {
 		return hook.osx;
-	} else if (platform.isLinux && hook.linux) {
+	} else if (os === OperatingSystem.Linux && hook.linux) {
 		return hook.linux;
 	}
 
@@ -342,45 +354,45 @@ export function resolveEffectiveCommand(hook: IHookCommand): string | undefined 
 /**
  * Checks if the hook is using a platform-specific command override.
  */
-export function isUsingPlatformOverride(hook: IHookCommand): boolean {
-	if (platform.isWindows && hook.windows) {
+export function isUsingPlatformOverride(hook: IHookCommand, os: OperatingSystem): boolean {
+	if (os === OperatingSystem.Windows && hook.windows) {
 		return true;
-	} else if (platform.isMacintosh && hook.osx) {
+	} else if (os === OperatingSystem.Macintosh && hook.osx) {
 		return true;
-	} else if (platform.isLinux && hook.linux) {
+	} else if (os === OperatingSystem.Linux && hook.linux) {
 		return true;
 	}
 	return false;
 }
 
 /**
- * Gets the source shell type for the effective command on the current platform.
+ * Gets the source shell type for the effective command on the given platform.
  * Returns 'powershell' if the Windows command came from a powershell field,
  * 'bash' if the Linux/macOS command came from a bash field,
  * or undefined for default shell handling.
  */
-export function getEffectiveCommandSource(hook: IHookCommand): 'powershell' | 'bash' | undefined {
-	if (platform.isWindows && hook.windows && hook.windowsSource === 'powershell') {
+export function getEffectiveCommandSource(hook: IHookCommand, os: OperatingSystem): 'powershell' | 'bash' | undefined {
+	if (os === OperatingSystem.Windows && hook.windows && hook.windowsSource === 'powershell') {
 		return 'powershell';
-	} else if (platform.isMacintosh && hook.osx && hook.osxSource === 'bash') {
+	} else if (os === OperatingSystem.Macintosh && hook.osx && hook.osxSource === 'bash') {
 		return 'bash';
-	} else if (platform.isLinux && hook.linux && hook.linuxSource === 'bash') {
+	} else if (os === OperatingSystem.Linux && hook.linux && hook.linuxSource === 'bash') {
 		return 'bash';
 	}
 	return undefined;
 }
 
 /**
- * Gets the original JSON field key name for the current platform's command.
+ * Gets the original JSON field key name for the given platform's command.
  * Returns the actual field name from the JSON (e.g., 'bash' instead of 'osx' if bash was used).
  * This is used for editor focus to highlight the correct field.
  */
-export function getEffectiveCommandFieldKey(hook: IHookCommand): string {
-	if (platform.isWindows && hook.windows) {
+export function getEffectiveCommandFieldKey(hook: IHookCommand, os: OperatingSystem): string {
+	if (os === OperatingSystem.Windows && hook.windows) {
 		return hook.windowsSource ?? 'windows';
-	} else if (platform.isMacintosh && hook.osx) {
+	} else if (os === OperatingSystem.Macintosh && hook.osx) {
 		return hook.osxSource ?? 'osx';
-	} else if (platform.isLinux && hook.linux) {
+	} else if (os === OperatingSystem.Linux && hook.linux) {
 		return hook.linuxSource ?? 'linux';
 	}
 	return 'command';
@@ -388,18 +400,18 @@ export function getEffectiveCommandFieldKey(hook: IHookCommand): string {
 
 /**
  * Formats a hook command for display.
- * Resolves OS-specific overrides to show the effective command for the current platform.
+ * Resolves OS-specific overrides to show the effective command for the given platform.
  * If using a platform-specific override, includes the platform as a prefix badge.
  */
-export function formatHookCommandLabel(hook: IHookCommand): string {
-	const command = resolveEffectiveCommand(hook) ?? '';
+export function formatHookCommandLabel(hook: IHookCommand, os: OperatingSystem): string {
+	const command = resolveEffectiveCommand(hook, os);
 	if (!command) {
 		return '';
 	}
 
 	// Add platform badge if using platform-specific override
-	if (isUsingPlatformOverride(hook)) {
-		const platformLabel = getCurrentPlatformLabel();
+	if (isUsingPlatformOverride(hook, os)) {
+		const platformLabel = getPlatformLabel(os);
 		return `[${platformLabel}] ${command}`;
 	}
 
@@ -445,6 +457,6 @@ export function resolveHookCommand(raw: Record<string, unknown>, workspaceRootUr
 		...(normalized.osxSource && { osxSource: normalized.osxSource }),
 		...(cwdUri && { cwd: cwdUri }),
 		...(normalized.env && { env: normalized.env }),
-		...(normalized.timeoutSec !== undefined && { timeoutSec: normalized.timeoutSec }),
+		...(normalized.timeout !== undefined && { timeout: normalized.timeout }),
 	};
 }

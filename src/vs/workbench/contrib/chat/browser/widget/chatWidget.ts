@@ -66,11 +66,12 @@ import { ChatAgentLocation, ChatConfiguration, ChatModeKind } from '../../common
 import { ILanguageModelToolsService, isToolSet } from '../../common/tools/languageModelToolsService.js';
 import { ComputeAutomaticInstructions } from '../../common/promptSyntax/computeAutomaticInstructions.js';
 import { PromptsConfig } from '../../common/promptSyntax/config/config.js';
-import { IHandOff, PromptHeader, Target } from '../../common/promptSyntax/promptFileParser.js';
+import { IHandOff, PromptHeader } from '../../common/promptSyntax/promptFileParser.js';
 import { IPromptsService } from '../../common/promptSyntax/service/promptsService.js';
 import { handleModeSwitch } from '../actions/chatActions.js';
 import { ChatTreeItem, IChatAcceptInputOptions, IChatAccessibilityService, IChatCodeBlockInfo, IChatFileTreeInfo, IChatListItemRendererOptions, IChatWidget, IChatWidgetService, IChatWidgetViewContext, IChatWidgetViewModelChangeEvent, IChatWidgetViewOptions, isIChatResourceViewContext, isIChatViewViewContext } from '../chat.js';
 import { ChatAttachmentModel } from '../attachments/chatAttachmentModel.js';
+import { IChatAttachmentResolveService } from '../attachments/chatAttachmentResolveService.js';
 import { ChatSuggestNextWidget } from './chatContentParts/chatSuggestNextWidget.js';
 import { ChatInputPart, IChatInputPartOptions, IChatInputStyles } from './input/chatInputPart.js';
 import { IChatListItemTemplate } from './chatListRenderer.js';
@@ -196,13 +197,13 @@ export class ChatWidget extends Disposable implements IChatWidget {
 	private _onDidChangeParsedInput = this._register(new Emitter<void>());
 	readonly onDidChangeParsedInput = this._onDidChangeParsedInput.event;
 
-	private readonly _onWillMaybeChangeHeight = new Emitter<void>();
+	private readonly _onWillMaybeChangeHeight = this._register(new Emitter<void>());
 	readonly onWillMaybeChangeHeight: Event<void> = this._onWillMaybeChangeHeight.event;
 
 	private _onDidChangeHeight = this._register(new Emitter<number>());
 	readonly onDidChangeHeight = this._onDidChangeHeight.event;
 
-	private readonly _onDidChangeContentHeight = new Emitter<void>();
+	private readonly _onDidChangeContentHeight = this._register(new Emitter<void>());
 	readonly onDidChangeContentHeight: Event<void> = this._onDidChangeContentHeight.event;
 
 	private _onDidChangeEmptyState = this._register(new Emitter<void>());
@@ -365,7 +366,8 @@ export class ChatWidget extends Disposable implements IChatWidget {
 		@IAgentSessionsService private readonly agentSessionsService: IAgentSessionsService,
 		@IChatTodoListService private readonly chatTodoListService: IChatTodoListService,
 		@IWorkspaceContextService private readonly contextService: IWorkspaceContextService,
-		@ILifecycleService private readonly lifecycleService: ILifecycleService
+		@ILifecycleService private readonly lifecycleService: ILifecycleService,
+		@IChatAttachmentResolveService private readonly chatAttachmentResolveService: IChatAttachmentResolveService,
 	) {
 		super();
 
@@ -738,6 +740,15 @@ export class ChatWidget extends Disposable implements IChatWidget {
 		}
 
 		return this.input.focusQuestionCarousel();
+	}
+
+	toggleTipFocus(): boolean {
+		if (this.listWidget.hasTipFocus()) {
+			this.focusInput();
+			return true;
+		}
+
+		return this.listWidget.focusTip();
 	}
 
 	hasInputFocus(): boolean {
@@ -2210,6 +2221,9 @@ export class ChatWidget extends Disposable implements IChatWidget {
 				}
 			}
 		}
+		// Expand directory attachments: extract images as binary entries
+		const resolvedImageVariables = await this._resolveDirectoryImageAttachments(requestInputs.attachedContext.asArray());
+
 		if (this.viewModel.sessionResource && !options.queue) {
 			// todo@connor4312: move chatAccessibilityService.acceptRequest to a refcount model to handle queue messages
 			this.chatAccessibilityService.acceptRequest(this._viewModel!.sessionResource);
@@ -2221,6 +2235,7 @@ export class ChatWidget extends Disposable implements IChatWidget {
 			locationData: this._location.resolveData?.(),
 			parserContext: { selectedAgent: this._lastSelectedAgent, mode: this.input.currentModeKind },
 			attachedContext: requestInputs.attachedContext.asArray(),
+			resolvedVariables: resolvedImageVariables,
 			noCommandDetection: options?.noCommandDetection,
 			...this.getModeRequestOptions(),
 			modeInfo: this.input.currentModeInfo,
@@ -2228,7 +2243,7 @@ export class ChatWidget extends Disposable implements IChatWidget {
 			queue: options?.queue,
 		});
 
-		if (this.viewModel.sessionResource && !options.queue) {
+		if (this.viewModel.sessionResource && !options.queue && ChatSendResult.isRejected(result)) {
 			this.chatAccessibilityService.disposeRequest(this.viewModel.sessionResource);
 		}
 
@@ -2243,6 +2258,11 @@ export class ChatWidget extends Disposable implements IChatWidget {
 		const sent = ChatSendResult.isQueued(result) ? await result.deferred : result;
 		if (!ChatSendResult.isSent(sent)) {
 			return;
+		}
+
+		// If this was a queued request that just got dequeued, start the progress sound now
+		if (options.queue && this.viewModel?.sessionResource) {
+			this.chatAccessibilityService.acceptRequest(this.viewModel.sessionResource);
 		}
 
 		this._onDidSubmitAgent.fire({ agent: sent.data.agent, slashCommand: sent.data.slashCommand });
@@ -2261,6 +2281,26 @@ export class ChatWidget extends Disposable implements IChatWidget {
 		});
 
 		return sent.data.responseCreatedPromise;
+	}
+
+	// Resolve images from directory attachments to send as additional variables.
+	private async _resolveDirectoryImageAttachments(attachments: IChatRequestVariableEntry[]): Promise<IChatRequestVariableEntry[]> {
+		const imagePromises: Promise<IChatRequestVariableEntry[]>[] = [];
+
+		for (const attachment of attachments) {
+			if (attachment.kind === 'directory' && URI.isUri(attachment.value)) {
+				imagePromises.push(
+					this.chatAttachmentResolveService.resolveDirectoryImages(attachment.value)
+				);
+			}
+		}
+
+		if (imagePromises.length === 0) {
+			return [];
+		}
+
+		const resolved = await Promise.all(imagePromises);
+		return resolved.flat();
 	}
 
 	private async confirmPendingRequestsBeforeSend(model: IChatModel, options: IChatAcceptInputOptions): Promise<boolean> {
@@ -2509,7 +2549,7 @@ export class ChatWidget extends Disposable implements IChatWidget {
 
 		// if not tools to enable are present, we are done
 		if (tools !== undefined && this.input.currentModeKind === ChatModeKind.Agent) {
-			const enablementMap = this.toolsService.toToolAndToolSetEnablementMap(tools, Target.VSCode, this.input.selectedLanguageModel.get()?.metadata);
+			const enablementMap = this.toolsService.toToolAndToolSetEnablementMap(tools, this.input.selectedLanguageModel.get()?.metadata);
 			this.input.selectedToolsModel.set(enablementMap, true);
 		}
 

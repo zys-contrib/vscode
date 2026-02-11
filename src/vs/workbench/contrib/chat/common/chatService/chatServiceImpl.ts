@@ -52,7 +52,6 @@ import { ILanguageModelToolsService } from '../tools/languageModelToolsService.j
 import { ChatSessionOperationLog } from '../model/chatSessionOperationLog.js';
 import { IPromptsService } from '../promptSyntax/service/promptsService.js';
 import { IChatRequestHooks } from '../promptSyntax/hookSchema.js';
-import { IHooksExecutionService } from '../hooks/hooksExecutionService.js';
 
 const serializedChatKey = 'interactive.sessions';
 
@@ -905,16 +904,12 @@ export class ChatService extends Disposable implements IChatService {
 			let detectedAgent: IChatAgentData | undefined;
 			let detectedCommand: IChatAgentCommand | undefined;
 
-			// Collect hooks from hooks.json files
+			// Collect hooks from hook .json files
 			let collectedHooks: IChatRequestHooks | undefined;
 			try {
 				collectedHooks = await this.promptsService.getHooks(token);
 			} catch (error) {
 				this.logService.warn('[ChatService] Failed to collect hooks:', error);
-			}
-
-			if (collectedHooks) {
-				store.add(this.hooksExecutionService.registerHooks(model.sessionResource, collectedHooks));
 			}
 
 			const stopWatch = new StopWatch(false);
@@ -953,6 +948,12 @@ export class ChatService extends Disposable implements IChatService {
 						} else {
 							variableData = { variables: this.prepareContext(request.attachedContext) };
 							model.updateRequest(request, variableData);
+
+							// Merge resolved variables (e.g. images from directories) for the
+							// agent request only - they are not stored on the request model.
+							if (options?.resolvedVariables?.length) {
+								variableData = { variables: [...variableData.variables, ...options.resolvedVariables] };
+							}
 
 							const promptTextResult = getPromptText(request.message);
 							variableData = updateRanges(variableData, promptTextResult.diff); // TODO bit of a hack

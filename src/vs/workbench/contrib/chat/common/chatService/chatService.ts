@@ -434,7 +434,11 @@ export interface IChatHookPart {
 	stopReason?: string;
 	/** Warning/system message from the hook, shown to the user */
 	systemMessage?: string;
+	/** Display name of the tool that was affected by the hook */
+	toolDisplayName?: string;
 	metadata?: { readonly [key: string]: unknown };
+	/** If set, this hook was executed within a subagent invocation and should be grouped with it. */
+	subAgentInvocationId?: string;
 }
 
 export interface IChatTerminalToolInvocationData {
@@ -852,6 +856,24 @@ export interface IChatSubagentToolInvocationData {
 	agentName?: string;
 	prompt?: string;
 	result?: string;
+	modelName?: string;
+}
+
+/**
+ * Progress type for external tool invocation updates from extensions.
+ * When isComplete is false, creates or updates a tool invocation.
+ * When isComplete is true, completes an existing tool invocation.
+ */
+export interface IChatExternalToolInvocationUpdate {
+	kind: 'externalToolInvocationUpdate';
+	toolCallId: string;
+	toolName: string;
+	isComplete: boolean;
+	errorMessage?: string;
+	invocationMessage?: string | IMarkdownString;
+	pastTenseMessage?: string | IMarkdownString;
+	toolSpecificData?: IChatTerminalToolInvocationData | IChatToolInputInvocationData | IChatExtensionsContent | IChatTodoListContent | IChatSubagentToolInvocationData;
+	subagentInvocationId?: string;
 }
 
 export interface IChatTodoListContent {
@@ -950,7 +972,8 @@ export type IChatProgress =
 	| IChatElicitationRequestSerialized
 	| IChatMcpServersStarting
 	| IChatMcpServersStartingSerialized
-	| IChatHookPart;
+	| IChatHookPart
+	| IChatExternalToolInvocationUpdate;
 
 export interface IChatFollowup {
 	kind: 'reply';
@@ -1281,6 +1304,7 @@ export interface IChatSendRequestOptions {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	rejectedConfirmationData?: any[];
 	attachedContext?: IChatRequestVariableEntry[];
+	resolvedVariables?: IChatRequestVariableEntry[];
 
 	/** The target agent ID can be specified with this property instead of using @ in 'message' */
 	agentId?: string;

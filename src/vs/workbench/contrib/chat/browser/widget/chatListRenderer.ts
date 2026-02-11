@@ -103,12 +103,12 @@ import { ChatMarkdownDecorationsRenderer } from './chatContentParts/chatMarkdown
 import { ChatEditorOptions } from './chatOptions.js';
 import { ChatCodeBlockContentProvider, CodeBlockPart } from './chatContentParts/codeBlockPart.js';
 import { autorun, observableValue } from '../../../../../base/common/observable.js';
-import { RunSubagentTool } from '../../common/tools/builtinTools/runSubagentTool.js';
 import { isEqual } from '../../../../../base/common/resources.js';
 import { IChatTipService } from '../chatTipService.js';
 import { IAccessibilityService } from '../../../../../platform/accessibility/common/accessibility.js';
 import { ChatHookContentPart } from './chatContentParts/chatHookContentPart.js';
 import { ChatPendingDragController } from './chatPendingDragAndDrop.js';
+import { HookType } from '../../common/promptSyntax/hookSchema.js';
 
 const $ = dom.$;
 
@@ -184,6 +184,8 @@ export class ChatListItemRenderer extends Disposable implements ITreeRenderer<Ch
 	/** Track pending question carousels by session resource for auto-skip on chat submission */
 	private readonly pendingQuestionCarousels = new ResourceMap<Set<ChatQuestionCarouselPart>>();
 
+	private _activeTipPart: ChatTipContentPart | undefined;
+
 	private readonly _notifiedQuestionCarousels = new WeakSet<IChatQuestionCarousel>();
 	private readonly _questionCarouselToast = this._register(new DisposableStore());
 
@@ -192,7 +194,7 @@ export class ChatListItemRenderer extends Disposable implements ITreeRenderer<Ch
 	protected readonly _onDidClickFollowup = this._register(new Emitter<IChatFollowup>());
 	readonly onDidClickFollowup: Event<IChatFollowup> = this._onDidClickFollowup.event;
 
-	private readonly _onDidClickRerunWithAgentOrCommandDetection = new Emitter<{ readonly sessionResource: URI; readonly requestId: string }>();
+	private readonly _onDidClickRerunWithAgentOrCommandDetection = this._register(new Emitter<{ readonly sessionResource: URI; readonly requestId: string }>());
 	readonly onDidClickRerunWithAgentOrCommandDetection = this._onDidClickRerunWithAgentOrCommandDetection.event;
 
 
@@ -299,6 +301,18 @@ export class ChatListItemRenderer extends Disposable implements ITreeRenderer<Ch
 
 	editorsInUse(): Iterable<CodeBlockPart> {
 		return Iterable.concat(this._editorPool.inUse(), this._toolEditorPool.inUse());
+	}
+
+	hasTipFocus(): boolean {
+		return this._activeTipPart?.hasFocus() ?? false;
+	}
+
+	focusTip(): boolean {
+		if (!this._activeTipPart) {
+			return false;
+		}
+		this._activeTipPart.focus();
+		return true;
 	}
 
 	private traceLayout(method: string, message: string) {
@@ -1057,9 +1071,27 @@ export class ChatListItemRenderer extends Disposable implements ITreeRenderer<Ch
 		// Render tip above the request message (if available)
 		const tip = this.chatTipService.getNextTip(element.id, element.timestamp, this.contextKeyService);
 		if (tip) {
-			const tipPart = new ChatTipContentPart(tip, this.chatContentMarkdownRenderer);
+			const tipPart = this.instantiationService.createInstance(ChatTipContentPart,
+				tip,
+				this.chatContentMarkdownRenderer,
+				() => this.chatTipService.getNextTip(element.id, element.timestamp, this.contextKeyService),
+			);
 			templateData.value.appendChild(tipPart.domNode);
+			this._activeTipPart = tipPart;
 			templateData.elementDisposables.add(tipPart);
+			templateData.elementDisposables.add(tipPart.onDidHide(() => {
+				tipPart.domNode.remove();
+				if (this._activeTipPart === tipPart) {
+					this._activeTipPart = undefined;
+				}
+			}));
+			templateData.elementDisposables.add({
+				dispose: () => {
+					if (this._activeTipPart === tipPart) {
+						this._activeTipPart = undefined;
+					}
+				}
+			});
 		}
 
 		let inlineSlashCommandRendered = false;
@@ -1220,7 +1252,7 @@ export class ChatListItemRenderer extends Disposable implements ITreeRenderer<Ch
 
 			// combine tool invocations into thinking part if needed. render the tool, but do not replace the working spinner with the new part's dom node since it is already inside the thinking part.
 			const lastThinking = this.getLastThinkingPart(renderedParts);
-			if (lastThinking && (partToRender.kind === 'toolInvocation' || partToRender.kind === 'toolInvocationSerialized' || partToRender.kind === 'markdownContent' || partToRender.kind === 'textEditGroup') && this.shouldPinPart(partToRender, element)) {
+			if (lastThinking && (partToRender.kind === 'toolInvocation' || partToRender.kind === 'toolInvocationSerialized' || partToRender.kind === 'markdownContent' || partToRender.kind === 'textEditGroup' || partToRender.kind === 'hook') && this.shouldPinPart(partToRender, element)) {
 				const newPart = this.renderChatContentPart(partToRender, templateData, context);
 				if (newPart) {
 					renderedParts[contentIndex] = newPart;
@@ -1409,6 +1441,7 @@ export class ChatListItemRenderer extends Disposable implements ITreeRenderer<Ch
 		return !isResponseVM(element) || element.isComplete || codeblockHasClosingBackticks(part.content.value);
 	}
 
+	// todo @justschen initially split up each of the checks to easily see what should be pinned/not pinned, we can probably consolidate this down by a lot once we're more confident in the logic.
 	private shouldPinPart(part: IChatRendererContent, element?: IChatResponseViewModel): boolean {
 		const collapsedToolsMode = this.configService.getValue<CollapsedToolsDisplayMode>('chat.agent.thinking.collapsedTools');
 
@@ -1420,6 +1453,14 @@ export class ChatListItemRenderer extends Disposable implements ITreeRenderer<Ch
 		// should not finalize thinking
 		if (part.kind === 'undoStop') {
 			return true;
+		}
+
+		// only tool related hooks will be inside thinking containers.
+		if (part.kind === 'hook') {
+			if (part.subAgentInvocationId) {
+				return false;
+			}
+			return part.hookType === HookType.PreToolUse || part.hookType === HookType.PostToolUse;
 		}
 
 		if (collapsedToolsMode === CollapsedToolsDisplayMode.Off) {
@@ -1450,8 +1491,7 @@ export class ChatListItemRenderer extends Disposable implements ITreeRenderer<Ch
 		}
 
 		// Don't pin subagent tools to thinking parts - they have their own grouping
-		const isSubagentTool = (part.kind === 'toolInvocation' || part.kind === 'toolInvocationSerialized') && (part.subAgentInvocationId || part.toolId === RunSubagentTool.Id);
-		if (isSubagentTool) {
+		if ((part.kind === 'toolInvocation' || part.kind === 'toolInvocationSerialized') && isSubagentToolInvocation(part)) {
 			return false;
 		}
 
@@ -1573,8 +1613,8 @@ export class ChatListItemRenderer extends Disposable implements ITreeRenderer<Ch
 		const lastSubagent = this.getSubagentPart(templateData.renderedParts, subagentId);
 		if (lastSubagent) {
 			// Append to existing subagent part with matching ID
-			// But skip the runSubagent tool itself - we only want child tools
-			if (toolInvocation.toolId !== RunSubagentTool.Id) {
+			// But skip the parent subagent tool itself - we only want child tools
+			if (!isParentSubagentTool(toolInvocation)) {
 				lastSubagent.appendToolInvocation(toolInvocation, codeBlockStartIndex);
 			}
 			return lastSubagent;
@@ -1593,9 +1633,9 @@ export class ChatListItemRenderer extends Disposable implements ITreeRenderer<Ch
 			this._toolInvocationCodeBlockCollection,
 			this._announcedToolProgressKeys,
 		);
-		// Don't append the runSubagent tool itself - its description is already shown in the title
+		// Don't append the parent subagent tool itself - its description is already shown in the title
 		// Only append child tools (those with subAgentInvocationId)
-		if (toolInvocation.toolId !== RunSubagentTool.Id) {
+		if (!isParentSubagentTool(toolInvocation)) {
 			subagentPart.appendToolInvocation(toolInvocation, codeBlockStartIndex);
 		}
 		return subagentPart;
@@ -1642,7 +1682,7 @@ export class ChatListItemRenderer extends Disposable implements ITreeRenderer<Ch
 
 			// Check if this is subagent content
 			const isSubagentContent = (content.kind === 'toolInvocation' || content.kind === 'toolInvocationSerialized')
-				&& (content.subAgentInvocationId || content.toolId === RunSubagentTool.Id);
+				&& isSubagentToolInvocation(content);
 
 			// Finalize all subagent parts when element is complete
 			// Note: We don't finalize when non-subagent content arrives because parallel subagents may still be running
@@ -1671,7 +1711,7 @@ export class ChatListItemRenderer extends Disposable implements ITreeRenderer<Ch
 			} else if (content.kind === 'warning') {
 				return this.instantiationService.createInstance(ChatErrorContentPart, ChatErrorLevel.Warning, content.content, content, this.chatContentMarkdownRenderer);
 			} else if (content.kind === 'hook') {
-				return this.renderHookPart(content, context);
+				return this.renderHookPart(content, context, templateData);
 			} else if (content.kind === 'markdownContent') {
 				return this.renderMarkdown(content, templateData, context);
 			} else if (content.kind === 'references') {
@@ -1887,7 +1927,7 @@ export class ChatListItemRenderer extends Disposable implements ITreeRenderer<Ch
 		}
 
 		// Check for subagent grouping before creating tool part - subagent part handles lazy creation
-		const subagentId = toolInvocation.toolId === RunSubagentTool.Id ? toolInvocation.toolCallId : toolInvocation.subAgentInvocationId;
+		const subagentId = getSubagentId(toolInvocation);
 		if (subagentId && isResponseVM(context.element) && toolInvocation.presentation !== 'hidden') {
 			return this.handleSubagentToolGrouping(toolInvocation, subagentId, context, templateData, codeBlockStartIndex);
 		}
@@ -1962,11 +2002,53 @@ export class ChatListItemRenderer extends Disposable implements ITreeRenderer<Ch
 		return part;
 	}
 
-	private renderHookPart(hookPart: IChatHookPart, context: IChatContentPartRenderContext): IChatContentPart {
-		if (hookPart.stopReason || hookPart.systemMessage) {
-			return this.instantiationService.createInstance(ChatHookContentPart, hookPart, context);
+	private renderHookPart(hookPart: IChatHookPart, context: IChatContentPartRenderContext, templateData: IChatListItemTemplate): IChatContentPart {
+		if (!(hookPart.stopReason || hookPart.systemMessage)) {
+			return this.renderNoContent(other => other.kind === 'hook' && other.hookType === hookPart.hookType);
 		}
-		return this.renderNoContent(other => other.kind === 'hook' && other.hookType === hookPart.hookType);
+
+		if (hookPart.subAgentInvocationId) {
+			const subagentPart = this.getSubagentPart(templateData.renderedParts, hookPart.subAgentInvocationId);
+			if (subagentPart) {
+				subagentPart.appendHookItem(() => {
+					const part = this.instantiationService.createInstance(ChatHookContentPart, hookPart, context);
+					return { domNode: part.domNode, disposable: part };
+				}, hookPart);
+				return this.renderNoContent(other => other.kind === 'hook' && other.hookType === hookPart.hookType && other.subAgentInvocationId === hookPart.subAgentInvocationId);
+			}
+		}
+
+		// Only pin preTool/postTool hooks into the thinking part
+		const shouldPinToThinking = hookPart.hookType === HookType.PreToolUse || hookPart.hookType === HookType.PostToolUse;
+		if (shouldPinToThinking) {
+			const hookTitle = hookPart.stopReason
+				? (hookPart.toolDisplayName
+					? localize('hook.thinking.blocked', "Blocked {0}", hookPart.toolDisplayName)
+					: localize('hook.thinking.blockedGeneric', "Blocked by hook"))
+				: (hookPart.toolDisplayName
+					? localize('hook.thinking.warning', "Used {0}, but received a warning", hookPart.toolDisplayName)
+					: localize('hook.thinking.warningGeneric', "Tool call received a warning"));
+
+			let thinkingPart = this.getLastThinkingPart(templateData.renderedParts);
+			if (!thinkingPart) {
+				// Create a thinking part if one doesn't exist yet (e.g. hook arrives before/with its tool in the same turn)
+				const newThinking = this.renderThinkingPart({ kind: 'thinking' }, context, templateData);
+				if (newThinking instanceof ChatThinkingContentPart) {
+					thinkingPart = newThinking;
+				}
+			}
+
+			if (thinkingPart) {
+				thinkingPart.appendItem(() => {
+					const part = this.instantiationService.createInstance(ChatHookContentPart, hookPart, context);
+					return { domNode: part.domNode, disposable: part };
+				}, hookTitle, undefined, templateData.value);
+				return thinkingPart;
+			}
+		}
+
+		const part = this.instantiationService.createInstance(ChatHookContentPart, hookPart, context);
+		return part;
 	}
 
 	private renderPullRequestContent(pullRequestContent: IChatPullRequestContent, context: IChatContentPartRenderContext, templateData: IChatListItemTemplate): IChatContentPart | undefined {
@@ -2513,4 +2595,31 @@ export class ChatVoteDownButton extends DropdownMenuActionViewItem {
 			}
 		};
 	}
+}
+
+/**
+ * Check if a tool invocation is the parent subagent tool (the tool that spawns a subagent).
+ * A parent subagent tool has subagent toolSpecificData but no subAgentInvocationId.
+ */
+function isParentSubagentTool(invocation: IChatToolInvocation | IChatToolInvocationSerialized): boolean {
+	return invocation.toolSpecificData?.kind === 'subagent' && !invocation.subAgentInvocationId;
+}
+
+/**
+ * Get the subagent invocation ID for grouping tools.
+ * For parent subagent tools, use their toolCallId.
+ * For child tools, use their subAgentInvocationId.
+ */
+function getSubagentId(invocation: IChatToolInvocation | IChatToolInvocationSerialized): string | undefined {
+	if (isParentSubagentTool(invocation)) {
+		return invocation.toolCallId;
+	}
+	return invocation.subAgentInvocationId;
+}
+
+/**
+ * Check if a tool invocation is part of a subagent (either parent or child).
+ */
+function isSubagentToolInvocation(invocation: IChatToolInvocation | IChatToolInvocationSerialized): boolean {
+	return !!getSubagentId(invocation);
 }
