@@ -284,18 +284,7 @@
 /* Context Menus */
 .monaco-workbench .monaco-menu .monaco-action-bar.vertical {
 	border-radius: var(--radius-lg);
-}
-
-/* Use ::before for backdrop-filter so it doesn't create a containing block
-   for position:fixed submenu children (which would clip them via overflow:hidden). */
-.monaco-workbench .monaco-menu .monaco-action-bar.vertical::before {
-	content: '';
-	position: absolute;
-	inset: 0;
 	border-radius: inherit;
-	backdrop-filter: var(--backdrop-blur-md);
-	-webkit-backdrop-filter: var(--backdrop-blur-md);
-	z-index: -1;
 }
 
 .monaco-workbench .context-view .monaco-menu {
