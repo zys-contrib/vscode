@@ -53,11 +53,6 @@ suite('TerminalSandboxService - allowTrustedDomains', () => {
 		}
 	}
 
-	const mockEnvironmentService: IEnvironmentService & { tmpDir?: URI; execPath?: string } = {
-		tmpDir: URI.file('/tmp'),
-		execPath: '/usr/bin/node'
-	} as any;
-
 	setup(() => {
 		createdFiles = new Map();
 		instantiationService = workbenchInstantiationService({}, store);
@@ -75,7 +70,10 @@ suite('TerminalSandboxService - allowTrustedDomains', () => {
 
 		instantiationService.stub(IConfigurationService, configurationService);
 		instantiationService.stub(IFileService, fileService);
-		instantiationService.stub(IEnvironmentService, mockEnvironmentService);
+		instantiationService.stub(IEnvironmentService, <IEnvironmentService & { tmpDir?: URI; execPath?: string }>{
+			tmpDir: URI.file('/tmp'),
+			execPath: '/usr/bin/node'
+		});
 		instantiationService.stub(ILogService, new NullLogService());
 		instantiationService.stub(IRemoteAgentService, new MockRemoteAgentService());
 		instantiationService.stub(ITrustedDomainService, trustedDomainService);
