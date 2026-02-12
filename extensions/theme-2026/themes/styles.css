@@ -196,6 +196,10 @@
 	border-radius: var(--radius-lg);
 }
 
+.monaco-workbench .quick-input-widget .monaco-list-rows {
+    background: transparent !important;
+}
+
 .monaco-workbench .quick-input-widget .monaco-inputbox {
 	box-shadow: none !important;
 	background: transparent !important;
