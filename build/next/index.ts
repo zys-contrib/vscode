@@ -10,6 +10,7 @@ import { promisify } from 'util';
 import glob from 'glob';
 import gulpWatch from '../lib/watch/index.ts';
 import { nlsPlugin, createNLSCollector, finalizeNLS, postProcessNLS } from './nls-plugin.ts';
+import { convertPrivateFields, type ConvertPrivateFieldsResult } from './private-to-property.ts';
 import { getVersion } from '../lib/getVersion.ts';
 import product from '../../product.json' with { type: 'json' };
 import packageJson from '../../package.json' with { type: 'json' };
@@ -41,6 +42,7 @@ const options = {
 	watch: process.argv.includes('--watch'),
 	minify: process.argv.includes('--minify'),
 	nls: process.argv.includes('--nls'),
+	manglePrivates: process.argv.includes('--mangle-privates'),
 	excludeTests: process.argv.includes('--exclude-tests'),
 	out: getArgValue('--out'),
 	target: getArgValue('--target') ?? 'desktop', // 'desktop' | 'server' | 'server-web' | 'web'
@@ -740,7 +742,7 @@ async function transpile(outDir: string, excludeTests: boolean): Promise<void> {
 // Bundle (Goal 2: JS → bundled JS)
 // ============================================================================
 
-async function bundle(outDir: string, doMinify: boolean, doNls: boolean, target: BuildTarget, sourceMapBaseUrl?: string): Promise<void> {
+async function bundle(outDir: string, doMinify: boolean, doNls: boolean, doManglePrivates: boolean, target: BuildTarget, sourceMapBaseUrl?: string): Promise<void> {
 	await cleanDir(outDir);
 
 	// Write build date file (used by packaging to embed in product.json)
@@ -748,7 +750,7 @@ async function bundle(outDir: string, doMinify: boolean, doNls: boolean, target:
 	await fs.promises.mkdir(outDirPath, { recursive: true });
 	await fs.promises.writeFile(path.join(outDirPath, 'date'), new Date().toISOString(), 'utf8');
 
-	console.log(`[bundle] ${SRC_DIR} → ${outDir} (target: ${target})${doMinify ? ' (minify)' : ''}${doNls ? ' (nls)' : ''}`);
+	console.log(`[bundle] ${SRC_DIR} → ${outDir} (target: ${target})${doMinify ? ' (minify)' : ''}${doNls ? ' (nls)' : ''}${doManglePrivates ? ' (mangle-privates)' : ''}`);
 	const t1 = Date.now();
 
 	// Read TSLib for banner
@@ -902,6 +904,7 @@ ${tslib}`,
 
 	// Post-process and write all output files
 	let bundled = 0;
+	const mangleStats: { file: string; result: ConvertPrivateFieldsResult }[] = [];
 	for (const { result } of buildResults) {
 		if (!result.outputFiles) {
 			continue;
@@ -916,6 +919,15 @@ ${tslib}`,
 				// Apply NLS post-processing if enabled (JS only)
 				if (file.path.endsWith('.js') && doNls && indexMap.size > 0) {
 					content = postProcessNLS(content, indexMap, preserveEnglish);
+				}
+
+				// Convert native #private fields to regular properties
+				if (file.path.endsWith('.js') && doManglePrivates) {
+					const mangleResult = convertPrivateFields(content, file.path);
+					content = mangleResult.code;
+					if (mangleResult.editCount > 0) {
+						mangleStats.push({ file: path.relative(path.join(REPO_ROOT, outDir), file.path), result: mangleResult });
+					}
 				}
 
 				// Rewrite sourceMappingURL to CDN URL if configured
@@ -938,6 +950,19 @@ ${tslib}`,
 			}
 		}
 		bundled++;
+	}
+
+	// Log mangle-privates stats
+	if (doManglePrivates && mangleStats.length > 0) {
+		let totalClasses = 0, totalFields = 0, totalEdits = 0, totalElapsed = 0;
+		for (const { file, result } of mangleStats) {
+			console.log(`[mangle-privates] ${file}: ${result.classCount} classes, ${result.fieldCount} fields, ${result.editCount} edits, ${result.elapsed}ms`);
+			totalClasses += result.classCount;
+			totalFields += result.fieldCount;
+			totalEdits += result.editCount;
+			totalElapsed += result.elapsed;
+		}
+		console.log(`[mangle-privates] Total: ${totalClasses} classes, ${totalFields} fields, ${totalEdits} edits, ${totalElapsed}ms`);
 	}
 
 	// Copy resources (exclude dev files and tests for production)
@@ -1075,6 +1100,7 @@ Options for 'transpile':
 Options for 'bundle':
 	--minify           Minify the output bundles
 	--nls              Process NLS (localization) strings
+	--mangle-privates  Convert native #private fields to regular properties
 	--out <dir>        Output directory (default: out-vscode)
 	--target <target>  Build target: desktop (default), server, server-web, web
 	--source-map-base-url <url>  Rewrite sourceMappingURL to CDN URL
@@ -1118,7 +1144,7 @@ async function main(): Promise<void> {
 				break;
 
 			case 'bundle':
-				await bundle(options.out ?? OUT_VSCODE_DIR, options.minify, options.nls, options.target as BuildTarget, options.sourceMapBaseUrl);
+				await bundle(options.out ?? OUT_VSCODE_DIR, options.minify, options.nls, options.manglePrivates, options.target as BuildTarget, options.sourceMapBaseUrl);
 				break;
 
 			default:
