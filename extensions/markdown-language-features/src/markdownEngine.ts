@@ -3,7 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import type MarkdownIt = require('markdown-it');
+import type MarkdownIt from 'markdown-it';
 import * as vscode from 'vscode';
 import { ILogger } from './logging';
 import { MarkdownContributionProvider } from './markdownExtensions';
