@@ -527,7 +527,6 @@
 }
 
 /* Entrance animation */
-/* Duration matches QUICK_INPUT_OPEN_DURATION constant (150ms) in quickInputController.ts */
 @keyframes quick-input-entrance {
 	from {
 		opacity: 0;
