@@ -187,7 +187,7 @@
 .monaco-workbench .quick-input-widget .quick-input-action,
 .monaco-workbench .quick-input-widget .quick-input-message,
 .monaco-workbench .quick-input-widget .monaco-list,
-.monaco-workbench .quick-input-widget .monaco-list-row {
+.monaco-workbench .quick-input-widget .monaco-list-row:not(:has(.quick-input-list-separator-border)) {
 	border-color: transparent !important;
 	outline: none !important;
 }
@@ -656,10 +656,6 @@
 
 .monaco-workbench .unified-quick-access-tabs {
 	background: transparent;
-}
-
-.monaco-workbench .quick-input-list .quick-input-list-entry.quick-input-list-separator-border {
-	border-top-width: 0;
 }
 
 /* Quick Input List - use descriptionForeground color for descriptions */
