@@ -543,7 +543,6 @@
 }
 
 /* Exit animation */
-/* Duration matches QUICK_INPUT_CLOSE_DURATION constant (50ms) in quickInputController.ts */
 @keyframes quick-input-exit {
 	from {
 		opacity: 1;
