@@ -14,6 +14,8 @@ jobs:
   pool:
     name: AcesShared
     os: macOS
+    demands:
+      - ImageOverride -equals ACES_VM_SharedPool_Sequoia
   variables:
     # todo@connor4312 to diagnose build flakes
     MSRUSTUP_LOG: debug
@@ -34,9 +36,6 @@ jobs:
       inputs:
         versionSource: fromFile
         versionFilePath: .nvmrc
-
-    - ${{ if eq(parameters.VSCODE_QUALITY, 'insider') }}:
-      - template: ../common/bump-insiders-version.yml@self
 
     - template: ../cli/cli-apply-patches.yml@self
 

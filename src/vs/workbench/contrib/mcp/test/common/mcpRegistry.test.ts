@@ -6,6 +6,7 @@
 import * as assert from 'assert';
 import * as sinon from 'sinon';
 import { timeout } from '../../../../../base/common/async.js';
+import { Disposable } from '../../../../../base/common/lifecycle.js';
 import { ISettableObservable, observableValue } from '../../../../../base/common/observable.js';
 import { upcast } from '../../../../../base/common/types.js';
 import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../../base/test/common/utils.js';
@@ -28,6 +29,7 @@ import { TestLoggerService, TestStorageService } from '../../../../test/common/w
 import { McpRegistry } from '../../common/mcpRegistry.js';
 import { IMcpHostDelegate, IMcpMessageTransport } from '../../common/mcpRegistryTypes.js';
 import { McpServerConnection } from '../../common/mcpServerConnection.js';
+import { McpTaskManager } from '../../common/mcpTaskManager.js';
 import { LazyCollectionState, McpCollectionDefinition, McpServerDefinition, McpServerLaunch, McpServerTransportStdio, McpServerTransportType, McpServerTrust, McpStartServerInteraction } from '../../common/mcpTypes.js';
 import { TestMcpMessageTransport } from './mcpRegistryTypes.js';
 
@@ -145,6 +147,7 @@ suite('Workbench - MCP - Registry', () => {
 	let configurationService: TestConfigurationService;
 	let logger: ILogger;
 	let trustNonceBearer: { trustedAtNonce: string | undefined };
+	let taskManager: McpTaskManager;
 
 	setup(() => {
 		testConfigResolverService = new TestConfigurationResolverService();
@@ -166,6 +169,7 @@ suite('Workbench - MCP - Registry', () => {
 		);
 
 		logger = new NullLogger();
+		taskManager = store.add(new McpTaskManager());
 
 		const instaService = store.add(new TestInstantiationService(services));
 		registry = store.add(instaService.createInstance(TestMcpRegistry));
@@ -267,7 +271,7 @@ suite('Workbench - MCP - Registry', () => {
 		testCollection.serverDefinitions.set([definition], undefined);
 		store.add(registry.registerCollection(testCollection));
 
-		const connection = await registry.resolveConnection({ collectionRef: testCollection, definitionRef: definition, logger, trustNonceBearer }) as McpServerConnection;
+		const connection = await registry.resolveConnection({ collectionRef: testCollection, definitionRef: definition, logger, trustNonceBearer, taskManager }) as McpServerConnection;
 
 		assert.ok(connection);
 		assert.strictEqual(connection.definition, definition);
@@ -275,7 +279,7 @@ suite('Workbench - MCP - Registry', () => {
 		assert.strictEqual((connection.launchDefinition as unknown as { env: { PATH: string } }).env.PATH, 'interactiveValue0');
 		connection.dispose();
 
-		const connection2 = await registry.resolveConnection({ collectionRef: testCollection, definitionRef: definition, logger, trustNonceBearer }) as McpServerConnection;
+		const connection2 = await registry.resolveConnection({ collectionRef: testCollection, definitionRef: definition, logger, trustNonceBearer, taskManager }) as McpServerConnection;
 
 		assert.ok(connection2);
 		assert.strictEqual((connection2.launchDefinition as unknown as { env: { PATH: string } }).env.PATH, 'interactiveValue0');
@@ -283,7 +287,7 @@ suite('Workbench - MCP - Registry', () => {
 
 		registry.clearSavedInputs(StorageScope.WORKSPACE);
 
-		const connection3 = await registry.resolveConnection({ collectionRef: testCollection, definitionRef: definition, logger, trustNonceBearer }) as McpServerConnection;
+		const connection3 = await registry.resolveConnection({ collectionRef: testCollection, definitionRef: definition, logger, trustNonceBearer, taskManager }) as McpServerConnection;
 
 		assert.ok(connection3);
 		assert.strictEqual((connection3.launchDefinition as unknown as { env: { PATH: string } }).env.PATH, 'interactiveValue4');
@@ -322,6 +326,7 @@ suite('Workbench - MCP - Registry', () => {
 			definitionRef: definition,
 			logger,
 			trustNonceBearer,
+			taskManager,
 		}) as McpServerConnection;
 
 		assert.ok(connection);
@@ -430,6 +435,174 @@ suite('Workbench - MCP - Registry', () => {
 		});
 	});
 
+	suite('Duplicate Collection Prevention', () => {
+		test('prevents duplicate non-lazy collections with same ID', () => {
+			const collection1 = {
+				...testCollection,
+				id: 'duplicate-test',
+				label: 'Collection 1',
+			};
+			const collection2 = {
+				...testCollection,
+				id: 'duplicate-test',
+				label: 'Collection 2',
+			};
+
+			store.add(registry.registerCollection(collection1));
+			const disposable2 = registry.registerCollection(collection2);
+
+			// Second registration should return Disposable.None and not add duplicate
+			assert.strictEqual(disposable2, Disposable.None);
+			assert.strictEqual(registry.collections.get().length, 1);
+			assert.strictEqual(registry.collections.get()[0], collection1);
+			assert.strictEqual(registry.collections.get()[0].label, 'Collection 1');
+		});
+
+		test('allows lazy collection to be replaced by non-lazy with same ID', () => {
+			const lazyCollection = {
+				...testCollection,
+				id: 'replaceable-test',
+				label: 'Lazy Collection',
+				lazy: {
+					isCached: false,
+					load: () => Promise.resolve(),
+				}
+			};
+			const nonLazyCollection = {
+				...testCollection,
+				id: 'replaceable-test',
+				label: 'Non-Lazy Collection',
+			};
+
+			store.add(registry.registerCollection(lazyCollection));
+			const disposable2 = store.add(registry.registerCollection(nonLazyCollection));
+
+			// Should replace lazy with non-lazy
+			assert.notStrictEqual(disposable2, Disposable.None);
+			assert.strictEqual(registry.collections.get().length, 1);
+			assert.strictEqual(registry.collections.get()[0], nonLazyCollection);
+			assert.strictEqual(registry.collections.get()[0].label, 'Non-Lazy Collection');
+			assert.strictEqual(registry.collections.get()[0].lazy, undefined);
+		});
+
+		test('prevents lazy collection from duplicating existing non-lazy collection', () => {
+			const nonLazyCollection = {
+				...testCollection,
+				id: 'protected-test',
+				label: 'Non-Lazy Collection',
+			};
+			const lazyCollection = {
+				...testCollection,
+				id: 'protected-test',
+				label: 'Lazy Collection',
+				lazy: {
+					isCached: false,
+					load: () => Promise.resolve(),
+				}
+			};
+
+			store.add(registry.registerCollection(nonLazyCollection));
+			const disposable2 = registry.registerCollection(lazyCollection);
+
+			// Lazy collection should not replace or duplicate non-lazy
+			assert.strictEqual(disposable2, Disposable.None);
+			assert.strictEqual(registry.collections.get().length, 1);
+			assert.strictEqual(registry.collections.get()[0], nonLazyCollection);
+			assert.strictEqual(registry.collections.get()[0].label, 'Non-Lazy Collection');
+		});
+
+		test('allows different collection IDs to coexist', () => {
+			const collection1 = {
+				...testCollection,
+				id: 'collection-1',
+				label: 'Collection 1',
+			};
+			const collection2 = {
+				...testCollection,
+				id: 'collection-2',
+				label: 'Collection 2',
+			};
+
+			store.add(registry.registerCollection(collection1));
+			store.add(registry.registerCollection(collection2));
+
+			// Both should be registered since they have different IDs
+			assert.strictEqual(registry.collections.get().length, 2);
+			assert.ok(registry.collections.get().some(c => c.id === 'collection-1'));
+			assert.ok(registry.collections.get().some(c => c.id === 'collection-2'));
+		});
+
+		test('disposal of duplicate-preventing registration does not affect original', () => {
+			const collection1 = {
+				...testCollection,
+				id: 'disposal-test',
+				label: 'Original Collection',
+			};
+			const collection2 = {
+				...testCollection,
+				id: 'disposal-test',
+				label: 'Duplicate Attempt',
+			};
+
+			const disposable1 = store.add(registry.registerCollection(collection1));
+			const disposable2 = registry.registerCollection(collection2);
+
+			assert.strictEqual(disposable2, Disposable.None);
+
+			// Disposing the Disposable.None should do nothing
+			disposable2.dispose();
+			assert.strictEqual(registry.collections.get().length, 1);
+			assert.strictEqual(registry.collections.get()[0], collection1);
+
+			// Disposing the original should remove it
+			disposable1.dispose();
+			assert.strictEqual(registry.collections.get().length, 0);
+		});
+
+		test('simulates extension host restart scenario with when clause', async () => {
+			// Simulates the bug: ExtensionMcpDiscovery registers lazy collection,
+			// then MainThreadMcp tries to register non-lazy version on ext host restart
+
+			// Step 1: ExtensionMcpDiscovery registers cached lazy collection
+			const lazyCollection = {
+				...testCollection,
+				id: 'ext-restart-test',
+				label: 'Cached Lazy Collection',
+				lazy: {
+					isCached: true,
+					load: () => Promise.resolve(),
+				}
+			};
+			store.add(registry.registerCollection(lazyCollection));
+			assert.strictEqual(registry.collections.get().length, 1);
+
+			// Step 2: Extension activates, MainThreadMcp.$upsertMcpCollection called
+			// This replaces lazy with non-lazy (normal flow)
+			const nonLazyFromExtension = {
+				...testCollection,
+				id: 'ext-restart-test',
+				label: 'Extension-Provided Collection',
+			};
+			store.add(registry.registerCollection(nonLazyFromExtension));
+			assert.strictEqual(registry.collections.get().length, 1);
+			assert.strictEqual(registry.collections.get()[0].lazy, undefined);
+
+			// Step 3: Extension host restarts, MainThreadMcp disposed
+			// ExtensionMcpDiscovery's context listener fires again and tries to re-register
+			// This should NOT create a duplicate
+			const duplicateAttempt = {
+				...testCollection,
+				id: 'ext-restart-test',
+				label: 'Should Not Duplicate',
+			};
+			const disposable = registry.registerCollection(duplicateAttempt);
+
+			assert.strictEqual(disposable, Disposable.None);
+			assert.strictEqual(registry.collections.get().length, 1);
+			assert.strictEqual(registry.collections.get()[0], nonLazyFromExtension);
+		});
+	});
+
 	suite('Trust Flow', () => {
 		/**
 		 * Helper to create a test MCP collection with a specific trust behavior
@@ -488,6 +661,7 @@ suite('Workbench - MCP - Registry', () => {
 				definitionRef: definition,
 				logger,
 				trustNonceBearer,
+				taskManager,
 			});
 
 			assert.ok(connection, 'Connection should be created for trusted collection');
@@ -504,6 +678,7 @@ suite('Workbench - MCP - Registry', () => {
 				definitionRef: definition,
 				logger,
 				trustNonceBearer,
+				taskManager,
 			});
 
 			assert.ok(connection, 'Connection should be created when nonce matches');
@@ -520,7 +695,7 @@ suite('Workbench - MCP - Registry', () => {
 				collectionRef: collection,
 				definitionRef: definition,
 				logger,
-				trustNonceBearer,
+				trustNonceBearer, taskManager,
 			});
 
 			assert.ok(connection, 'Connection should be created when user trusts');
@@ -537,7 +712,7 @@ suite('Workbench - MCP - Registry', () => {
 				collectionRef: collection,
 				definitionRef: definition,
 				logger,
-				trustNonceBearer,
+				trustNonceBearer, taskManager,
 			});
 
 			assert.strictEqual(connection, undefined, 'Connection should not be created when user rejects');
@@ -554,6 +729,7 @@ suite('Workbench - MCP - Registry', () => {
 				logger,
 				trustNonceBearer,
 				autoTrustChanges: true,
+				taskManager,
 			});
 
 			assert.ok(connection, 'Connection should be created with autoTrustChanges');
@@ -572,6 +748,7 @@ suite('Workbench - MCP - Registry', () => {
 				logger,
 				trustNonceBearer,
 				promptType: 'never',
+				taskManager,
 			});
 
 			assert.strictEqual(connection, undefined, 'Connection should not be created with promptType "never"');
@@ -588,6 +765,7 @@ suite('Workbench - MCP - Registry', () => {
 				logger,
 				trustNonceBearer,
 				promptType: 'only-new',
+				taskManager,
 			});
 
 			assert.strictEqual(connection, undefined, 'Connection should not be created for previously untrusted server');
@@ -605,6 +783,7 @@ suite('Workbench - MCP - Registry', () => {
 				logger,
 				trustNonceBearer,
 				promptType: 'all-untrusted',
+				taskManager,
 			});
 
 			assert.ok(connection, 'Connection should be created when user trusts previously untrusted server');
@@ -640,6 +819,7 @@ suite('Workbench - MCP - Registry', () => {
 					logger,
 					trustNonceBearer,
 					interaction,
+					taskManager,
 				}),
 				registry.resolveConnection({
 					collectionRef: collection,
@@ -647,6 +827,7 @@ suite('Workbench - MCP - Registry', () => {
 					logger,
 					trustNonceBearer: trustNonceBearer2,
 					interaction,
+					taskManager,
 				})
 			]);
 
@@ -687,6 +868,7 @@ suite('Workbench - MCP - Registry', () => {
 					logger,
 					trustNonceBearer,
 					interaction,
+					taskManager,
 				}),
 				registry.resolveConnection({
 					collectionRef: collection,
@@ -694,6 +876,7 @@ suite('Workbench - MCP - Registry', () => {
 					logger,
 					trustNonceBearer: trustNonceBearer2,
 					interaction,
+					taskManager,
 				})
 			]);
 
@@ -729,6 +912,7 @@ suite('Workbench - MCP - Registry', () => {
 					logger,
 					trustNonceBearer,
 					interaction,
+					taskManager,
 				}),
 				registry.resolveConnection({
 					collectionRef: collection,
@@ -736,6 +920,7 @@ suite('Workbench - MCP - Registry', () => {
 					logger,
 					trustNonceBearer: trustNonceBearer2,
 					interaction,
+					taskManager,
 				})
 			]);
 
