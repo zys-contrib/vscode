@@ -25,7 +25,7 @@ import { getProductionDependencies } from './dependencies.ts';
 import { type IExtensionDefinition, getExtensionStream } from './builtInExtensions.ts';
 import { getVersion } from './getVersion.ts';
 import { fetchUrls, fetchGithub } from './fetch.ts';
-import { createTsgoStream } from './tsgo.ts';
+import { createTsgoStream, spawnTsgo } from './tsgo.ts';
 import vzip from 'gulp-vinyl-zip';
 
 import { createRequire } from 'module';
@@ -85,7 +85,7 @@ function fromLocal(extensionPath: string, forWeb: boolean, disableMangle: boolea
 		// Unlike webpack, esbuild only does bundling so we still want to run a separate type check step
 		input = es.merge(
 			fromLocalEsbuild(extensionPath, esbuildConfigFileName),
-			typeCheckExtension(extensionPath, forWeb),
+			typeCheckExtensionStream(extensionPath, forWeb),
 		);
 		isBundled = true;
 	} else if (hasWebpack) {
@@ -110,10 +110,16 @@ function fromLocal(extensionPath: string, forWeb: boolean, disableMangle: boolea
 	return input;
 }
 
-function typeCheckExtension(extensionPath: string, forWeb: boolean): Stream {
+export function typeCheckExtension(extensionPath: string, forWeb: boolean): Promise<void> {
 	const tsconfigFileName = forWeb ? 'tsconfig.browser.json' : 'tsconfig.json';
 	const tsconfigPath = path.join(extensionPath, tsconfigFileName);
-	return createTsgoStream(tsconfigPath, { reporterId: 'extensions', noEmit: true });
+	return spawnTsgo(tsconfigPath, { taskName: 'typechecking extension (tsgo)', noEmit: true });
+}
+
+export function typeCheckExtensionStream(extensionPath: string, forWeb: boolean): Stream {
+	const tsconfigFileName = forWeb ? 'tsconfig.browser.json' : 'tsconfig.json';
+	const tsconfigPath = path.join(extensionPath, tsconfigFileName);
+	return createTsgoStream(tsconfigPath, { taskName: 'typechecking extension (tsgo)', noEmit: true });
 }
 
 function fromLocalWebpack(extensionPath: string, webpackConfigFileName: string, disableMangle: boolean): Stream {
