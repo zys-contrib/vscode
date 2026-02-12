@@ -20,7 +20,7 @@
 		"button.background": "#0069CC",
 		"button.foreground": "#FFFFFF",
 		"button.hoverBackground": "#0063C1",
-		"button.border": "#F2F3F4FF",
+		"button.border": "#EEEEF1",
 		"button.secondaryBackground": "#EDEDED",
 		"button.secondaryForeground": "#202020",
 		"button.secondaryHoverBackground": "#F3F3F3",

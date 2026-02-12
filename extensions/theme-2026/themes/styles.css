@@ -7,28 +7,22 @@
 	--radius-sm: 4px;
 	--radius-md: 6px;
 	--radius-lg: 8px;
-	/* --radius-lg: 12px; */
 
-	--shadow-xs: 0 0 2px rgba(0, 0, 0, 0.06);
 	--shadow-sm: 0 0 4px rgba(0, 0, 0, 0.08);
 	--shadow-md: 0 0 6px rgba(0, 0, 0, 0.08);
 	--shadow-lg: 0 0 12px rgba(0, 0, 0, 0.14);
 	--shadow-xl: 0 0 20px rgba(0, 0, 0, 0.15);
-	--shadow-2xl: 0 0 20px rgba(0, 0, 0, 0.18);
 	--shadow-hover: 0 0 8px rgba(0, 0, 0, 0.12);
 	--shadow-sm-strong: 0 0 4px rgba(0, 0, 0, 0.18);
 	--shadow-button-active: inset 0 1px 2px rgba(0, 0, 0, 0.1);
-	--shadow-inset-white: inset 0 0 4px rgba(255, 255, 255, 0.1);
 	--shadow-active-tab: 0 8px 12px rgba(0, 0, 0, 0.02);
 
-	--backdrop-blur-sm: blur(12px);
 	--backdrop-blur-md: blur(20px) saturate(180%);
 	--backdrop-blur-lg: blur(40px) saturate(180%);
 }
 
 /* Dark theme: add brightness reduction for contrast-safe luminosity blending over bright backgrounds */
 .monaco-workbench.vs-dark {
-	--backdrop-blur-sm: blur(12px) brightness(0.55);
 	--backdrop-blur-md: blur(20px) saturate(180%) brightness(0.55);
 	--backdrop-blur-lg: blur(40px) saturate(180%) brightness(0.55);
 }
@@ -131,7 +125,6 @@
 
 .monaco-workbench .part.editor > .content .editor-group-container > .title .tabs-container > .tab.active {
 	box-shadow: inset var(--shadow-active-tab);
-	/* background: var(--vs) */
 	position: relative;
 	z-index: 5;
 	border-radius: 0;
@@ -339,7 +332,7 @@
 
 /* Dialog */
 .monaco-workbench .monaco-dialog-box {
-	box-shadow: var(--shadow-2xl);
+	box-shadow: var(--shadow-xl);
 	border-radius: var(--radius-lg);
 	backdrop-filter: var(--backdrop-blur-lg);
 	-webkit-backdrop-filter: var(--backdrop-blur-lg);
@@ -467,13 +460,6 @@
 }
 
 /* Buttons */
-.monaco-workbench .monaco-button {
-	box-shadow: var(--shadow-xs);
-}
-
-.monaco-workbench .monaco-button:hover {
-	box-shadow: var(--shadow-sm);
-}
 
 .monaco-workbench .monaco-button:active {
 	box-shadow: var(--shadow-button-active);
@@ -506,11 +492,6 @@
 .monaco-workbench .monaco-dropdown .dropdown-menu {
 	box-shadow: var(--shadow-lg);
 	border-radius: var(--radius-lg);
-}
-
-/* Terminal */
-.monaco-workbench.vs .pane-body.integrated-terminal {
-	box-shadow: var(--shadow-inset-white);
 }
 
 /* SCM */
