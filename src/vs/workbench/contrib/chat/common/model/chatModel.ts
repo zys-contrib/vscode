@@ -2102,7 +2102,7 @@ export class ChatModel extends Disposable implements IChatModel {
 
 	constructor(
 		dataRef: ISerializedChatDataReference | undefined,
-		initialModelProps: { initialLocation: ChatAgentLocation; canUseTools: boolean; inputState?: ISerializableChatModelInputState; resource: URI; disableBackgroundKeepAlive?: boolean },
+		initialModelProps: { initialLocation: ChatAgentLocation; canUseTools: boolean; inputState?: ISerializableChatModelInputState; resource?: URI; disableBackgroundKeepAlive?: boolean },
 		@ILogService private readonly logService: ILogService,
 		@IChatAgentService private readonly chatAgentService: IChatAgentService,
 		@IChatEditingService private readonly chatEditingService: IChatEditingService,
@@ -2118,8 +2118,23 @@ export class ChatModel extends Disposable implements IChatModel {
 		}
 
 		this._isImported = !!initialData && isValidExportedData && !isValidFullData;
-		this._sessionResource = initialModelProps.resource;
-		this._sessionId = (isValidFullData && initialData.sessionId) || chatSessionResourceToId(initialModelProps.resource);
+
+		// Set the session resource and id
+		if (initialModelProps.resource) {
+			// prefer using the provided resource if provided
+			this._sessionId = chatSessionResourceToId(initialModelProps.resource);
+			this._sessionResource = initialModelProps.resource;
+		} else if (isValidFullData) {
+			// Otherwise use the serialized id. This is only valid for local chat sessions
+			this._sessionId = initialData.sessionId;
+			this._sessionResource = LocalChatSessionUri.forSession(initialData.sessionId);
+		} else {
+			// Finally fall back to generating a new id for a local session. This is used in the case where a
+			// chat has been exported (but not serialized)
+			this._sessionId = generateUuid();
+			this._sessionResource = LocalChatSessionUri.forSession(this._sessionId);
+		}
+
 		this._disableBackgroundKeepAlive = initialModelProps.disableBackgroundKeepAlive ?? false;
 
 		this._requests = initialData ? this._deserialize(initialData) : [];
