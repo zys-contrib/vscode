@@ -560,7 +560,6 @@
 
 /* Minimap */
 
-.monaco-workbench.vs-dark .monaco-editor .minimap,
 .monaco-workbench .monaco-editor .minimap canvas {
 	opacity: 0.85;
 }
