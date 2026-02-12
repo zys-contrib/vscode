@@ -178,7 +178,7 @@ class ChatSessionItemImpl implements vscode.ChatSessionItem {
 
 interface SessionCollectionListeners {
 	onItemsChanged(): void;
-	onItemChanged(item: vscode.ChatSessionItem): void;
+	onItemAddedOrUpdated(item: vscode.ChatSessionItem): void;
 }
 
 class ChatSessionItemCollectionImpl implements vscode.ChatSessionItemCollection {
@@ -219,7 +219,7 @@ class ChatSessionItemCollectionImpl implements vscode.ChatSessionItemCollection 
 		}
 
 		this.#items.set(item.resource, item);
-		this.#callbacks.onItemChanged(item);
+		this.#callbacks.onItemAddedOrUpdated(item);
 	}
 
 	delete(resource: vscode.Uri): void {
@@ -339,7 +339,7 @@ export class ExtHostChatSessions extends Disposable implements ExtHostChatSessio
 		const collection = new ChatSessionItemCollectionImpl({
 			// Noop for providers
 			onItemsChanged: () => { },
-			onItemChanged: () => { }
+			onItemAddedOrUpdated: () => { }
 		});
 
 		// Helper to push items to main thread
@@ -414,11 +414,12 @@ export class ExtHostChatSessions extends Disposable implements ExtHostChatSessio
 			void this._proxy.$setChatSessionItems(controllerHandle, items);
 		};
 
-		const onItemChanged = (item: vscode.ChatSessionItem) => {
-			void this._proxy.$updateChatSessionItem(controllerHandle, typeConvert.ChatSessionItem.from(item));
-		};
-
-		const collection = new ChatSessionItemCollectionImpl({ onItemsChanged, onItemChanged });
+		const collection = new ChatSessionItemCollectionImpl({
+			onItemsChanged,
+			onItemAddedOrUpdated: (item: vscode.ChatSessionItem) => {
+				void this._proxy.$addOrUpdateChatSessionItem(controllerHandle, typeConvert.ChatSessionItem.from(item));
+			}
+		});
 
 		const controller = Object.freeze<vscode.ChatSessionItemController>({
 			id,
@@ -438,8 +439,9 @@ export class ExtHostChatSessions extends Disposable implements ExtHostChatSessio
 				}
 
 				const item = new ChatSessionItemImpl(resource, label, () => {
+					// Make sure the item really is in the collection. If not we don't need to transmit it to the main thread yet
 					if (collection.get(resource) === item) {
-						onItemChanged(item);
+						void this._proxy.$addOrUpdateChatSessionItem(controllerHandle, typeConvert.ChatSessionItem.from(item));
 					}
 				});
 				return item;
