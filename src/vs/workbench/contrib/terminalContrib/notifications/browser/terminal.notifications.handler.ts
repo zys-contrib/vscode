@@ -3,18 +3,12 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import type { Terminal as RawXtermTerminal } from '@xterm/xterm';
 import { Action, IAction } from '../../../../../base/common/actions.js';
 import { disposableTimeout } from '../../../../../base/common/async.js';
 import { decodeBase64 } from '../../../../../base/common/buffer.js';
-import * as dom from '../../../../../base/browser/dom.js';
-import { Disposable, type IDisposable } from '../../../../../base/common/lifecycle.js';
+import { Disposable, DisposableStore, type IDisposable } from '../../../../../base/common/lifecycle.js';
 import { localize } from '../../../../../nls.js';
-import { IConfigurationService } from '../../../../../platform/configuration/common/configuration.js';
-import { INotificationService, NotificationPriority, Severity, type INotification, type INotificationHandle } from '../../../../../platform/notification/common/notification.js';
-import { ITerminalLogService, TerminalSettingId } from '../../../../../platform/terminal/common/terminal.js';
-import type { ITerminalContribution, ITerminalInstance, IXtermTerminal } from '../../../terminal/browser/terminal.js';
-import { registerTerminalContribution, type ITerminalContributionContext } from '../../../terminal/browser/terminalExtensions.js';
+import { NotificationPriority, Severity, type INotification, type INotificationHandle } from '../../../../../platform/notification/common/notification.js';
 
 const enum Osc99PayloadType {
 	Title = 'title',
@@ -43,6 +37,7 @@ interface IOsc99NotificationState {
 interface IOsc99ActiveNotification {
 	id: string | undefined;
 	handle: INotificationHandle;
+	actionStore: DisposableStore;
 	autoCloseDisposable: IDisposable | undefined;
 	reportOnActivate: boolean;
 	reportOnClose: boolean;
@@ -312,6 +307,7 @@ export class Osc99NotificationHandler extends Disposable {
 			label: localize('terminalNotificationSource', 'Terminal')
 		};
 		const buttons = state.buttonsPayload.length > 0 ? state.buttonsPayload.split('\u2028') : [];
+		const actionStore = this._register(new DisposableStore());
 
 		const handleRef: { current: INotificationHandle | undefined } = { current: undefined };
 		const reportActivation = (buttonIndex?: number, forceFocus?: boolean) => {
@@ -329,12 +325,13 @@ export class Osc99NotificationHandler extends Disposable {
 			if (!label) {
 				continue;
 			}
-			primaryActions.push(new Action(`terminal.osc99.button.${i}`, label, undefined, true, () => {
+			const action = actionStore.add(new Action(`terminal.osc99.button.${i}`, label, undefined, true, () => {
 				reportActivation(i + 1);
 				handleRef.current?.close();
 			}));
+			primaryActions.push(action);
 		}
-		primaryActions.push(new Action(
+		primaryActions.push(actionStore.add(new Action(
 			'terminal.osc99.focus',
 			localize('terminalNotificationFocus', 'Focus Terminal'),
 			undefined,
@@ -343,17 +340,17 @@ export class Osc99NotificationHandler extends Disposable {
 				reportActivation(undefined, true);
 				handleRef.current?.close();
 			}
-		));
+		)));
 
 		const secondaryActions: IAction[] = [];
-		secondaryActions.push(new Action(
+		secondaryActions.push(actionStore.add(new Action(
 			'terminal.osc99.dismiss',
 			localize('terminalNotificationDismiss', 'Dismiss'),
 			undefined,
 			true,
 			() => handleRef.current?.close()
-		));
-		secondaryActions.push(new Action(
+		)));
+		secondaryActions.push(actionStore.add(new Action(
 			'terminal.osc99.disable',
 			localize('terminalNotificationDisable', 'Disable Terminal Notifications'),
 			undefined,
@@ -362,7 +359,7 @@ export class Osc99NotificationHandler extends Disposable {
 				await this._host.updateEnableNotifications(false);
 				handleRef.current?.close();
 			}
-		));
+		)));
 
 		const actions = { primary: primaryActions, secondary: secondaryActions };
 
@@ -372,6 +369,8 @@ export class Osc99NotificationHandler extends Disposable {
 				existing.handle.updateMessage(message);
 				existing.handle.updateSeverity(severity);
 				existing.handle.updateActions(actions);
+				existing.actionStore.dispose();
+				existing.actionStore = actionStore;
 				existing.focusOnActivate = state.focusOnActivate;
 				existing.reportOnActivate = state.reportOnActivate;
 				existing.reportOnClose = state.reportOnClose;
@@ -394,6 +393,7 @@ export class Osc99NotificationHandler extends Disposable {
 		const active: IOsc99ActiveNotification = {
 			id: state.id,
 			handle,
+			actionStore,
 			autoCloseDisposable: undefined,
 			reportOnActivate: state.reportOnActivate,
 			reportOnClose: state.reportOnClose,
@@ -404,6 +404,7 @@ export class Osc99NotificationHandler extends Disposable {
 			if (active.reportOnClose) {
 				this._sendOsc99CloseReport(active.id);
 			}
+			active.actionStore.dispose();
 			active.autoCloseDisposable?.dispose();
 			if (active.id) {
 				this._osc99ActiveNotifications.delete(active.id);
@@ -500,41 +501,4 @@ export class Osc99NotificationHandler extends Disposable {
 		const metadata = metadataParts.join(':');
 		this._host.writeToProcess(`\x1b]99;${metadata};${payload}\x1b\\`);
 	}
-}
-
-class TerminalOscNotificationsContribution extends Disposable implements ITerminalContribution {
-	static readonly ID = 'terminal.oscNotifications';
-
-	private _isVisible = false;
-	private readonly _handler: Osc99NotificationHandler;
-
-	constructor(
-		private readonly _ctx: ITerminalContributionContext,
-		@IConfigurationService private readonly _configurationService: IConfigurationService,
-		@INotificationService private readonly _notificationService: INotificationService,
-		@ITerminalLogService private readonly _logService: ITerminalLogService,
-	) {
-		super();
-		this._handler = this._register(new Osc99NotificationHandler({
-			isEnabled: () => this._configurationService.getValue(TerminalSettingId.EnableNotifications),
-			isWindowFocused: () => dom.getActiveWindow().document.hasFocus(),
-			isTerminalVisible: () => this._isVisible,
-			focusTerminal: () => this._ctx.instance.focus(true),
-			notify: notification => this._notificationService.notify(notification),
-			updateEnableNotifications: value => this._configurationService.updateValue(TerminalSettingId.EnableNotifications, value),
-			logWarn: message => this._logService.warn(message),
-			writeToProcess: data => { void this._ctx.processManager.write(data); }
-		}));
-		this._register(this._ctx.instance.onDidChangeVisibility(visible => this._isVisible = visible));
-	}
-
-	xtermReady(xterm: IXtermTerminal & { raw: RawXtermTerminal }): void {
-		this._register(xterm.raw.parser.registerOscHandler(99, data => this._handler.handleSequence(data)));
-	}
-}
-
-registerTerminalContribution(TerminalOscNotificationsContribution.ID, TerminalOscNotificationsContribution);
-
-export function getTerminalOscNotifications(instance: ITerminalInstance): TerminalOscNotificationsContribution | null {
-	return instance.getContribution<TerminalOscNotificationsContribution>(TerminalOscNotificationsContribution.ID);
 }

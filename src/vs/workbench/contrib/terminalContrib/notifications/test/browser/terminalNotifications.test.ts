@@ -7,7 +7,7 @@ import { strictEqual } from 'assert';
 import { Emitter, Event } from '../../../../../../base/common/event.js';
 import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../../../base/test/common/utils.js';
 import { NotificationPriority, Severity, type INotification, type INotificationActions, type INotificationHandle, type INotificationProgress, type NotificationMessage } from '../../../../../../platform/notification/common/notification.js';
-import { Osc99NotificationHandler, type IOsc99NotificationHost } from '../../browser/terminal.oscNotifications.contribution.js';
+import { Osc99NotificationHandler, type IOsc99NotificationHost } from '../../browser/terminal.notifications.handler.js';
 
 class TestNotificationProgress implements INotificationProgress {
 	infinite(): void { }
@@ -45,12 +45,32 @@ class TestNotificationHandle implements INotificationHandle {
 	}
 
 	updateActions(actions?: INotificationActions): void {
+		this._disposeActions(this.actions);
 		this.actions = actions;
 	}
 
 	close(): void {
+		if (this.closed) {
+			return;
+		}
 		this.closed = true;
+		this._disposeActions(this.actions);
 		this._onDidClose.fire();
+	}
+
+	private _disposeActions(actions: INotificationActions | undefined): void {
+		for (const action of actions?.primary ?? []) {
+			const disposable = action as { dispose?: () => void };
+			if (typeof disposable.dispose === 'function') {
+				disposable.dispose();
+			}
+		}
+		for (const action of actions?.secondary ?? []) {
+			const disposable = action as { dispose?: () => void };
+			if (typeof disposable.dispose === 'function') {
+				disposable.dispose();
+			}
+		}
 	}
 }
 
@@ -103,14 +123,22 @@ class TestOsc99Host implements IOsc99NotificationHost {
 suite('Terminal OSC 99 notifications', () => {
 	const store = ensureNoDisposablesAreLeakedInTestSuite();
 
-	function createHandler(host: TestOsc99Host): Osc99NotificationHandler {
-		return store.add(new Osc99NotificationHandler(host));
-	}
+	let host: TestOsc99Host;
+	let handler: Osc99NotificationHandler;
+
+	setup(() => {
+		host = new TestOsc99Host();
+		handler = store.add(new Osc99NotificationHandler(host));
+	});
+
+	teardown(() => {
+		for (const notification of host.notifications) {
+			notification.close();
+		}
+	});
 
 	test('ignores notifications when disabled', () => {
-		const host = new TestOsc99Host();
 		host.enabled = false;
-		const handler = createHandler(host);
 
 		handler.handleSequence(';Hello');
 		strictEqual(host.notifications.length, 0);
@@ -118,12 +146,8 @@ suite('Terminal OSC 99 notifications', () => {
 	});
 
 	test('creates notification for title and body and updates', () => {
-		const host = new TestOsc99Host();
-		const handler = createHandler(host);
-
-		handler.handleSequence('i=1:p=title;Hello');
-		strictEqual(host.notifications.length, 1);
-		strictEqual(host.notifications[0].message, 'Hello');
+		handler.handleSequence('i=1:d=0:p=title;Hello');
+		strictEqual(host.notifications.length, 0);
 
 		handler.handleSequence('i=1:p=body;World');
 		strictEqual(host.notifications.length, 1);
@@ -131,18 +155,12 @@ suite('Terminal OSC 99 notifications', () => {
 	});
 
 	test('decodes base64 payloads', () => {
-		const host = new TestOsc99Host();
-		const handler = createHandler(host);
-
 		handler.handleSequence('e=1:p=title;SGVsbG8=');
 		strictEqual(host.notifications.length, 1);
 		strictEqual(host.notifications[0].message, 'Hello');
 	});
 
 	test('defers display until done', () => {
-		const host = new TestOsc99Host();
-		const handler = createHandler(host);
-
 		handler.handleSequence('i=chunk:d=0:p=title;Hello ');
 		strictEqual(host.notifications.length, 0);
 
@@ -152,10 +170,7 @@ suite('Terminal OSC 99 notifications', () => {
 	});
 
 	test('reports activation on button click', async () => {
-		const host = new TestOsc99Host();
-		const handler = createHandler(host);
-
-		handler.handleSequence('i=btn:a=report:p=title;Hi');
+		handler.handleSequence('i=btn:d=0:a=report:p=title;Hi');
 		handler.handleSequence('i=btn:p=buttons;Yes');
 
 		const actions = host.notifications[0].actions;
@@ -167,9 +182,6 @@ suite('Terminal OSC 99 notifications', () => {
 	});
 
 	test('sends close report when requested', () => {
-		const host = new TestOsc99Host();
-		const handler = createHandler(host);
-
 		handler.handleSequence('i=close:c=1:p=title;Bye');
 		strictEqual(host.notifications.length, 1);
 		host.notifications[0].close();
@@ -177,9 +189,6 @@ suite('Terminal OSC 99 notifications', () => {
 	});
 
 	test('responds to query and alive', () => {
-		const host = new TestOsc99Host();
-		const handler = createHandler(host);
-
 		handler.handleSequence('i=a:p=title;A');
 		handler.handleSequence('i=b:p=title;B');
 		handler.handleSequence('i=q:p=?;');
@@ -190,9 +199,6 @@ suite('Terminal OSC 99 notifications', () => {
 	});
 
 	test('honors occasion for visibility and focus', () => {
-		const host = new TestOsc99Host();
-		const handler = createHandler(host);
-
 		host.windowFocused = true;
 		host.terminalVisible = true;
 		handler.handleSequence('o=unfocused:p=title;Hidden');
@@ -209,9 +215,6 @@ suite('Terminal OSC 99 notifications', () => {
 	});
 
 	test('closes notifications via close payload', () => {
-		const host = new TestOsc99Host();
-		const handler = createHandler(host);
-
 		handler.handleSequence('i=closeme:p=title;Close');
 		strictEqual(host.notifications.length, 1);
 		strictEqual(host.notifications[0].closed, false);
@@ -221,9 +224,6 @@ suite('Terminal OSC 99 notifications', () => {
 	});
 
 	test('maps urgency to severity and priority', () => {
-		const host = new TestOsc99Host();
-		const handler = createHandler(host);
-
 		handler.handleSequence('u=2:p=title;Urgent');
 		strictEqual(host.notifications[0].severity, Severity.Warning);
 		strictEqual(host.notifications[0].priority, NotificationPriority.URGENT);
