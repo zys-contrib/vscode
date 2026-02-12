@@ -47,6 +47,7 @@ function resolveOptions(config: RunConfig, outdir: string): BuildOptions {
 		sourcemap: true,
 		target: ['es2024'],
 		external: ['vscode'],
+		mainFields: ['module', 'main'],
 		entryPoints: config.entryPoints,
 		outdir,
 		logOverride: {
