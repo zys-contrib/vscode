@@ -41,12 +41,6 @@ import { isMotionReduced } from '../../../base/browser/ui/motion/motion.js';
 import { AnchorAlignment, AnchorPosition, layout2d } from '../../../base/common/layout.js';
 import { getAnchorRect } from '../../../base/browser/ui/contextview/contextview.js';
 
-/** Duration (ms) for quick input open (entrance) animations. */
-const QUICK_INPUT_OPEN_DURATION = 150;
-
-/** Duration (ms) for quick input close (exit) animations. */
-const QUICK_INPUT_CLOSE_DURATION = 50;
-
 const $ = dom.$;
 
 const VIEWSTATE_STORAGE_KEY = 'workbench.quickInput.viewState';

@@ -2736,10 +2736,10 @@ function getZenModeConfiguration(configurationService: IConfigurationService): Z
 }
 
 /** Duration (ms) for panel/sidebar open (entrance) animations. */
-const PANEL_OPEN_DURATION = 150;
+const PANEL_OPEN_DURATION = 125;
 
 /** Duration (ms) for panel/sidebar close (exit) animations. */
-const PANEL_CLOSE_DURATION = 50;
+const PANEL_CLOSE_DURATION = 25;
 
 function createViewVisibilityAnimation(hidden: boolean, onComplete?: () => void, token: CancellationToken = CancellationToken.None): IViewVisibilityAnimationOptions {
 	return {
