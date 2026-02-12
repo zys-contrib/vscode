@@ -47,7 +47,6 @@ function resolveOptions(config: RunConfig, outdir: string): BuildOptions {
 		sourcemap: true,
 		target: ['es2024'],
 		external: ['vscode'],
-		mainFields: ['module', 'main'],
 		entryPoints: config.entryPoints,
 		outdir,
 		logOverride: {
@@ -58,8 +57,10 @@ function resolveOptions(config: RunConfig, outdir: string): BuildOptions {
 
 	if (config.platform === 'node') {
 		options.format = 'cjs';
+		options.mainFields = ['module', 'main'];
 	} else if (config.platform === 'browser') {
 		options.format = 'iife';
+		options.mainFields = ['browser', 'module', 'main'];
 		options.alias = {
 			'path': 'path-browserify',
 		};
