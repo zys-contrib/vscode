@@ -6,13 +6,16 @@ import * as path from 'node:path';
 import { run } from '../esbuild-extension-common.mts';
 
 const srcDir = path.join(import.meta.dirname, 'src');
-const outDir = path.join(import.meta.dirname, 'dist');
+const outDir = path.join(import.meta.dirname, 'dist', 'browser');
 
 run({
-	platform: 'node',
+	platform: 'browser',
 	entryPoints: {
-		'extension': path.join(srcDir, 'extension.ts'),
+		'emmetBrowserMain': path.join(srcDir, 'browser', 'emmetBrowserMain.ts'),
 	},
 	srcDir,
 	outdir: outDir,
+	additionalOptions: {
+		tsconfig: path.join(import.meta.dirname, 'tsconfig.browser.json'),
+	},
 }, process.argv);
