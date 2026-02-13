@@ -19,6 +19,8 @@ import { TerminalChatAgentToolsSettingId } from '../../common/terminalChatAgentT
 import { Event, Emitter } from '../../../../../../base/common/event.js';
 import { TestConfigurationService } from '../../../../../../platform/configuration/test/common/testConfigurationService.js';
 import { VSBuffer } from '../../../../../../base/common/buffer.js';
+import { OperatingSystem } from '../../../../../../base/common/platform.js';
+import { IRemoteAgentEnvironment } from '../../../../../../platform/remote/common/remoteAgentEnvironment.js';
 
 suite('TerminalSandboxService - allowTrustedDomains', () => {
 	const store = ensureNoDisposablesAreLeakedInTestSuite();
@@ -48,8 +50,32 @@ suite('TerminalSandboxService - allowTrustedDomains', () => {
 	}
 
 	class MockRemoteAgentService {
-		async getEnvironment() {
-			return null;
+		async getEnvironment(): Promise<IRemoteAgentEnvironment> {
+			// Return a Linux environment to ensure tests pass on Windows
+			// (sandbox is not supported on Windows)
+			return {
+				os: OperatingSystem.Linux,
+				tmpDir: URI.file('/tmp'),
+				appRoot: URI.file('/app'),
+				pid: 1234,
+				connectionToken: 'test-token',
+				settingsPath: URI.file('/settings'),
+				mcpResource: URI.file('/mcp'),
+				logsPath: URI.file('/logs'),
+				extensionHostLogsPath: URI.file('/ext-logs'),
+				globalStorageHome: URI.file('/global'),
+				workspaceStorageHome: URI.file('/workspace'),
+				localHistoryHome: URI.file('/history'),
+				userHome: URI.file('/home/user'),
+				arch: 'x64',
+				marks: [],
+				useHostProxy: false,
+				profiles: {
+					all: [],
+					home: URI.file('/profiles')
+				},
+				isUnsupportedGlibc: false
+			};
 		}
 	}
 
