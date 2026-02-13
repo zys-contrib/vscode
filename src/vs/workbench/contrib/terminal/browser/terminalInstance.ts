@@ -119,7 +119,6 @@ interface IGridDimensions {
 	rows: number;
 }
 
-
 const shellIntegrationSupportedShellTypes: (PosixShellType | GeneralShellType | WindowsShellType)[] = [
 	PosixShellType.Bash,
 	PosixShellType.Zsh,
