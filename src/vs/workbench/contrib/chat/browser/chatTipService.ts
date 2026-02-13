@@ -38,6 +38,16 @@ export interface IChatTipService {
 	readonly onDidDismissTip: Event<void>;
 
 	/**
+	 * Fired when the user navigates to a different tip (previous/next).
+	 */
+	readonly onDidNavigateTip: Event<IChatTip>;
+
+	/**
+	 * Fired when the tip widget is hidden without dismissing the tip.
+	 */
+	readonly onDidHideTip: Event<void>;
+
+	/**
 	 * Fired when tips are disabled.
 	 */
 	readonly onDidDisableTips: Event<void>;
@@ -73,9 +83,27 @@ export interface IChatTipService {
 	dismissTip(): void;
 
 	/**
+	 * Hides the tip widget without permanently dismissing the tip.
+	 * The tip may be shown again in a future session.
+	 */
+	hideTip(): void;
+
+	/**
 	 * Disables tips permanently by setting the `chat.tips.enabled` configuration to false.
 	 */
 	disableTips(): Promise<void>;
+
+	/**
+	 * Navigates to the next tip in the catalog without permanently dismissing the current one.
+	 * @param contextKeyService The context key service to evaluate tip eligibility.
+	 */
+	navigateToNextTip(contextKeyService: IContextKeyService): IChatTip | undefined;
+
+	/**
+	 * Navigates to the previous tip in the catalog without permanently dismissing the current one.
+	 * @param contextKeyService The context key service to evaluate tip eligibility.
+	 */
+	navigateToPreviousTip(contextKeyService: IContextKeyService): IChatTip | undefined;
 }
 
 export interface ITipDefinition {
@@ -472,6 +500,12 @@ export class ChatTipService extends Disposable implements IChatTipService {
 	private readonly _onDidDismissTip = this._register(new Emitter<void>());
 	readonly onDidDismissTip = this._onDidDismissTip.event;
 
+	private readonly _onDidNavigateTip = this._register(new Emitter<IChatTip>());
+	readonly onDidNavigateTip = this._onDidNavigateTip.event;
+
+	private readonly _onDidHideTip = this._register(new Emitter<void>());
+	readonly onDidHideTip = this._onDidHideTip.event;
+
 	private readonly _onDidDisableTips = this._register(new Emitter<void>());
 	readonly onDidDisableTips = this._onDidDisableTips.event;
 
@@ -555,6 +589,13 @@ export class ChatTipService extends Disposable implements IChatTipService {
 		} catch {
 			return [];
 		}
+	}
+
+	hideTip(): void {
+		this._hasShownRequestTip = false;
+		this._shownTip = undefined;
+		this._tipRequestId = undefined;
+		this._onDidHideTip.fire();
 	}
 
 	async disableTips(): Promise<void> {
@@ -686,6 +727,40 @@ export class ChatTipService extends Disposable implements IChatTipService {
 		this._shownTip = selectedTip;
 
 		return this._createTip(selectedTip);
+	}
+
+	navigateToNextTip(contextKeyService: IContextKeyService): IChatTip | undefined {
+		return this._navigateTip(1, contextKeyService);
+	}
+
+	navigateToPreviousTip(contextKeyService: IContextKeyService): IChatTip | undefined {
+		return this._navigateTip(-1, contextKeyService);
+	}
+
+	private _navigateTip(direction: 1 | -1, contextKeyService: IContextKeyService): IChatTip | undefined {
+		if (!this._shownTip) {
+			return undefined;
+		}
+
+		const currentIndex = TIP_CATALOG.findIndex(t => t.id === this._shownTip!.id);
+		if (currentIndex === -1) {
+			return undefined;
+		}
+
+		const dismissedIds = new Set(this._getDismissedTipIds());
+		for (let i = 1; i < TIP_CATALOG.length; i++) {
+			const idx = ((currentIndex + direction * i) % TIP_CATALOG.length + TIP_CATALOG.length) % TIP_CATALOG.length;
+			const candidate = TIP_CATALOG[idx];
+			if (!dismissedIds.has(candidate.id) && this._isEligible(candidate, contextKeyService)) {
+				this._shownTip = candidate;
+				this._storageService.store(ChatTipService._LAST_TIP_ID_KEY, candidate.id, StorageScope.PROFILE, StorageTarget.USER);
+				const tip = this._createTip(candidate);
+				this._onDidNavigateTip.fire(tip);
+				return tip;
+			}
+		}
+
+		return undefined;
 	}
 
 	private _isEligible(tip: ITipDefinition, contextKeyService: IContextKeyService): boolean {
