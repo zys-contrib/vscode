@@ -7,7 +7,7 @@ import { strictEqual } from 'assert';
 import { Emitter, Event } from '../../../../../../base/common/event.js';
 import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../../../base/test/common/utils.js';
 import { NotificationPriority, Severity, type INotification, type INotificationActions, type INotificationHandle, type INotificationProgress, type NotificationMessage } from '../../../../../../platform/notification/common/notification.js';
-import { Osc99NotificationHandler, type IOsc99NotificationHost } from '../../browser/terminal.notifications.handler.js';
+import { TerminalNotificationHandler, type IOsc99NotificationHost } from '../../browser/terminalNotificationHandler.js';
 
 class TestNotificationProgress implements INotificationProgress {
 	infinite(): void { }
@@ -124,11 +124,11 @@ suite('Terminal OSC 99 notifications', () => {
 	const store = ensureNoDisposablesAreLeakedInTestSuite();
 
 	let host: TestOsc99Host;
-	let handler: Osc99NotificationHandler;
+	let handler: TerminalNotificationHandler;
 
 	setup(() => {
 		host = new TestOsc99Host();
-		handler = store.add(new Osc99NotificationHandler(host));
+		handler = store.add(new TerminalNotificationHandler(host));
 	});
 
 	teardown(() => {

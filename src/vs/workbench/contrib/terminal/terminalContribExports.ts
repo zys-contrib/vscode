@@ -14,7 +14,7 @@ import { terminalCommandGuideConfiguration } from '../terminalContrib/commandGui
 import { TerminalDeveloperCommandId } from '../terminalContrib/developer/common/terminal.developer.js';
 import { defaultTerminalFindCommandToSkipShell } from '../terminalContrib/find/common/terminal.find.js';
 import { defaultTerminalHistoryCommandsToSkipShell, terminalHistoryConfiguration } from '../terminalContrib/history/common/terminal.history.js';
-import { terminalOscNotificationsConfiguration } from '../terminalContrib/notifications/common/terminalNotificationsConfiguration.js';
+import { terminalOscNotificationsConfiguration } from '../terminalContrib/notification/common/terminalNotificationConfiguration.js';
 import { TerminalStickyScrollSettingId, terminalStickyScrollConfiguration } from '../terminalContrib/stickyScroll/common/terminalStickyScrollConfiguration.js';
 import { defaultTerminalSuggestCommandsToSkipShell } from '../terminalContrib/suggest/common/terminal.suggest.js';
 import { TerminalSuggestSettingId, terminalSuggestConfiguration } from '../terminalContrib/suggest/common/terminalSuggestConfiguration.js';

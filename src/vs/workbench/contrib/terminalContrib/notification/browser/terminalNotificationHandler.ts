@@ -55,7 +55,7 @@ export interface IOsc99NotificationHost {
 	writeToProcess(data: string): void;
 }
 
-export class Osc99NotificationHandler extends Disposable {
+export class TerminalNotificationHandler extends Disposable {
 	private readonly _osc99PendingNotifications = new Map<string, IOsc99NotificationState>();
 	private _osc99PendingAnonymous: IOsc99NotificationState | undefined;
 	private readonly _osc99ActiveNotifications = new Map<string, IOsc99ActiveNotification>();

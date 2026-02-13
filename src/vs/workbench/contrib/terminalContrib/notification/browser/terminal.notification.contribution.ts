@@ -11,14 +11,14 @@ import { INotificationService } from '../../../../../platform/notification/commo
 import { ITerminalLogService } from '../../../../../platform/terminal/common/terminal.js';
 import type { ITerminalContribution, ITerminalInstance, IXtermTerminal } from '../../../terminal/browser/terminal.js';
 import { registerTerminalContribution, type ITerminalContributionContext } from '../../../terminal/browser/terminalExtensions.js';
-import { TerminalOscNotificationsSettingId } from '../common/terminalNotificationsConfiguration.js';
-import { Osc99NotificationHandler } from './terminal.notifications.handler.js';
+import { TerminalOscNotificationsSettingId } from '../common/terminalNotificationConfiguration.js';
+import { TerminalNotificationHandler } from './terminalNotificationHandler.js';
 
 
 class TerminalOscNotificationsContribution extends Disposable implements ITerminalContribution {
 	static readonly ID = 'terminal.oscNotifications';
 
-	private readonly _handler: Osc99NotificationHandler;
+	private readonly _handler: TerminalNotificationHandler;
 
 	constructor(
 		private readonly _ctx: ITerminalContributionContext,
@@ -27,7 +27,7 @@ class TerminalOscNotificationsContribution extends Disposable implements ITermin
 		@ITerminalLogService private readonly _logService: ITerminalLogService,
 	) {
 		super();
-		this._handler = this._register(new Osc99NotificationHandler({
+		this._handler = this._register(new TerminalNotificationHandler({
 			isEnabled: () => this._configurationService.getValue(TerminalOscNotificationsSettingId.EnableNotifications),
 			isWindowFocused: () => dom.getActiveWindow().document.hasFocus(),
 			isTerminalVisible: () => this._ctx.instance.isVisible,
