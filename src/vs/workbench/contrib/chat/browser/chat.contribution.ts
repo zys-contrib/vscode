@@ -1003,6 +1003,15 @@ configurationRegistry.registerConfiguration({
 				},
 			}
 		},
+		[PromptsConfig.USE_CLAUDE_HOOKS]: {
+			type: 'boolean',
+			title: nls.localize('chat.useClaudeHooks.title', "Use Claude Hooks",),
+			markdownDescription: nls.localize('chat.useClaudeHooks.description', "Controls whether hooks from Claude configuration files can execute. When disabled, only Copilot-format hooks are used. Hooks are loaded from the files configured in `#chat.hookFilesLocations#`.",),
+			default: false,
+			restricted: true,
+			disallowConfigurationDefault: true,
+			tags: ['preview', 'prompts', 'hooks', 'agent']
+		},
 		[PromptsConfig.PROMPT_FILES_SUGGEST_KEY]: {
 			type: 'object',
 			scope: ConfigurationScope.RESOURCE,
