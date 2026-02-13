@@ -28,7 +28,7 @@ class TerminalOscNotificationsContribution extends Disposable implements ITermin
 	) {
 		super();
 		this._handler = this._register(new TerminalNotificationHandler({
-			isEnabled: () => this._configurationService.getValue(TerminalOscNotificationsSettingId.EnableNotifications),
+			isEnabled: () => this._configurationService.getValue<boolean>(TerminalOscNotificationsSettingId.EnableNotifications) === true,
 			isWindowFocused: () => dom.getActiveWindow().document.hasFocus(),
 			isTerminalVisible: () => this._ctx.instance.isVisible,
 			focusTerminal: () => this._ctx.instance.focus(true),
