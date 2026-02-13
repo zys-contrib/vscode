@@ -160,6 +160,13 @@ suite('Terminal OSC 99 notifications', () => {
 		strictEqual(host.notifications[0].message, 'Hello');
 	});
 
+	test('sanitizes markdown links in payloads', () => {
+		handler.handleSequence('i=link:d=0:p=title;Click [run](command:workbench.action.reloadWindow)');
+		handler.handleSequence('i=link:p=body;See [docs](https://example.com)');
+		strictEqual(host.notifications.length, 1);
+		strictEqual(host.notifications[0].message, 'Click run: See docs');
+	});
+
 	test('defers display until done', () => {
 		handler.handleSequence('i=chunk:d=0:p=title;Hello ');
 		strictEqual(host.notifications.length, 0);

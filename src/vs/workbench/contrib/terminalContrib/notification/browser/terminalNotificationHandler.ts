@@ -186,6 +186,10 @@ export class TerminalNotificationHandler extends Disposable {
 		return sanitized.length > 0 ? sanitized : undefined;
 	}
 
+	private _sanitizeOsc99MessageText(text: string): string {
+		return text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1');
+	}
+
 	private _getOrCreateOsc99State(id: string | undefined): IOsc99NotificationState {
 		if (!id) {
 			if (!this._osc99PendingAnonymous) {
@@ -432,8 +436,8 @@ export class TerminalNotificationHandler extends Disposable {
 	}
 
 	private _getOsc99NotificationMessage(state: IOsc99NotificationState): string | undefined {
-		const title = state.title;
-		const body = state.body;
+		const title = this._sanitizeOsc99MessageText(state.title);
+		const body = this._sanitizeOsc99MessageText(state.body);
 		const hasTitle = title.trim().length > 0;
 		const hasBody = body.trim().length > 0;
 		if (hasTitle && hasBody) {
