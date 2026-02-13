@@ -63,6 +63,17 @@ const UTF8_BOM = Buffer.from([0xef, 0xbb, 0xbf]);
 // Entry Points (from build/buildfile.ts)
 // ============================================================================
 
+// Extension host bundles are excluded from private field mangling because they
+// expose API surface to extensions where encapsulation matters.
+const extensionHostEntryPoints = [
+	'vs/workbench/api/node/extensionHostProcess',
+	'vs/workbench/api/worker/extensionHostWorkerMain',
+];
+
+function isExtensionHostBundle(filePath: string): boolean {
+	return extensionHostEntryPoints.some(ep => filePath.endsWith(`${ep}.js`));
+}
+
 // Workers - shared between targets
 const workerEntryPoints = [
 	'vs/editor/common/services/editorWebWorkerMain',
@@ -921,8 +932,10 @@ ${tslib}`,
 					content = postProcessNLS(content, indexMap, preserveEnglish);
 				}
 
-				// Convert native #private fields to regular properties
-				if (file.path.endsWith('.js') && doManglePrivates) {
+				// Convert native #private fields to regular properties.
+				// Skip extension host bundles - they expose API surface to extensions
+				// where true encapsulation matters more than the perf gain.
+				if (file.path.endsWith('.js') && doManglePrivates && !isExtensionHostBundle(file.path)) {
 					const mangleResult = convertPrivateFields(content, file.path);
 					content = mangleResult.code;
 					if (mangleResult.editCount > 0) {
