@@ -13,7 +13,7 @@ export const enum TerminalOscNotificationsSettingId {
 
 export const terminalOscNotificationsConfiguration: IStringDictionary<IConfigurationPropertySchema> = {
 	[TerminalOscNotificationsSettingId.EnableNotifications]: {
-		description: localize('terminal.integrated.enableNotifications', "Controls whether notifications sent from the terminal via OSC 99 are shown."),
+		description: localize('terminal.integrated.enableNotifications', "Controls whether notifications sent from the terminal via OSC 99 are shown. This uses notifications inside the product instead of desktop notifications. Sounds, icons and filtering are not supported."),
 		type: 'boolean',
 		default: true
 	},
