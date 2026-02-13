@@ -35,7 +35,7 @@ class TerminalOscNotificationsContribution extends Disposable implements ITermin
 			notify: notification => this._notificationService.notify(notification),
 			updateEnableNotifications: value => this._configurationService.updateValue(TerminalOscNotificationsSettingId.EnableNotifications, value),
 			logWarn: message => this._logService.warn(message),
-			writeToProcess: data => { void this._ctx.processManager.write(data); }
+			writeToProcess: data => { void this._ctx.instance.sendText(data, false); }
 		}));
 	}
 
