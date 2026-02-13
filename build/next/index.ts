@@ -229,18 +229,6 @@ const commonResourcePatterns = [
 	'vs/workbench/browser/parts/editor/media/letterpress*.svg',
 ];
 
-// Resources only needed for dev/transpile builds (these get bundled into the main
-// JS/CSS bundles for production, so separate copies are redundant)
-const devOnlyResourcePatterns = [
-	// Fonts (esbuild file loader copies to media/codicon.ttf for production)
-	'vs/base/browser/ui/codicons/codicon/codicon.ttf',
-
-	// Vendor JavaScript libraries (bundled into workbench main JS for production)
-	'vs/base/common/marked/marked.js',
-	'vs/base/common/semver/semver.js',
-	'vs/base/browser/dompurify/dompurify.js',
-];
-
 // Resources for desktop target
 const desktopResourcePatterns = [
 	...commonResourcePatterns,
@@ -368,28 +356,6 @@ function getResourcePatternsForTarget(target: BuildTarget): string[] {
 	}
 }
 
-// Test fixtures (only copied for development builds, not production)
-const testFixturePatterns = [
-	'**/test/**/*.json',
-	'**/test/**/*.txt',
-	'**/test/**/*.snap',
-	'**/test/**/*.tst',
-	'**/test/**/*.html',
-	'**/test/**/*.js',
-	'**/test/**/*.jxs',
-	'**/test/**/*.tsx',
-	'**/test/**/*.css',
-	'**/test/**/*.png',
-	'**/test/**/*.md',
-	'**/test/**/*.zip',
-	'**/test/**/*.pdf',
-	'**/test/**/*.qwoff',
-	'**/test/**/*.wuff',
-	'**/test/**/*.less',
-	// Files without extensions (executables, etc.)
-	'**/test/**/fixtures/executable/*',
-];
-
 // ============================================================================
 // Utilities
 // ============================================================================
@@ -511,34 +477,57 @@ async function compileStandaloneFiles(outDir: string, doMinify: boolean, target:
 	console.log(`[standalone] Done`);
 }
 
-async function copyCssFiles(outDir: string, excludeTests = false): Promise<number> {
-	// Copy all CSS files from src to output (they're imported by JS)
-	const cssFiles = await globAsync('**/*.css', {
+/**
+ * Copy ALL non-TypeScript files from src/ to the output directory.
+ * This matches the old gulp build behavior where `gulp.src('src/**')` streams
+ * every file and non-TS files bypass the compiler via tsFilter.restore.
+ * Used for development/transpile builds only - production bundles use
+ * copyResources() with curated per-target patterns instead.
+ */
+async function copyAllNonTsFiles(outDir: string, excludeTests: boolean): Promise<void> {
+	console.log(`[resources] Copying all non-TS files to ${outDir}...`);
+
+	const ignorePatterns = [
+		// Exclude .ts files but keep .d.ts files (they're needed at runtime for type references)
+		'**/*.ts',
+	];
+	if (excludeTests) {
+		ignorePatterns.push('**/test/**');
+	}
+
+	const files = await globAsync('**/*', {
+		cwd: path.join(REPO_ROOT, SRC_DIR),
+		nodir: true,
+		ignore: ignorePatterns,
+	});
+
+	// Re-include .d.ts files that were excluded by the *.ts ignore
+	const dtsFiles = await globAsync('**/*.d.ts', {
 		cwd: path.join(REPO_ROOT, SRC_DIR),
 		ignore: excludeTests ? ['**/test/**'] : [],
 	});
 
-	for (const file of cssFiles) {
+	const allFiles = [...new Set([...files, ...dtsFiles])];
+
+	await Promise.all(allFiles.map(file => {
 		const srcPath = path.join(REPO_ROOT, SRC_DIR, file);
 		const destPath = path.join(REPO_ROOT, outDir, file);
+		return copyFile(srcPath, destPath);
+	}));
 
-		await copyFile(srcPath, destPath);
-	}
-
-	return cssFiles.length;
+	console.log(`[resources] Copied ${allFiles.length} files`);
 }
 
-async function copyResources(outDir: string, target: BuildTarget, excludeDevFiles = false, excludeTests = false): Promise<void> {
+/**
+ * Copy curated resource files for production bundles.
+ * Uses specific per-target patterns matching the old build's vscodeResourceIncludes,
+ * serverResourceIncludes, etc. Only called by bundle() - transpile uses copyAllNonTsFiles().
+ */
+async function copyResources(outDir: string, target: BuildTarget): Promise<void> {
 	console.log(`[resources] Copying to ${outDir} for target '${target}'...`);
 	let copied = 0;
 
-	const ignorePatterns: string[] = [];
-	if (excludeTests) {
-		ignorePatterns.push('**/test/**');
-	}
-	if (excludeDevFiles) {
-		ignorePatterns.push('**/*-dev.html');
-	}
+	const ignorePatterns = ['**/test/**', '**/*-dev.html'];
 
 	const resourcePatterns = getResourcePatternsForTarget(target);
 	for (const pattern of resourcePatterns) {
@@ -556,47 +545,7 @@ async function copyResources(outDir: string, target: BuildTarget, excludeDevFile
 		}
 	}
 
-	// Copy test fixtures (only for development builds)
-	if (!excludeTests) {
-		for (const pattern of testFixturePatterns) {
-			const files = await globAsync(pattern, {
-				cwd: path.join(REPO_ROOT, SRC_DIR),
-			});
-
-			for (const file of files) {
-				const srcPath = path.join(REPO_ROOT, SRC_DIR, file);
-				const destPath = path.join(REPO_ROOT, outDir, file);
-
-				await copyFile(srcPath, destPath);
-				copied++;
-			}
-		}
-	}
-
-	// Copy dev-only resources (vendor JS, codicon font) - only for development/transpile
-	// builds. In production bundles these are inlined by esbuild.
-	if (!excludeDevFiles) {
-		for (const pattern of devOnlyResourcePatterns) {
-			const files = await globAsync(pattern, {
-				cwd: path.join(REPO_ROOT, SRC_DIR),
-				ignore: ignorePatterns,
-			});
-			for (const file of files) {
-				await copyFile(path.join(REPO_ROOT, SRC_DIR, file), path.join(REPO_ROOT, outDir, file));
-				copied++;
-			}
-		}
-	}
-
-	// Copy CSS files (only for development/transpile builds, not production bundles
-	// where CSS is already bundled into combined files like workbench.desktop.main.css)
-	if (!excludeDevFiles) {
-		const cssCount = await copyCssFiles(outDir, excludeTests);
-		copied += cssCount;
-		console.log(`[resources] Copied ${copied} files (${cssCount} CSS)`);
-	} else {
-		console.log(`[resources] Copied ${copied} files (CSS skipped - bundled)`);
-	}
+	console.log(`[resources] Copied ${copied} files`);
 }
 
 // ============================================================================
@@ -978,8 +927,8 @@ ${tslib}`,
 		console.log(`[mangle-privates] Total: ${totalClasses} classes, ${totalFields} fields, ${totalEdits} edits, ${totalElapsed}ms`);
 	}
 
-	// Copy resources (exclude dev files and tests for production)
-	await copyResources(outDir, target, true, true);
+	// Copy resources (curated per-target patterns for production)
+	await copyResources(outDir, target);
 
 	// Compile standalone TypeScript files (like Electron preload scripts) that cannot be bundled
 	await compileStandaloneFiles(outDir, doMinify, target);
@@ -1012,7 +961,7 @@ async function watch(): Promise<void> {
 	const t1 = Date.now();
 	try {
 		await transpile(outDir, false);
-		await copyResources(outDir, 'desktop', false, false);
+		await copyAllNonTsFiles(outDir, false);
 		console.log(`Finished transpilation with 0 errors after ${Date.now() - t1} ms`);
 	} catch (err) {
 		console.error('[watch] Initial build failed:', err);
@@ -1063,9 +1012,6 @@ async function watch(): Promise<void> {
 		}
 	};
 
-	// Extensions to watch and copy (non-TypeScript resources)
-	const copyExtensions = ['.css', '.html', '.js', '.json', '.ttf', '.svg', '.png', '.mp3', '.scm', '.sh', '.ps1', '.psm1', '.fish', '.zsh', '.scpt'];
-
 	// Watch src directory using existing gulp-watch based watcher
 	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 	const srcDir = path.join(REPO_ROOT, SRC_DIR);
@@ -1074,7 +1020,8 @@ async function watch(): Promise<void> {
 	watchStream.on('data', (file: { path: string }) => {
 		if (file.path.endsWith('.ts') && !file.path.endsWith('.d.ts')) {
 			pendingTsFiles.add(file.path);
-		} else if (copyExtensions.some(ext => file.path.endsWith(ext))) {
+		} else {
+			// Copy any non-TS file (matches old gulp build's `src/**` behavior)
 			pendingCopyFiles.add(file.path);
 		}
 
@@ -1151,7 +1098,7 @@ async function main(): Promise<void> {
 					console.log(`[transpile] ${SRC_DIR} → ${outDir}${options.excludeTests ? ' (excluding tests)' : ''}`);
 					const t1 = Date.now();
 					await transpile(outDir, options.excludeTests);
-					await copyResources(outDir, 'desktop', false, options.excludeTests);
+					await copyAllNonTsFiles(outDir, options.excludeTests);
 					console.log(`[transpile] Done in ${Date.now() - t1}ms`);
 				}
 				break;
