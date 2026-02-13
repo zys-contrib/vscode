@@ -181,6 +181,30 @@ suite('Terminal OSC 99 notifications', () => {
 		strictEqual(host.writes[0], '\x1b]99;i=btn;1\x1b\\');
 	});
 
+	test('supports buttons before title and reports body activation', async () => {
+		handler.handleSequence('i=btn:p=buttons;One\u2028Two');
+		handler.handleSequence('i=btn:a=report;Buttons test');
+
+		strictEqual(host.notifications.length, 1);
+		const actions = host.notifications[0].actions;
+		if (!actions?.primary || actions.primary.length !== 2) {
+			throw new Error('Expected two primary actions');
+		}
+		strictEqual(actions.primary[0].label, 'One');
+		strictEqual(actions.primary[1].label, 'Two');
+
+		await actions.primary[1].run();
+		strictEqual(host.writes[0], '\x1b]99;i=btn;2\x1b\\');
+	});
+
+	test('reports activation when notification closes without button action', () => {
+		handler.handleSequence('i=btn:p=buttons;One\u2028Two');
+		handler.handleSequence('i=btn:a=report;Buttons test');
+
+		host.notifications[0].close();
+		strictEqual(host.writes[0], '\x1b]99;i=btn;\x1b\\');
+	});
+
 	test('sends close report when requested', () => {
 		handler.handleSequence('i=close:c=1:p=title;Bye');
 		strictEqual(host.notifications.length, 1);

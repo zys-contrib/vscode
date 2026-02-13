@@ -20,6 +20,7 @@ const enum Osc99PayloadType {
 }
 
 type Osc99Occasion = 'always' | 'unfocused' | 'invisible';
+type Osc99CloseReason = 'button' | 'secondary' | 'auto' | 'protocol';
 
 interface IOsc99NotificationState {
 	id: string | undefined;
@@ -42,6 +43,7 @@ interface IOsc99ActiveNotification {
 	reportOnActivate: boolean;
 	reportOnClose: boolean;
 	focusOnActivate: boolean;
+	closeReason: Osc99CloseReason | undefined;
 }
 
 export interface IOsc99NotificationHost {
@@ -119,8 +121,9 @@ export class TerminalNotificationHandler extends Disposable {
 			return true;
 		}
 
-		this._showOsc99Notification(state);
-		this._clearOsc99PendingState(id);
+		if (this._showOsc99Notification(state)) {
+			this._clearOsc99PendingState(id);
+		}
 		return true;
 	}
 
@@ -294,10 +297,10 @@ export class TerminalNotificationHandler extends Disposable {
 		}
 	}
 
-	private _showOsc99Notification(state: IOsc99NotificationState): void {
+	private _showOsc99Notification(state: IOsc99NotificationState): boolean {
 		const message = this._getOsc99NotificationMessage(state);
 		if (!message) {
-			return;
+			return false;
 		}
 
 		const severity = state.urgency === 2 ? Severity.Warning : Severity.Info;
@@ -310,6 +313,7 @@ export class TerminalNotificationHandler extends Disposable {
 		const actionStore = this._register(new DisposableStore());
 
 		const handleRef: { current: INotificationHandle | undefined } = { current: undefined };
+		const activeRef: { current: IOsc99ActiveNotification | undefined } = { current: undefined };
 		const reportActivation = (buttonIndex?: number, forceFocus?: boolean) => {
 			if (forceFocus || state.focusOnActivate) {
 				this._host.focusTerminal();
@@ -326,21 +330,14 @@ export class TerminalNotificationHandler extends Disposable {
 				continue;
 			}
 			const action = actionStore.add(new Action(`terminal.osc99.button.${i}`, label, undefined, true, () => {
+				if (activeRef.current) {
+					activeRef.current.closeReason = 'button';
+				}
 				reportActivation(i + 1);
 				handleRef.current?.close();
 			}));
 			primaryActions.push(action);
 		}
-		primaryActions.push(actionStore.add(new Action(
-			'terminal.osc99.focus',
-			localize('terminalNotificationFocus', 'Focus Terminal'),
-			undefined,
-			true,
-			() => {
-				reportActivation(undefined, true);
-				handleRef.current?.close();
-			}
-		)));
 
 		const secondaryActions: IAction[] = [];
 		secondaryActions.push(actionStore.add(new Action(
@@ -348,7 +345,12 @@ export class TerminalNotificationHandler extends Disposable {
 			localize('terminalNotificationDismiss', 'Dismiss'),
 			undefined,
 			true,
-			() => handleRef.current?.close()
+			() => {
+				if (activeRef.current) {
+					activeRef.current.closeReason = 'secondary';
+				}
+				handleRef.current?.close();
+			}
 		)));
 		secondaryActions.push(actionStore.add(new Action(
 			'terminal.osc99.disable',
@@ -357,6 +359,9 @@ export class TerminalNotificationHandler extends Disposable {
 			true,
 			async () => {
 				await this._host.updateEnableNotifications(false);
+				if (activeRef.current) {
+					activeRef.current.closeReason = 'secondary';
+				}
 				handleRef.current?.close();
 			}
 		)));
@@ -366,6 +371,7 @@ export class TerminalNotificationHandler extends Disposable {
 		if (state.id) {
 			const existing = this._osc99ActiveNotifications.get(state.id);
 			if (existing) {
+				activeRef.current = existing;
 				existing.handle.updateMessage(message);
 				existing.handle.updateSeverity(severity);
 				existing.handle.updateActions(actions);
@@ -375,8 +381,8 @@ export class TerminalNotificationHandler extends Disposable {
 				existing.reportOnActivate = state.reportOnActivate;
 				existing.reportOnClose = state.reportOnClose;
 				existing.autoCloseDisposable?.dispose();
-				existing.autoCloseDisposable = this._scheduleOsc99AutoClose(existing.handle, state.autoCloseMs);
-				return;
+				existing.autoCloseDisposable = this._scheduleOsc99AutoClose(existing, state.autoCloseMs);
+				return true;
 			}
 		}
 
@@ -397,10 +403,18 @@ export class TerminalNotificationHandler extends Disposable {
 			autoCloseDisposable: undefined,
 			reportOnActivate: state.reportOnActivate,
 			reportOnClose: state.reportOnClose,
-			focusOnActivate: state.focusOnActivate
+			focusOnActivate: state.focusOnActivate,
+			closeReason: undefined
 		};
-		active.autoCloseDisposable = this._scheduleOsc99AutoClose(handle, state.autoCloseMs);
+		activeRef.current = active;
+		active.autoCloseDisposable = this._scheduleOsc99AutoClose(active, state.autoCloseMs);
 		this._register(handle.onDidClose(() => {
+			if (active.reportOnActivate && active.closeReason === undefined) {
+				if (active.focusOnActivate) {
+					this._host.focusTerminal();
+				}
+				this._sendOsc99ActivationReport(active.id);
+			}
 			if (active.reportOnClose) {
 				this._sendOsc99CloseReport(active.id);
 			}
@@ -414,6 +428,7 @@ export class TerminalNotificationHandler extends Disposable {
 		if (active.id) {
 			this._osc99ActiveNotifications.set(active.id, active);
 		}
+		return true;
 	}
 
 	private _getOsc99NotificationMessage(state: IOsc99NotificationState): string | undefined {
@@ -446,11 +461,14 @@ export class TerminalNotificationHandler extends Disposable {
 		}
 	}
 
-	private _scheduleOsc99AutoClose(handle: INotificationHandle, autoCloseMs: number | undefined): IDisposable | undefined {
+	private _scheduleOsc99AutoClose(active: IOsc99ActiveNotification, autoCloseMs: number | undefined): IDisposable | undefined {
 		if (autoCloseMs === undefined || autoCloseMs <= 0) {
 			return undefined;
 		}
-		return disposableTimeout(() => handle.close(), autoCloseMs, this._store);
+		return disposableTimeout(() => {
+			active.closeReason = 'auto';
+			active.handle.close();
+		}, autoCloseMs, this._store);
 	}
 
 	private _closeOsc99Notification(id: string | undefined): void {
@@ -459,6 +477,7 @@ export class TerminalNotificationHandler extends Disposable {
 		}
 		const active = this._osc99ActiveNotifications.get(id);
 		if (active) {
+			active.closeReason = 'protocol';
 			active.handle.close();
 		}
 		this._osc99PendingNotifications.delete(id);
