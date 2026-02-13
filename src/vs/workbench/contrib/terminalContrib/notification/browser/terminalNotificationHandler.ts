@@ -376,6 +376,7 @@ export class TerminalNotificationHandler extends Disposable {
 			const existing = this._osc99ActiveNotifications.get(state.id);
 			if (existing) {
 				activeRef.current = existing;
+				handleRef.current = existing.handle;
 				existing.handle.updateMessage(message);
 				existing.handle.updateSeverity(severity);
 				existing.handle.updateActions(actions);
