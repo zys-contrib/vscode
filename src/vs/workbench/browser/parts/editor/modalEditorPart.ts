@@ -57,6 +57,7 @@ export class ModalEditorPart {
 		@IEditorService private readonly editorService: IEditorService,
 		@IWorkbenchLayoutService private readonly layoutService: IWorkbenchLayoutService,
 		@IKeybindingService private readonly keybindingService: IKeybindingService,
+		@IHostService private readonly hostService: IHostService,
 	) {
 	}
 
@@ -202,6 +203,10 @@ export class ModalEditorPart {
 		};
 		disposables.add(Event.runAndSubscribe(this.layoutService.onDidLayoutMainContainer, layoutModal));
 		disposables.add(editorPart.onDidChangeMaximized(() => layoutModal()));
+
+		// Dim window controls to match the modal overlay
+		this.hostService.setWindowDimmed(mainWindow, true);
+		disposables.add(toDisposable(() => this.hostService.setWindowDimmed(mainWindow, false)));
 
 		// Focus the modal
 		editorPartContainer.focus();
