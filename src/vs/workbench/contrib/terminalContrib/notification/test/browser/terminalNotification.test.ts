@@ -151,7 +151,7 @@ suite('Terminal OSC 99 notifications', () => {
 
 		handler.handleSequence('i=1:p=body;World');
 		strictEqual(host.notifications.length, 1);
-		strictEqual(host.notifications[0].message, 'Hello\nWorld');
+		strictEqual(host.notifications[0].message, 'Hello: World');
 	});
 
 	test('decodes base64 payloads', () => {

@@ -422,7 +422,7 @@ export class TerminalNotificationHandler extends Disposable {
 		const hasTitle = title.trim().length > 0;
 		const hasBody = body.trim().length > 0;
 		if (hasTitle && hasBody) {
-			return `${title}\n${body}`;
+			return `${title}: ${body}`;
 		}
 		if (hasTitle) {
 			return title;
