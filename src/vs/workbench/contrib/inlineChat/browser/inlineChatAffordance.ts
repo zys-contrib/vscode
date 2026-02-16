@@ -20,6 +20,7 @@ import { Selection, SelectionDirection } from '../../../../editor/common/core/se
 import { assertType } from '../../../../base/common/types.js';
 import { CursorChangeReason } from '../../../../editor/common/cursorEvents.js';
 import { IInlineChatSessionService } from './inlineChatSessionService.js';
+import { CodeActionController } from '../../../../editor/contrib/codeAction/browser/codeActionController.js';
 
 export class InlineChatAffordance extends Disposable {
 
@@ -95,6 +96,14 @@ export class InlineChatAffordance extends Disposable {
 			this.#editor,
 			derived(r => affordance.read(r) === 'editor' ? selectionData.read(r) : undefined)
 		));
+
+		this._store.add(autorun(r => {
+			const isEditor = affordance.read(r) === 'editor';
+			const controller = CodeActionController.get(this.#editor);
+			if (controller) {
+				controller.onlyLightBulbWithEmptySelection = isEditor;
+			}
+		}));
 
 		this._store.add(autorun(r => {
 			const data = this.#menuData.read(r);
