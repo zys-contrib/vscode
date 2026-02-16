@@ -62,7 +62,7 @@ namespace LightBulbState {
 	export type State = typeof Hidden | Showing;
 }
 
-export function computeLightBulbInfo(actions: CodeActionSet, trigger: CodeActionTrigger, preferredKbLabel: string | undefined, quickFixKbLabel: string | undefined): LightBulbInfo | undefined {
+export function computeLightBulbInfo(actions: CodeActionSet, trigger: CodeActionTrigger, preferredKbLabel: string | undefined, quickFixKbLabel: string | undefined, forGutter: boolean = false): LightBulbInfo | undefined {
 	if (actions.validActions.length <= 0) {
 		return undefined;
 	}
@@ -70,20 +70,20 @@ export function computeLightBulbInfo(actions: CodeActionSet, trigger: CodeAction
 	let icon: ThemeIcon;
 	let autoRun = false;
 	if (actions.allAIFixes) {
-		icon = Codicon.sparkleFilled;
+		icon = forGutter ? GUTTER_SPARKLE_FILLED_ICON : Codicon.sparkleFilled;
 		if (actions.validActions.length === 1) {
 			autoRun = true;
 		}
 	} else if (actions.hasAutoFix) {
 		if (actions.hasAIFix) {
-			icon = Codicon.lightbulbSparkleAutofix;
+			icon = forGutter ? GUTTER_LIGHTBULB_AIFIX_AUTO_FIX_ICON : Codicon.lightbulbSparkleAutofix;
 		} else {
-			icon = Codicon.lightbulbAutofix;
+			icon = forGutter ? GUTTER_LIGHTBULB_AUTO_FIX_ICON : Codicon.lightbulbAutofix;
 		}
 	} else if (actions.hasAIFix) {
-		icon = Codicon.lightbulbSparkle;
+		icon = forGutter ? GUTTER_LIGHTBULB_AIFIX_ICON : Codicon.lightbulbSparkle;
 	} else {
-		icon = Codicon.lightBulb;
+		icon = forGutter ? GUTTER_LIGHTBULB_ICON : Codicon.lightBulb;
 	}
 
 	let title: string;
@@ -97,7 +97,7 @@ export function computeLightBulbInfo(actions: CodeActionSet, trigger: CodeAction
 		title = nls.localize('codeAction', "Show Code Actions");
 	}
 
-	return { actions, trigger, icon, autoRun, title, isGutter: false };
+	return { actions, trigger, icon, autoRun, title, isGutter: forGutter };
 }
 
 export class LightBulbWidget extends Disposable implements IContentWidget {
@@ -157,39 +157,7 @@ export class LightBulbWidget extends Disposable implements IContentWidget {
 		if (state.type !== LightBulbState.Type.Showing) {
 			return undefined;
 		}
-
-		const { actions, trigger } = state;
-		let icon: ThemeIcon;
-		let autoRun = false;
-		if (actions.allAIFixes) {
-			icon = forGutter ? GUTTER_SPARKLE_FILLED_ICON : Codicon.sparkleFilled;
-			if (actions.validActions.length === 1) {
-				autoRun = true;
-			}
-		} else if (actions.hasAutoFix) {
-			if (actions.hasAIFix) {
-				icon = forGutter ? GUTTER_LIGHTBULB_AIFIX_AUTO_FIX_ICON : Codicon.lightbulbSparkleAutofix;
-			} else {
-				icon = forGutter ? GUTTER_LIGHTBULB_AUTO_FIX_ICON : Codicon.lightbulbAutofix;
-			}
-		} else if (actions.hasAIFix) {
-			icon = forGutter ? GUTTER_LIGHTBULB_AIFIX_ICON : Codicon.lightbulbSparkle;
-		} else {
-			icon = forGutter ? GUTTER_LIGHTBULB_ICON : Codicon.lightBulb;
-		}
-
-		let title: string;
-		if (autoRun) {
-			title = nls.localize('codeActionAutoRun', "Run: {0}", actions.validActions[0].action.title);
-		} else if (actions.hasAutoFix && preferredKbLabel) {
-			title = nls.localize('preferredcodeActionWithKb', "Show Code Actions. Preferred Quick Fix Available ({0})", preferredKbLabel);
-		} else if (!actions.hasAutoFix && quickFixKbLabel) {
-			title = nls.localize('codeActionWithKb', "Show Code Actions ({0})", quickFixKbLabel);
-		} else {
-			title = nls.localize('codeAction', "Show Code Actions");
-		}
-
-		return { actions, trigger, icon, autoRun, title, isGutter: forGutter };
+		return computeLightBulbInfo(state.actions, state.trigger, preferredKbLabel, quickFixKbLabel, forGutter);
 	}
 
 	constructor(
