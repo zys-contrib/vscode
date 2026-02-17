@@ -58,10 +58,11 @@ export class InlineEditsGutterIndicatorData {
 export class InlineSuggestionGutterMenuData {
 	public static fromInlineSuggestion(suggestion: InlineSuggestionItem): InlineSuggestionGutterMenuData {
 		const alternativeAction = suggestion.action?.kind === 'edit' ? suggestion.action.alternativeAction : undefined;
+		const commands = suggestion.source.inlineSuggestions.commands ?? [];
 		return new InlineSuggestionGutterMenuData(
 			suggestion.gutterMenuLinkAction,
 			suggestion.source.provider.displayName ?? localize('inlineSuggestion', "Inline Suggestion"),
-			suggestion.source.inlineSuggestions.commands ?? [],
+			commands.length > 0 ? [commands] : [],
 			alternativeAction,
 			suggestion.source.provider.modelInfo,
 			suggestion.source.provider.setModelId?.bind(suggestion.source.provider),
@@ -71,10 +72,11 @@ export class InlineSuggestionGutterMenuData {
 	constructor(
 		readonly action: Command | undefined,
 		readonly displayName: string,
-		readonly extensionCommands: InlineCompletionCommand[],
+		readonly extensionCommands: InlineCompletionCommand[][],
 		readonly alternativeAction: InlineSuggestAlternativeAction | undefined,
 		readonly modelInfo: IInlineCompletionModelInfo | undefined,
 		readonly setModelId: ((modelId: string) => Promise<void>) | undefined,
+		readonly extensionCommandsOnly: boolean = false,
 	) { }
 }
 
@@ -584,6 +586,7 @@ export class InlineEditsGutterIndicator extends Disposable {
 					width: layout.map(l => l.iconRect.width),
 					position: 'relative',
 					right: layout.map(l => l.iconDirection === 'top' ? '1px' : '0'),
+					color: this._data.map(d => d?.customization?.icon?.color ? asCssVariable(d.customization.icon.color.id) : undefined),
 				}
 			}, [
 				layout.map((l, reader) => withStyles(renderIcon(l.icon.read(reader)), { fontSize: toPx(Math.min(l.iconRect.width - CODICON_PADDING_PX, CODICON_SIZE_PX)) })),

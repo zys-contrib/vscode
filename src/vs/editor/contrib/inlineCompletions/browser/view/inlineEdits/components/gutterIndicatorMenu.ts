@@ -65,6 +65,29 @@ export class GutterIndicatorMenuContent {
 			};
 		};
 
+		const extensionCommandGroups = this._data.extensionCommands.map(group =>
+			group.map((c, idx) => option(createOptionArgs({
+				id: c.command.id + '_' + idx,
+				title: c.command.title,
+				icon: c.icon ?? Codicon.symbolEvent,
+				commandId: c.command.id,
+				commandArgs: c.command.arguments
+			})))
+		);
+
+		const extensionCommandNodes: ChildNode = [];
+		for (const group of extensionCommandGroups) {
+			if (group.length > 0) {
+				extensionCommandNodes.push(separator());
+				extensionCommandNodes.push(...group);
+			}
+		}
+
+		if (this._data.extensionCommandsOnly) {
+			// drop leading separator
+			return hoverContent(extensionCommandNodes.slice(1));
+		}
+
 		const title = header(this._data.displayName);
 
 		const gotoAndAccept = option(createOptionArgs({
@@ -87,14 +110,6 @@ export class GutterIndicatorMenuContent {
 			icon: this._data.alternativeAction.icon,
 			commandId: inlineSuggestCommitAlternativeActionId,
 		})) : undefined;
-
-		const extensionCommands = this._data.extensionCommands.map((c, idx) => option(createOptionArgs({
-			id: c.command.id + '_' + idx,
-			title: c.command.title,
-			icon: c.icon ?? Codicon.symbolEvent,
-			commandId: c.command.id,
-			commandArgs: c.command.arguments
-		})));
 
 		const showModelEnabled = false;
 		const modelOptions = showModelEnabled ? this._data.modelInfo?.models.map((m: { id: string; name: string }) => option({
@@ -160,11 +175,10 @@ export class GutterIndicatorMenuContent {
 			toggleCollapsedMode,
 			modelOptions.length ? separator() : undefined,
 			...modelOptions,
-			extensionCommands.length ? separator() : undefined,
 			snooze,
 			settings,
 
-			...extensionCommands,
+			...extensionCommandNodes,
 
 			actionBarFooter ? separator() : undefined,
 			actionBarFooter

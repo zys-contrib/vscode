@@ -126,10 +126,11 @@ export class InlineChatAffordance extends Disposable {
 		}));
 
 		this._store.add(autorun(r => {
-			const isEditor = affordance.read(r) === 'editor';
+			const mode = affordance.read(r);
+			const hideWithSelection = mode === 'editor' || mode === 'gutter';
 			const controller = CodeActionController.get(this.#editor);
 			if (controller) {
-				controller.onlyLightBulbWithEmptySelection = isEditor;
+				controller.onlyLightBulbWithEmptySelection = hideWithSelection;
 			}
 		}));
 
