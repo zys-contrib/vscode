@@ -14,7 +14,7 @@ import { coalesce } from '../../../../../../base/common/arrays.js';
 import { findLast } from '../../../../../../base/common/arraysFind.js';
 import { Codicon } from '../../../../../../base/common/codicons.js';
 import { Lazy } from '../../../../../../base/common/lazy.js';
-import { Disposable, DisposableStore, IDisposable, MutableDisposable, toDisposable } from '../../../../../../base/common/lifecycle.js';
+import { Disposable, DisposableStore, IDisposable, MutableDisposable, thenIfNotDisposed, toDisposable } from '../../../../../../base/common/lifecycle.js';
 import { autorun, autorunSelfDisposable, derived } from '../../../../../../base/common/observable.js';
 import { ScrollbarVisibility } from '../../../../../../base/common/scrollable.js';
 import { equalsIgnoreCase } from '../../../../../../base/common/strings.js';
@@ -214,7 +214,11 @@ export class ChatMarkdownContentPart extends Disposable implements IChatContentP
 						try {
 							const parsedBody = parseLocalFileData(text);
 							range = parsedBody.range && Range.lift(parsedBody.range);
-							textModel = this.textModelService.createModelReference(parsedBody.uri).then(ref => ref.object.textEditorModel);
+							const modelRefPromise = this.textModelService.createModelReference(parsedBody.uri);
+							this._register(thenIfNotDisposed(modelRefPromise, ref => {
+								this._register(ref);
+								return ref.object.textEditorModel;
+							}));
 						} catch (e) {
 							return $('div');
 						}
