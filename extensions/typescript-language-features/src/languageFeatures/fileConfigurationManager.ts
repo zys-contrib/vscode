@@ -142,9 +142,7 @@ export default class FileConfigurationManager extends Disposable {
 		document: vscode.TextDocument,
 		options: FormattingOptions
 	): Proto.FormatCodeSettings {
-		const config = vscode.workspace.getConfiguration(
-			isTypeScriptDocument(document) ? 'typescript.format' : 'javascript.format',
-			document.uri);
+		const fallbackSection = isTypeScriptDocument(document) ? 'typescript' : 'javascript';
 
 		return {
 			tabSize: options.tabSize,
@@ -152,24 +150,24 @@ export default class FileConfigurationManager extends Disposable {
 			convertTabsToSpaces: options.insertSpaces,
 			// We can use \n here since the editor normalizes later on to its line endings.
 			newLineCharacter: '\n',
-			insertSpaceAfterCommaDelimiter: config.get<boolean>('insertSpaceAfterCommaDelimiter'),
-			insertSpaceAfterConstructor: config.get<boolean>('insertSpaceAfterConstructor'),
-			insertSpaceAfterSemicolonInForStatements: config.get<boolean>('insertSpaceAfterSemicolonInForStatements'),
-			insertSpaceBeforeAndAfterBinaryOperators: config.get<boolean>('insertSpaceBeforeAndAfterBinaryOperators'),
-			insertSpaceAfterKeywordsInControlFlowStatements: config.get<boolean>('insertSpaceAfterKeywordsInControlFlowStatements'),
-			insertSpaceAfterFunctionKeywordForAnonymousFunctions: config.get<boolean>('insertSpaceAfterFunctionKeywordForAnonymousFunctions'),
-			insertSpaceBeforeFunctionParenthesis: config.get<boolean>('insertSpaceBeforeFunctionParenthesis'),
-			insertSpaceAfterOpeningAndBeforeClosingNonemptyParenthesis: config.get<boolean>('insertSpaceAfterOpeningAndBeforeClosingNonemptyParenthesis'),
-			insertSpaceAfterOpeningAndBeforeClosingNonemptyBrackets: config.get<boolean>('insertSpaceAfterOpeningAndBeforeClosingNonemptyBrackets'),
-			insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces: config.get<boolean>('insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces'),
-			insertSpaceAfterOpeningAndBeforeClosingEmptyBraces: config.get<boolean>('insertSpaceAfterOpeningAndBeforeClosingEmptyBraces'),
-			insertSpaceAfterOpeningAndBeforeClosingTemplateStringBraces: config.get<boolean>('insertSpaceAfterOpeningAndBeforeClosingTemplateStringBraces'),
-			insertSpaceAfterOpeningAndBeforeClosingJsxExpressionBraces: config.get<boolean>('insertSpaceAfterOpeningAndBeforeClosingJsxExpressionBraces'),
-			insertSpaceAfterTypeAssertion: config.get<boolean>('insertSpaceAfterTypeAssertion'),
-			placeOpenBraceOnNewLineForFunctions: config.get<boolean>('placeOpenBraceOnNewLineForFunctions'),
-			placeOpenBraceOnNewLineForControlBlocks: config.get<boolean>('placeOpenBraceOnNewLineForControlBlocks'),
-			semicolons: config.get<Proto.SemicolonPreference>('semicolons'),
-			indentSwitchCase: config.get<boolean>('indentSwitchCase'),
+			insertSpaceAfterCommaDelimiter: readUnifiedConfig<boolean>('format.insertSpaceAfterCommaDelimiter', true, { scope: document.uri, fallbackSection }),
+			insertSpaceAfterConstructor: readUnifiedConfig<boolean>('format.insertSpaceAfterConstructor', false, { scope: document.uri, fallbackSection }),
+			insertSpaceAfterSemicolonInForStatements: readUnifiedConfig<boolean>('format.insertSpaceAfterSemicolonInForStatements', true, { scope: document.uri, fallbackSection }),
+			insertSpaceBeforeAndAfterBinaryOperators: readUnifiedConfig<boolean>('format.insertSpaceBeforeAndAfterBinaryOperators', true, { scope: document.uri, fallbackSection }),
+			insertSpaceAfterKeywordsInControlFlowStatements: readUnifiedConfig<boolean>('format.insertSpaceAfterKeywordsInControlFlowStatements', true, { scope: document.uri, fallbackSection }),
+			insertSpaceAfterFunctionKeywordForAnonymousFunctions: readUnifiedConfig<boolean>('format.insertSpaceAfterFunctionKeywordForAnonymousFunctions', true, { scope: document.uri, fallbackSection }),
+			insertSpaceBeforeFunctionParenthesis: readUnifiedConfig<boolean>('format.insertSpaceBeforeFunctionParenthesis', false, { scope: document.uri, fallbackSection }),
+			insertSpaceAfterOpeningAndBeforeClosingNonemptyParenthesis: readUnifiedConfig<boolean>('format.insertSpaceAfterOpeningAndBeforeClosingNonemptyParenthesis', false, { scope: document.uri, fallbackSection }),
+			insertSpaceAfterOpeningAndBeforeClosingNonemptyBrackets: readUnifiedConfig<boolean>('format.insertSpaceAfterOpeningAndBeforeClosingNonemptyBrackets', false, { scope: document.uri, fallbackSection }),
+			insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces: readUnifiedConfig<boolean>('format.insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces', true, { scope: document.uri, fallbackSection }),
+			insertSpaceAfterOpeningAndBeforeClosingEmptyBraces: readUnifiedConfig<boolean>('format.insertSpaceAfterOpeningAndBeforeClosingEmptyBraces', true, { scope: document.uri, fallbackSection }),
+			insertSpaceAfterOpeningAndBeforeClosingTemplateStringBraces: readUnifiedConfig<boolean>('format.insertSpaceAfterOpeningAndBeforeClosingTemplateStringBraces', false, { scope: document.uri, fallbackSection }),
+			insertSpaceAfterOpeningAndBeforeClosingJsxExpressionBraces: readUnifiedConfig<boolean>('format.insertSpaceAfterOpeningAndBeforeClosingJsxExpressionBraces', false, { scope: document.uri, fallbackSection }),
+			insertSpaceAfterTypeAssertion: readUnifiedConfig<boolean>('format.insertSpaceAfterTypeAssertion', false, { scope: document.uri, fallbackSection }),
+			placeOpenBraceOnNewLineForFunctions: readUnifiedConfig<boolean>('format.placeOpenBraceOnNewLineForFunctions', false, { scope: document.uri, fallbackSection }),
+			placeOpenBraceOnNewLineForControlBlocks: readUnifiedConfig<boolean>('format.placeOpenBraceOnNewLineForControlBlocks', false, { scope: document.uri, fallbackSection }),
+			semicolons: readUnifiedConfig<Proto.SemicolonPreference>('format.semicolons', 'ignore' as Proto.SemicolonPreference, { scope: document.uri, fallbackSection }),
+			indentSwitchCase: readUnifiedConfig<boolean>('format.indentSwitchCase', true, { scope: document.uri, fallbackSection }),
 		};
 	}
 

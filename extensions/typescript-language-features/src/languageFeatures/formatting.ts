@@ -9,12 +9,14 @@ import { LanguageDescription } from '../configuration/languageDescription';
 import type * as Proto from '../tsServer/protocol/protocol';
 import * as typeConverters from '../typeConverters';
 import { ITypeScriptServiceClient } from '../typescriptService';
+import { readUnifiedConfig } from '../utils/configuration';
 import FileConfigurationManager from './fileConfigurationManager';
-import { conditionalRegistration, requireGlobalConfiguration } from './util/dependentRegistration';
+import { conditionalRegistration, requireHasModifiedUnifiedConfig } from './util/dependentRegistration';
 
 class TypeScriptFormattingProvider implements vscode.DocumentRangeFormattingEditProvider, vscode.OnTypeFormattingEditProvider {
 	public constructor(
 		private readonly client: ITypeScriptServiceClient,
+		private readonly language: LanguageDescription,
 		private readonly fileConfigurationManager: FileConfigurationManager
 	) { }
 
@@ -24,6 +26,10 @@ class TypeScriptFormattingProvider implements vscode.DocumentRangeFormattingEdit
 		options: vscode.FormattingOptions,
 		token: vscode.CancellationToken
 	): Promise<vscode.TextEdit[] | undefined> {
+		if (!this.isEnabled(document)) {
+			return undefined;
+		}
+
 		const file = this.client.toOpenTsFilePath(document);
 		if (!file) {
 			return undefined;
@@ -46,10 +52,14 @@ class TypeScriptFormattingProvider implements vscode.DocumentRangeFormattingEdit
 		ch: string,
 		options: vscode.FormattingOptions,
 		token: vscode.CancellationToken
-	): Promise<vscode.TextEdit[]> {
+	): Promise<vscode.TextEdit[] | undefined> {
+		if (!this.isEnabled(document)) {
+			return undefined;
+		}
+
 		const file = this.client.toOpenTsFilePath(document);
 		if (!file) {
-			return [];
+			return undefined;
 		}
 
 		await this.fileConfigurationManager.ensureConfigurationOptions(document, options, token);
@@ -83,6 +93,10 @@ class TypeScriptFormattingProvider implements vscode.DocumentRangeFormattingEdit
 		}
 		return result;
 	}
+
+	private isEnabled(document: vscode.TextDocument): boolean {
+		return readUnifiedConfig<boolean>('format.enable', true, { scope: document, fallbackSection: this.language.id });
+	}
 }
 
 export function register(
@@ -92,9 +106,9 @@ export function register(
 	fileConfigurationManager: FileConfigurationManager
 ) {
 	return conditionalRegistration([
-		requireGlobalConfiguration(language.id, 'format.enable'),
+		requireHasModifiedUnifiedConfig('format.enable', language.id),
 	], () => {
-		const formattingProvider = new TypeScriptFormattingProvider(client, fileConfigurationManager);
+		const formattingProvider = new TypeScriptFormattingProvider(client, language, fileConfigurationManager);
 		return vscode.Disposable.from(
 			vscode.languages.registerOnTypeFormattingEditProvider(selector.syntax, formattingProvider, ';', '}', '\n'),
 			vscode.languages.registerDocumentRangeFormattingEditProvider(selector.syntax, formattingProvider),
