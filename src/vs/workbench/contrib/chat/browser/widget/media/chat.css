@@ -124,6 +124,7 @@
 	0% {
 		background-position: 120% 0;
 	}
+
 	100% {
 		background-position: -120% 0;
 	}
@@ -1334,14 +1335,27 @@ have to be updated for changes to the rules above, or to support more deeply nes
 		.action-label {
 			min-width: 0px;
 			overflow: hidden;
+			position: relative;
 
 			.chat-input-picker-label {
 				overflow: hidden;
 				text-overflow: ellipsis;
 			}
 
-			.codicon-warning {
-				color: var(--vscode-problemsWarningIcon-foreground);
+			.model-picker-badge {
+				display: inline-flex;
+				align-items: center;
+				margin-left: 4px;
+				flex-shrink: 0;
+				font-size: 12px;
+
+				.codicon.codicon-info {
+					color: var(--vscode-problemsInfoIcon-foreground) !important;
+				}
+
+				.codicon.codicon-warning {
+					color: var(--vscode-problemsWarningIcon-foreground) !important;
+				}
 			}
 
 			span + .chat-input-picker-label {
@@ -1363,6 +1377,20 @@ have to be updated for changes to the rules above, or to support more deeply nes
 			flex-shrink: 0;
 		}
 	}
+}
+
+/* Manage Models link style in model picker */
+.action-widget .monaco-list-row.action.manage-models-link {
+	color: var(--vscode-textLink-foreground) !important;
+}
+
+.action-widget .monaco-list-row.action.manage-models-link .codicon {
+	color: var(--vscode-textLink-foreground) !important;
+}
+
+.action-widget .monaco-list-row.action.manage-models-link:hover,
+.action-widget .monaco-list-row.action.manage-models-link.focused {
+	color: var(--vscode-textLink-activeForeground) !important;
 }
 
 
