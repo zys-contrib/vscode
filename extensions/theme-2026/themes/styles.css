@@ -808,7 +808,8 @@
 }
 
 .monaco-workbench.monaco-reduce-transparency .monaco-editor .sticky-widget .sticky-widget-line-numbers,
-.monaco-workbench.monaco-reduce-transparency .monaco-editor .sticky-widget .sticky-widget-lines {
+.monaco-workbench.monaco-reduce-transparency .monaco-editor .sticky-widget .sticky-widget-lines,
+.monaco-workbench.monaco-reduce-transparency .monaco-editor .sticky-widget .sticky-line-content {
 	-webkit-backdrop-filter: none !important;
 	backdrop-filter: none !important;
 	background: var(--vscode-editor-background) !important;
