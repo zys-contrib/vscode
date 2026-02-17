@@ -618,7 +618,7 @@
 }
 
 .monaco-workbench .monaco-editor .sticky-widget .sticky-line-content:hover {
-	background: var(--vscode-editorHoverWidget-background) !important;
+	background: var(--vscode-editorStickyScrollHover-background) !important;
 }
 
 .monaco-editor .rename-box.preview {
