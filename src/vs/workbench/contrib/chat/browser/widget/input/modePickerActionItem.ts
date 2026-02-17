@@ -73,7 +73,7 @@ export class ModePickerActionItem extends ChatInputPickerActionViewItem {
 		@IOpenerService openerService: IOpenerService,
 		@IWorkbenchAssignmentService assignmentService: IWorkbenchAssignmentService,
 	) {
-		const assignments = observableValue<{ showOldAskMode: boolean }>('modePickerAssignments', { showOldAskMode: false });
+		const assignments = observableValue<{ showOldAskMode: boolean }>('modePickerAssignments', { showOldAskMode: false }, { equalsFn: (a, b) => a.showOldAskMode === b.showOldAskMode });
 
 		// Get custom agent target (if filtering is enabled)
 		const customAgentTarget = delegate.customAgentTarget?.() ?? Target.Undefined;
