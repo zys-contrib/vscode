@@ -596,6 +596,10 @@
 	background: color-mix(in srgb, var(--vscode-editor-background) 40%, transparent) !important;
 }
 
+.monaco-workbench .monaco-editor .sticky-widget .sticky-line-content:hover {
+	background: var(--vscode-editorHoverWidget-background) !important;
+}
+
 .monaco-editor .rename-box.preview {
 	backdrop-filter: var(--backdrop-blur-lg) !important;
 	-webkit-backdrop-filter: var(--backdrop-blur-lg) !important;
