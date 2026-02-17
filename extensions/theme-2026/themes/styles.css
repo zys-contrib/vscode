@@ -202,12 +202,12 @@
 
 .quick-input-list .quick-input-list-entry .quick-input-list-separator {
 	height: 16px;
-    margin-top: 2px;
-    display: flex;
-    align-items: center;
-    font-size: 11px;
-    padding: 0 4px 1px 4px;
-    border-radius: var(--vscode-cornerRadius-small) !important;
+	margin-top: 2px;
+	display: flex;
+	align-items: center;
+	font-size: 11px;
+	padding: 0 4px 1px 4px;
+	border-radius: var(--vscode-cornerRadius-small) !important;
 	background: color-mix(in srgb, var(--vscode-badge-background) 50%, transparent) !important;
 	color: var(--vscode-badge-foreground) !important;
 	margin-right: 8px;
