@@ -28,6 +28,7 @@ import { Progress } from '../../../../../platform/progress/common/progress.js';
 import { IStorageService, StorageScope, StorageTarget } from '../../../../../platform/storage/common/storage.js';
 import { IWorkspaceContextService } from '../../../../../platform/workspace/common/workspace.js';
 import { IExtensionService } from '../../../../services/extensions/common/extensions.js';
+import { IChatEntitlementService } from '../../../../services/chat/common/chatEntitlementService.js';
 import { InlineChatConfigKeys } from '../../../inlineChat/common/inlineChat.js';
 import { IMcpService } from '../../../mcp/common/mcpTypes.js';
 import { awaitStatsForSession } from '../chat.js';
@@ -155,6 +156,7 @@ export class ChatService extends Disposable implements IChatService {
 		@IChatSessionsService private readonly chatSessionService: IChatSessionsService,
 		@IMcpService private readonly mcpService: IMcpService,
 		@IPromptsService private readonly promptsService: IPromptsService,
+		@IChatEntitlementService private readonly chatEntitlementService: IChatEntitlementService,
 	) {
 		super();
 
@@ -1137,6 +1139,10 @@ export class ChatService extends Disposable implements IChatService {
 					model.setResponse(request, rawResult);
 					completeResponseCreated();
 					this.trace('sendRequest', `Provider returned response for session ${model.sessionResource}`);
+
+					if (rawResult.errorDetails?.isRateLimited) {
+						this.chatEntitlementService.markAnonymousRateLimited();
+					}
 
 					shouldProcessPending = !rawResult.errorDetails && !token.isCancellationRequested;
 					request.response?.complete();
