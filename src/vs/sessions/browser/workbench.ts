@@ -236,7 +236,7 @@ export class Workbench extends Disposable implements IWorkbenchLayoutService {
 
 	private readonly partVisibility: IPartVisibilityState = {
 		sidebar: true,
-		auxiliaryBar: true,
+		auxiliaryBar: false,
 		editor: false,
 		panel: false,
 		chatBar: true

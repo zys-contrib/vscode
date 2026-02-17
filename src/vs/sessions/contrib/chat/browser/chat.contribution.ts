@@ -4,6 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { Codicon } from '../../../../base/common/codicons.js';
+import { KeyCode, KeyMod } from '../../../../base/common/keyCodes.js';
 import { ServicesAccessor } from '../../../../editor/browser/editorExtensions.js';
 import { localize, localize2 } from '../../../../nls.js';
 import { Action2, MenuRegistry, registerAction2 } from '../../../../platform/actions/common/actions.js';
@@ -20,9 +21,11 @@ import { Menus } from '../../../browser/menus.js';
 import { BranchChatSessionAction } from './branchChatSessionAction.js';
 import { RunScriptContribution } from './runScriptAction.js';
 import { InstantiationType, registerSingleton } from '../../../../platform/instantiation/common/extensions.js';
+import { KeybindingWeight } from '../../../../platform/keybinding/common/keybindingsRegistry.js';
 import { AgenticPromptsService } from './promptsService.js';
 import { IPromptsService } from '../../../../workbench/contrib/chat/common/promptSyntax/service/promptsService.js';
 import { ChatViewContainerId, ChatViewId } from '../../../../workbench/contrib/chat/browser/chat.js';
+import { CHAT_CATEGORY } from '../../../../workbench/contrib/chat/browser/actions/chatActions.js';
 import { NewChatViewPane, SessionsViewId } from './newChatViewPane.js';
 import { ViewPaneContainer } from '../../../../workbench/browser/parts/views/viewPaneContainer.js';
 import { registerIcon } from '../../../../platform/theme/common/iconRegistry.js';
@@ -63,6 +66,33 @@ export class OpenSessionWorktreeInVSCodeAction extends Action2 {
 	}
 }
 registerAction2(OpenSessionWorktreeInVSCodeAction);
+
+class NewChatInSessionsWindowAction extends Action2 {
+
+	constructor() {
+		super({
+			id: 'workbench.action.sessions.newChat',
+			title: localize2('chat.newEdits.label', "New Chat"),
+			category: CHAT_CATEGORY,
+			keybinding: {
+				weight: KeybindingWeight.WorkbenchContrib + 2,
+				primary: KeyMod.CtrlCmd | KeyCode.KeyN,
+				secondary: [KeyMod.CtrlCmd | KeyCode.KeyL],
+				mac: {
+					primary: KeyMod.CtrlCmd | KeyCode.KeyN,
+					secondary: [KeyMod.WinCtrl | KeyCode.KeyL]
+				},
+			}
+		});
+	}
+
+	override run(accessor: ServicesAccessor): void {
+		const sessionsManagementService = accessor.get(ISessionsManagementService);
+		sessionsManagementService.openNewSession();
+	}
+}
+
+registerAction2(NewChatInSessionsWindowAction);
 
 export class OpenSessionInTerminalAction extends Action2 {
 
