@@ -4,6 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { Codicon } from '../../../../base/common/codicons.js';
+import { Emitter, Event } from '../../../../base/common/event.js';
 import { autorun, constObservable, derived, IObservable, ISettableObservable, observableFromEvent, observableValue } from '../../../../base/common/observable.js';
 import { ThemeIcon } from '../../../../base/common/themables.js';
 import { ObservableCodeEditor } from '../../../../editor/browser/observableCodeEditor.js';
@@ -25,6 +26,9 @@ import { IUserInteractionService } from '../../../../platform/userInteraction/br
 
 export class InlineChatGutterAffordance extends InlineEditsGutterIndicator {
 
+	private readonly _onDidRunAction = this._store.add(new Emitter<string>());
+	readonly onDidRunAction: Event<string> = this._onDidRunAction.event;
+
 	constructor(
 		private readonly _myEditorObs: ObservableCodeEditor,
 		selection: IObservable<Selection | undefined>,
@@ -40,7 +44,7 @@ export class InlineChatGutterAffordance extends InlineEditsGutterIndicator {
 	) {
 
 		const menu = menuService.createMenu(MenuId.InlineChatEditorAffordance, contextKeyService);
-		const menuObs = observableFromEvent(menu.onDidChange, () => menu.getActions({ renderShortTitle: true }));
+		const menuObs = observableFromEvent(menu.onDidChange, () => menu.getActions({ renderShortTitle: false }));
 
 		const codeActionController = CodeActionController.get(_myEditorObs.editor);
 		const lightBulbObs = codeActionController?.lightBulbState;
@@ -108,6 +112,8 @@ export class InlineChatGutterAffordance extends InlineEditsGutterIndicator {
 			const element = _hover.read(r);
 			this._hoverVisible.set(!!element, undefined);
 		}));
+
+		this._store.add(this.onDidCloseWithCommand(commandId => this._onDidRunAction.fire(commandId)));
 	}
 
 	private _doShowHover(): void {

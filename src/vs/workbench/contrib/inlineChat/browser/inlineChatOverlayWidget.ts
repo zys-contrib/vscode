@@ -26,7 +26,7 @@ import { IContextKeyService } from '../../../../platform/contextkey/common/conte
 import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
 import { ICommandService } from '../../../../platform/commands/common/commands.js';
 import { ChatEditingAcceptRejectActionViewItem } from '../../chat/browser/chatEditing/chatEditingEditorOverlay.js';
-import { ACTION_START, CTX_INLINE_CHAT_INPUT_HAS_TEXT } from '../common/inlineChat.js';
+import { CTX_INLINE_CHAT_INPUT_HAS_TEXT } from '../common/inlineChat.js';
 import { StickyScrollController } from '../../../../editor/contrib/stickyScroll/browser/stickyScrollController.js';
 import { IKeybindingService } from '../../../../platform/keybinding/common/keybinding.js';
 import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
@@ -60,7 +60,6 @@ export class InlineChatInputWidget extends Disposable {
 
 	constructor(
 		private readonly _editorObs: ObservableCodeEditor,
-		@IKeybindingService private readonly _keybindingService: IKeybindingService,
 		@IContextKeyService private readonly _contextKeyService: IContextKeyService,
 		@ICommandService private readonly _commandService: ICommandService,
 		@IInstantiationService instantiationService: IInstantiationService,
@@ -191,7 +190,7 @@ export class InlineChatInputWidget extends Disposable {
 				? localize('placeholderWithSelection', "Modify selected code")
 				: localize('placeholderNoSelection', "Generate code");
 
-			this._input.updateOptions({ placeholder: this._keybindingService.appendKeybinding(placeholderText, ACTION_START) });
+			this._input.updateOptions({ placeholder: placeholderText });
 		}));
 
 

@@ -36,7 +36,7 @@ export class GutterIndicatorMenuContent {
 	constructor(
 		private readonly _editorObs: ObservableCodeEditor,
 		private readonly _data: InlineSuggestionGutterMenuData,
-		private readonly _close: (focusEditor: boolean) => void,
+		private readonly _close: (focusEditor: boolean, commandId?: string) => void,
 		@IContextKeyService private readonly _contextKeyService: IContextKeyService,
 		@IKeybindingService private readonly _keybindingService: IKeybindingService,
 		@ICommandService private readonly _commandService: ICommandService,
@@ -59,8 +59,9 @@ export class GutterIndicatorMenuContent {
 				isActive: activeElement.map(v => v === options.id),
 				onHoverChange: v => activeElement.set(v ? options.id : undefined, undefined),
 				onAction: () => {
-					this._close(true);
-					return this._commandService.executeCommand(typeof options.commandId === 'string' ? options.commandId : options.commandId.get(), ...(options.commandArgs ?? []));
+					const commandId = typeof options.commandId === 'string' ? options.commandId : options.commandId.get();
+					this._close(true, commandId);
+					return this._commandService.executeCommand(commandId, ...(options.commandArgs ?? []));
 				},
 			};
 		};
