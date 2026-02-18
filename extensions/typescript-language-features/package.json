@@ -1479,7 +1479,7 @@
             "type": "boolean",
             "default": true,
             "description": "%format.insertSpaceAfterCommaDelimiter%",
-            "scope": "resource",
+            "scope": "language-overridable",
             "tags": [
               "JavaScript",
               "TypeScript"
@@ -1503,7 +1503,7 @@
             "type": "boolean",
             "default": false,
             "description": "%format.insertSpaceAfterConstructor%",
-            "scope": "resource",
+            "scope": "language-overridable",
             "tags": [
               "JavaScript",
               "TypeScript"
@@ -1527,7 +1527,7 @@
             "type": "boolean",
             "default": true,
             "description": "%format.insertSpaceAfterSemicolonInForStatements%",
-            "scope": "resource",
+            "scope": "language-overridable",
             "tags": [
               "JavaScript",
               "TypeScript"
@@ -1551,7 +1551,7 @@
             "type": "boolean",
             "default": true,
             "description": "%format.insertSpaceBeforeAndAfterBinaryOperators%",
-            "scope": "resource",
+            "scope": "language-overridable",
             "tags": [
               "JavaScript",
               "TypeScript"
@@ -1575,7 +1575,7 @@
             "type": "boolean",
             "default": true,
             "description": "%format.insertSpaceAfterKeywordsInControlFlowStatements%",
-            "scope": "resource",
+            "scope": "language-overridable",
             "tags": [
               "JavaScript",
               "TypeScript"
@@ -1599,7 +1599,7 @@
             "type": "boolean",
             "default": true,
             "description": "%format.insertSpaceAfterFunctionKeywordForAnonymousFunctions%",
-            "scope": "resource",
+            "scope": "language-overridable",
             "tags": [
               "JavaScript",
               "TypeScript"
@@ -1623,7 +1623,7 @@
             "type": "boolean",
             "default": false,
             "description": "%format.insertSpaceBeforeFunctionParenthesis%",
-            "scope": "resource",
+            "scope": "language-overridable",
             "tags": [
               "JavaScript",
               "TypeScript"
@@ -1647,7 +1647,7 @@
             "type": "boolean",
             "default": false,
             "description": "%format.insertSpaceAfterOpeningAndBeforeClosingNonemptyParenthesis%",
-            "scope": "resource",
+            "scope": "language-overridable",
             "tags": [
               "JavaScript",
               "TypeScript"
@@ -1671,7 +1671,7 @@
             "type": "boolean",
             "default": false,
             "description": "%format.insertSpaceAfterOpeningAndBeforeClosingNonemptyBrackets%",
-            "scope": "resource",
+            "scope": "language-overridable",
             "tags": [
               "JavaScript",
               "TypeScript"
@@ -1695,7 +1695,7 @@
             "type": "boolean",
             "default": true,
             "description": "%format.insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces%",
-            "scope": "resource",
+            "scope": "language-overridable",
             "tags": [
               "JavaScript",
               "TypeScript"
@@ -1719,7 +1719,7 @@
             "type": "boolean",
             "default": true,
             "description": "%format.insertSpaceAfterOpeningAndBeforeClosingEmptyBraces%",
-            "scope": "resource",
+            "scope": "language-overridable",
             "tags": [
               "JavaScript",
               "TypeScript"
@@ -1743,7 +1743,7 @@
             "type": "boolean",
             "default": false,
             "description": "%format.insertSpaceAfterOpeningAndBeforeClosingTemplateStringBraces%",
-            "scope": "resource",
+            "scope": "language-overridable",
             "tags": [
               "JavaScript",
               "TypeScript"
@@ -1767,7 +1767,7 @@
             "type": "boolean",
             "default": false,
             "description": "%format.insertSpaceAfterOpeningAndBeforeClosingJsxExpressionBraces%",
-            "scope": "resource",
+            "scope": "language-overridable",
             "tags": [
               "JavaScript",
               "TypeScript"
@@ -1791,7 +1791,7 @@
             "type": "boolean",
             "default": false,
             "description": "%format.insertSpaceAfterTypeAssertion%",
-            "scope": "resource",
+            "scope": "language-overridable",
             "tags": [
               "TypeScript"
             ]
@@ -1807,7 +1807,7 @@
             "type": "boolean",
             "default": false,
             "description": "%format.placeOpenBraceOnNewLineForFunctions%",
-            "scope": "resource",
+            "scope": "language-overridable",
             "tags": [
               "JavaScript",
               "TypeScript"
@@ -1831,7 +1831,7 @@
             "type": "boolean",
             "default": false,
             "description": "%format.placeOpenBraceOnNewLineForControlBlocks%",
-            "scope": "resource",
+            "scope": "language-overridable",
             "tags": [
               "JavaScript",
               "TypeScript"
@@ -1855,7 +1855,7 @@
             "type": "string",
             "default": "ignore",
             "description": "%format.semicolons%",
-            "scope": "resource",
+            "scope": "language-overridable",
             "enum": [
               "ignore",
               "insert",
@@ -1909,7 +1909,7 @@
             "type": "boolean",
             "default": true,
             "description": "%format.indentSwitchCase%",
-            "scope": "resource",
+            "scope": "language-overridable",
             "tags": [
               "JavaScript",
               "TypeScript"
