@@ -324,17 +324,15 @@
 
 /* Gutter menu overlay widget */
 .inline-chat-gutter-menu {
-	background: var(--vscode-menu-background);
+	background: var(--vscode-panel-background);
 	border: 1px solid var(--vscode-menu-border, var(--vscode-widget-border));
-	border-radius: 4px;
+	border-radius: 5px;
 	box-shadow: 0 2px 8px var(--vscode-widget-shadow);
-	padding: 4px 0;
-	min-width: 160px;
 	z-index: 10000;
 }
 
 .inline-chat-gutter-menu .input {
-	padding: 0 8px;
+	padding: 0 6px;
 }
 
 .inline-chat-gutter-menu .monaco-action-bar.vertical .action-item {

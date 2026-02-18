@@ -103,6 +103,7 @@ MenuRegistry.appendMenuItem(MenuId.InlineChatEditorAffordance, {
 
 registerAction2(InlineChatActions.StartSessionAction);
 registerAction2(InlineChatActions.FocusInlineChat);
+registerAction2(InlineChatActions.SubmitInlineChatInputAction);
 
 
 const workbenchContributionsRegistry = Registry.as<IWorkbenchContributionsRegistry>(WorkbenchExtensions.Workbench);

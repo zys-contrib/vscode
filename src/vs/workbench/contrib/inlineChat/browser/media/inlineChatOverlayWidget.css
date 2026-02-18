@@ -7,8 +7,39 @@
 	transition: top 100ms;
 }
 
-.inline-chat-gutter-menu .input .monaco-editor-background {
-	background-color: var(--vscode-menu-background);
+.inline-chat-gutter-container {
+	box-sizing: border-box;
+	display: flex;
+	align-items: center;
+	margin: 2px;
+	background-color: var(--vscode-input-background);
+	border: 1px solid var(--vscode-input-border, transparent);
+	border-radius: 5px;
+	box-shadow: 0 2px 8px var(--vscode-widget-shadow);
+	overflow: hidden;
+}
+
+.inline-chat-gutter-container.focused {
+	border-color: var(--vscode-focusBorder);
+}
+
+.inline-chat-gutter-container > .input {
+	flex: 1;
+	min-width: 0;
+}
+
+.inline-chat-gutter-container > .input .monaco-editor-background {
+	background-color: var(--vscode-input-background);
+}
+
+.inline-chat-gutter-container > .toolbar {
+	display: flex;
+	align-items: center;
+	padding: 0 4px;
+}
+
+.inline-chat-gutter-container > .toolbar .monaco-action-bar .actions-container {
+	gap: 2px;
 }
 
 .inline-chat-session-overlay-widget {
