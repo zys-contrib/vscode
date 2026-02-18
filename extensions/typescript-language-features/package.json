@@ -1451,11 +1451,11 @@
         "title": "%configuration.format%",
         "order": 23,
         "properties": {
-          "js/ts.format.enable": {
+          "js/ts.format.enabled": {
             "type": "boolean",
             "default": true,
             "description": "%format.enable%",
-            "scope": "window",
+            "scope": "language-overridable",
             "tags": [
               "JavaScript",
               "TypeScript"

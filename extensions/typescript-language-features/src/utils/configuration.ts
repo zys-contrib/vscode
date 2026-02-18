@@ -9,6 +9,12 @@ type ConfigurationScope = vscode.ConfigurationScope | null | undefined;
 
 export const unifiedConfigSection = 'js/ts';
 
+export type ReadUnifiedConfigOptions = {
+	readonly scope?: ConfigurationScope;
+	readonly fallbackSection: string;
+	readonly fallbackSubSectionNameOverride?: string;
+};
+
 /**
  * Gets a configuration value, checking the unified `js/ts` setting first,
  * then falling back to the language-specific setting.
@@ -16,10 +22,7 @@ export const unifiedConfigSection = 'js/ts';
 export function readUnifiedConfig<T>(
 	subSectionName: string,
 	defaultValue: T,
-	options: {
-		readonly scope?: ConfigurationScope;
-		readonly fallbackSection: string;
-	}
+	options: ReadUnifiedConfigOptions
 ): T {
 	// Check unified setting first
 	const unifiedConfig = vscode.workspace.getConfiguration(unifiedConfigSection, options.scope);
@@ -30,7 +33,7 @@ export function readUnifiedConfig<T>(
 
 	// Fall back to language-specific setting
 	const languageConfig = vscode.workspace.getConfiguration(options.fallbackSection, options.scope);
-	return languageConfig.get<T>(subSectionName, defaultValue);
+	return languageConfig.get<T>(options.fallbackSubSectionNameOverride ?? subSectionName, defaultValue);
 }
 
 /**
