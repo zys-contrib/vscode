@@ -65,7 +65,7 @@
 	z-index: 50 !important;
 }
 
-/* In-editor pane iframes don't render above sidebar z-index */
+/* Ensure in-editor pane iframes render below sidebar z-index */
 .monaco-workbench > div[data-parent-flow-to-element-id] {
 	z-index: 0 !important;
 }
