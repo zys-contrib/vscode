@@ -99,7 +99,7 @@ export class SidebarPart extends AbstractPaneCompositePart {
 	) {
 		super(
 			Parts.SIDEBAR_PART,
-			{ hasTitle: true, trailingSeparator: false, borderWidth: () => 0 },
+			{ hasTitle: true, trailingSeparator: false, borderWidth: () => (this.getColor(SIDE_BAR_BORDER) || this.getColor(contrastBorder)) ? 1 : 0 },
 			SidebarPart.activeViewletSettingsKey,
 			ActiveViewletContext.bindTo(contextKeyService),
 			SidebarFocusContext.bindTo(contextKeyService),
@@ -133,6 +133,12 @@ export class SidebarPart extends AbstractPaneCompositePart {
 
 	protected override createTitleArea(parent: HTMLElement): HTMLElement | undefined {
 		const titleArea = super.createTitleArea(parent);
+
+		if (titleArea) {
+			// Add a drag region so the sidebar title area can be used to move the window,
+			// matching the titlebar's drag behavior.
+			prepend(titleArea, $('div.titlebar-drag-region'));
+		}
 
 		// macOS native: the sidebar spans full height and the traffic lights
 		// overlay the top-left corner. Add a fixed-width spacer inside the

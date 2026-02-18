@@ -23,7 +23,7 @@ import { IHoverService } from '../../../../platform/hover/browser/hover.js';
 import { localize, localize2 } from '../../../../nls.js';
 import { AgentSessionsControl } from '../../../../workbench/contrib/chat/browser/agentSessions/agentSessionsControl.js';
 import { AgentSessionsFilter, AgentSessionsGrouping } from '../../../../workbench/contrib/chat/browser/agentSessions/agentSessionsFilter.js';
-import { ISessionsWorkbenchService } from './sessionsWorkbenchService.js';
+import { ISessionsManagementService } from './sessionsManagementService.js';
 import { Action2, ISubmenuItem, MenuId, MenuRegistry, registerAction2 } from '../../../../platform/actions/common/actions.js';
 import { HoverPosition } from '../../../../base/browser/ui/hover/hoverWidget.js';
 import { IWorkbenchLayoutService } from '../../../../workbench/services/layout/browser/layoutService.js';
@@ -73,7 +73,6 @@ const CUSTOMIZATIONS_COLLAPSED_KEY = 'agentSessions.customizationsCollapsed';
 export class AgenticSessionsViewPane extends ViewPane {
 
 	private viewPaneContainer: HTMLElement | undefined;
-	private newSessionButtonContainer: HTMLElement | undefined;
 	private sessionsControlContainer: HTMLElement | undefined;
 	sessionsControl: AgentSessionsControl | undefined;
 	private aiCustomizationContainer: HTMLElement | undefined;
@@ -98,7 +97,7 @@ export class AgenticSessionsViewPane extends ViewPane {
 		@IMcpService private readonly mcpService: IMcpService,
 		@IStorageService private readonly storageService: IStorageService,
 		@IWorkspaceContextService private readonly workspaceContextService: IWorkspaceContextService,
-		@ISessionsWorkbenchService private readonly activeSessionService: ISessionsWorkbenchService,
+		@ISessionsManagementService private readonly activeSessionService: ISessionsManagementService,
 	) {
 		super(options, keybindingService, contextMenuService, configurationService, contextKeyService, viewDescriptorService, instantiationService, openerService, themeService, hoverService);
 
@@ -156,7 +155,7 @@ export class AgenticSessionsViewPane extends ViewPane {
 		const sessionsContent = DOM.append(sessionsSection, $('.agent-sessions-content'));
 
 		// New Session Button
-		const newSessionButtonContainer = this.newSessionButtonContainer = DOM.append(sessionsContent, $('.agent-sessions-new-button-container'));
+		const newSessionButtonContainer = DOM.append(sessionsContent, $('.agent-sessions-new-button-container'));
 		const newSessionButton = this._register(new Button(newSessionButtonContainer, { ...defaultButtonStyles, secondary: true }));
 		newSessionButton.label = localize('newSession', "New Session");
 		this._register(newSessionButton.onDidClick(() => this.activeSessionService.openNewSession()));
@@ -195,6 +194,8 @@ export class AgenticSessionsViewPane extends ViewPane {
 				if (!sessionsControl.reveal(activeSession.resource)) {
 					sessionsControl.clearFocus();
 				}
+			} else {
+				sessionsControl.clearFocus(); // clear selection when a new session is created
 			}
 		}));
 
@@ -402,14 +403,11 @@ export class AgenticSessionsViewPane extends ViewPane {
 	protected override layoutBody(height: number, width: number): void {
 		super.layoutBody(height, width);
 
-		if (!this.sessionsControl || !this.newSessionButtonContainer) {
+		if (!this.sessionsControl || !this.sessionsControlContainer) {
 			return;
 		}
 
-		const buttonHeight = this.newSessionButtonContainer.offsetHeight;
-		const customizationHeight = this.aiCustomizationContainer?.offsetHeight || 0;
-		const availableSessionsHeight = height - buttonHeight - customizationHeight;
-		this.sessionsControl.layout(availableSessionsHeight, width);
+		this.sessionsControl.layout(this.sessionsControlContainer.offsetHeight, width);
 	}
 
 	override focus(): void {
