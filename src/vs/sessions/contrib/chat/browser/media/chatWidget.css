@@ -21,7 +21,6 @@
 
 /* Input area */
 .sessions-chat-input-area {
-	position: relative;
 	width: 100%;
 	max-width: 800px;
 	box-sizing: border-box;
@@ -117,11 +116,18 @@
 	font-size: 16px;
 }
 
+/* Attach row (above input area) */
+.sessions-chat-attach-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px;
+	max-width: 800px;
+	padding: 0 0 4px 0;
+}
+
 /* Attach context button */
 .sessions-chat-attach-button {
-	position: absolute;
-	top: 4px;
-	left: 4px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -133,7 +139,6 @@
 	background: transparent;
 	border: none;
 	outline: none;
-	z-index: 1;
 }
 
 .sessions-chat-attach-button:hover {
@@ -152,24 +157,15 @@
 
 /* Attached context container */
 .sessions-chat-attached-context {
-	position: absolute;
-	top: 4px;
-	left: 4px;
-	right: 8px;
 	display: flex;
 	flex-wrap: wrap;
 	gap: 4px;
-	z-index: 1;
+	align-items: center;
 }
 
 .sessions-chat-attached-context:empty,
 .sessions-chat-attached-context[style*="display: none"] {
 	display: none !important;
-}
-
-/* Hide the attach button when there are visible attachments */
-.sessions-chat-input-area:has(.sessions-chat-attached-context:not([style*="display: none"]):not(:empty)) > .sessions-chat-attach-button {
-	display: none;
 }
 
 /* Attachment pills */
