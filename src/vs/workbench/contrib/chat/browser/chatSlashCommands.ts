@@ -93,7 +93,7 @@ export class ChatSlashCommandsContribution extends Disposable {
 			silent: true,
 			locations: [ChatAgentLocation.Chat]
 		}, async () => {
-			await commandService.executeCommand('workbench.action.chat.configure.customagents');
+			await commandService.executeCommand('workbench.action.chat.openModePicker');
 		}));
 		this._store.add(slashCommandService.registerSlashCommand({
 			command: 'skills',
