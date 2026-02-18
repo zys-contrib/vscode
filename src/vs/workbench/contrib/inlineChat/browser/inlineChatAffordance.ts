@@ -109,6 +109,11 @@ export class InlineChatAffordance extends Disposable {
 			}
 		}));
 
+		// Hide when the editor context menu shows
+		this._store.add(this.#editor.onContextMenu(() => {
+			selectionData.set(undefined, undefined);
+		}));
+
 		const gutterAffordance = this._store.add(this.#instantiationService.createInstance(
 			InlineChatGutterAffordance,
 			editorObs,
