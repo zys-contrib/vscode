@@ -152,15 +152,24 @@
 
 /* Attached context container */
 .sessions-chat-attached-context {
+	position: absolute;
+	top: 4px;
+	left: 4px;
+	right: 8px;
 	display: flex;
 	flex-wrap: wrap;
 	gap: 4px;
-	padding: 6px 8px 2px 8px;
+	z-index: 1;
 }
 
 .sessions-chat-attached-context:empty,
 .sessions-chat-attached-context[style*="display: none"] {
-	padding: 0;
+	display: none !important;
+}
+
+/* Hide the attach button when there are visible attachments */
+.sessions-chat-input-area:has(.sessions-chat-attached-context:not([style*="display: none"]):not(:empty)) > .sessions-chat-attach-button {
+	display: none;
 }
 
 /* Attachment pills */
