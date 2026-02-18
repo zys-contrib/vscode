@@ -5,12 +5,12 @@
 
 import * as vscode from 'vscode';
 
-type ConfigurationScope = vscode.ConfigurationScope | null | undefined;
+export type UnifiedConfigurationScope = vscode.TextDocument | null | undefined;
 
 export const unifiedConfigSection = 'js/ts';
 
 export type ReadUnifiedConfigOptions = {
-	readonly scope?: ConfigurationScope;
+	readonly scope?: UnifiedConfigurationScope;
 	readonly fallbackSection: string;
 	readonly fallbackSubSectionNameOverride?: string;
 };
@@ -61,7 +61,7 @@ function hasModifiedValue(inspect: ReturnType<vscode.WorkspaceConfiguration['ins
 export function hasModifiedUnifiedConfig(
 	subSectionName: string,
 	options: {
-		readonly scope?: ConfigurationScope;
+		readonly scope?: UnifiedConfigurationScope;
 		readonly fallbackSection: string;
 	}
 ): boolean {
