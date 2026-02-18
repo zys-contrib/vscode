@@ -21,6 +21,7 @@
 
 /* Input area */
 .sessions-chat-input-area {
+	position: relative;
 	width: 100%;
 	max-width: 800px;
 	box-sizing: border-box;
@@ -28,9 +29,6 @@
 	border-radius: 8px;
 	background-color: var(--vscode-input-background);
 	overflow: hidden;
-	display: flex;
-	flex-direction: column;
-	height: 146px;
 }
 
 .sessions-chat-input-area:focus-within {
@@ -40,9 +38,9 @@
 /* Editor */
 .sessions-chat-editor {
 	padding: 0 6px 6px 6px;
-	flex: 1;
+	height: 72px;
 	min-height: 36px;
-	overflow: hidden;
+	max-height: 200px;
 }
 
 .sessions-chat-editor .monaco-editor,
@@ -121,6 +119,9 @@
 
 /* Attach context button */
 .sessions-chat-attach-button {
+	position: absolute;
+	top: 4px;
+	left: 4px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -132,6 +133,7 @@
 	background: transparent;
 	border: none;
 	outline: none;
+	z-index: 1;
 }
 
 .sessions-chat-attach-button:hover {

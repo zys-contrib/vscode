@@ -321,8 +321,8 @@ class NewChatWidget extends Disposable {
 		const attachedContextContainer = dom.append(inputArea, dom.$('.sessions-chat-attached-context'));
 		this._contextAttachments.renderAttachedContext(attachedContextContainer);
 		this._contextAttachments.registerDropTarget(inputArea);
-		this._createTopToolbar(inputArea);
 		this._createEditor(inputArea);
+		this._createAttachButton(inputArea);
 		this._createBottomToolbar(inputArea);
 		this._inputSlot.appendChild(inputArea);
 
@@ -431,11 +431,8 @@ class NewChatWidget extends Disposable {
 		}));
 	}
 
-	private _createTopToolbar(container: HTMLElement): void {
-		const toolbar = dom.append(container, dom.$('.sessions-chat-toolbar'));
-
-		// Plus button for attaching context
-		const attachButton = dom.append(toolbar, dom.$('.sessions-chat-attach-button'));
+	private _createAttachButton(container: HTMLElement): void {
+		const attachButton = dom.append(container, dom.$('.sessions-chat-attach-button'));
 		attachButton.tabIndex = 0;
 		attachButton.role = 'button';
 		attachButton.title = localize('addContext', "Add Context...");
