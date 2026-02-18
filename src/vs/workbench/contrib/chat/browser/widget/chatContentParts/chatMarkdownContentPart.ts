@@ -228,8 +228,8 @@ export class ChatMarkdownContentPart extends Disposable implements IChatContentP
 							range = parsedBody.range && Range.lift(parsedBody.range);
 							const modelRefPromise = this.textModelService.createModelReference(parsedBody.uri);
 							textModel = modelRefPromise.then(ref => {
-								if (!this._store.isDisposed) {
-									this._register(ref);
+								if (!store.isDisposed) {
+									store.add(ref);
 								}
 								return ref.object.textEditorModel;
 							});
