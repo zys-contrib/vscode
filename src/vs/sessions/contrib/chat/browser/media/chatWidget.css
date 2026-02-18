@@ -28,6 +28,9 @@
 	border-radius: 8px;
 	background-color: var(--vscode-input-background);
 	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+	height: 146px;
 }
 
 .sessions-chat-input-area:focus-within {
@@ -37,9 +40,9 @@
 /* Editor */
 .sessions-chat-editor {
 	padding: 0 6px 6px 6px;
-	height: 72px;
-	min-height: 72px;
-	max-height: 200px;
+	flex: 1;
+	min-height: 36px;
+	overflow: hidden;
 }
 
 .sessions-chat-editor .monaco-editor,
@@ -150,7 +153,7 @@
 	display: flex;
 	flex-wrap: wrap;
 	gap: 4px;
-	padding: 6px 8px 0 8px;
+	padding: 6px 8px 2px 8px;
 }
 
 .sessions-chat-attached-context:empty,

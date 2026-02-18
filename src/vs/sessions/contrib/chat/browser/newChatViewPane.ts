@@ -426,9 +426,6 @@ class NewChatWidget extends Disposable {
 		}));
 
 		this._register(this._editor.onDidContentSizeChange(() => {
-			const contentHeight = this._editor.getContentHeight();
-			const clampedHeight = Math.min(Math.max(contentHeight, 36), 200);
-			editorContainer.style.height = `${clampedHeight}px`;
 			this._editor.layout();
 		}));
 	}
