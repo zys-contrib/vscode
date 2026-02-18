@@ -529,6 +529,16 @@ The Changes view is registered in `contrib/changesView/browser/changesView.contr
 - **View**: `CHANGES_VIEW_ID` with `ChangesViewPane`
 - **Window visibility**: `WindowVisibility.Sessions` (only visible in agent sessions workbench)
 
+### 10.1.1 Files View
+
+The Files view is registered in `contrib/filesView/browser/filesView.contribution.ts` in the same container as the Changes view:
+
+- **Container**: `CHANGES_VIEW_CONTAINER_ID` (shared with Changes view)
+- **View**: `FILES_VIEW_ID` with `FilesViewPane`
+- **Window visibility**: `WindowVisibility.Sessions`
+- **Data source**: Uses `IFileService.resolve()` to enumerate directories, making it scheme-agnostic (works with local `file://` and virtual FS providers like `vscode-vfs://`)
+- **Root URI**: Derived from active session's `worktree` or `repository` URI
+
 ### 10.2 Sessions View
 
 The Sessions view is registered in `contrib/sessions/browser/sessions.contribution.ts`:
@@ -594,6 +604,10 @@ src/vs/sessions/
 │   ├── changesView/browser/                # File changes view
 │   │   ├── changesView.contribution.ts
 │   │   ├── changesView.ts
+│   │   └── media/
+│   ├── filesView/browser/                  # Repository file tree view
+│   │   ├── filesView.contribution.ts
+│   │   ├── filesView.ts
 │   │   └── media/
 │   ├── chat/browser/                       # Chat actions and services
 │   │   ├── chat.contribution.ts            # Open in VS Code, Open Terminal, branch chat, run script, prompts service
