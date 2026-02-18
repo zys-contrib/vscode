@@ -104,16 +104,17 @@ export class NewChatContextAttachments extends Disposable {
 		// Use a transparent overlay during drag to capture events over the Monaco editor
 		const overlay = dom.append(element, dom.$('.sessions-chat-drop-overlay'));
 
-		this._register(dom.addDisposableListener(element, dom.EventType.DRAG_ENTER, (e) => {
+		// Use capture phase to intercept drag events before Monaco editor handles them
+		this._register(dom.addDisposableListener(element, dom.EventType.DRAG_ENTER, (e: DragEvent) => {
 			if (e.dataTransfer && Array.from(e.dataTransfer.types).includes('Files')) {
 				e.preventDefault();
 				e.dataTransfer.dropEffect = 'copy';
 				overlay.style.display = 'block';
 				element.classList.add('sessions-chat-drop-active');
 			}
-		}));
+		}, true));
 
-		this._register(dom.addDisposableListener(element, dom.EventType.DRAG_OVER, (e) => {
+		this._register(dom.addDisposableListener(element, dom.EventType.DRAG_OVER, (e: DragEvent) => {
 			if (e.dataTransfer && Array.from(e.dataTransfer.types).includes('Files')) {
 				e.preventDefault();
 				e.dataTransfer.dropEffect = 'copy';
@@ -122,7 +123,7 @@ export class NewChatContextAttachments extends Disposable {
 					element.classList.add('sessions-chat-drop-active');
 				}
 			}
-		}));
+		}, true));
 
 		this._register(dom.addDisposableListener(overlay, dom.EventType.DRAG_OVER, (e) => {
 			e.preventDefault();
