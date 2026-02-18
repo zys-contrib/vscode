@@ -116,33 +116,59 @@
 	font-size: 16px;
 }
 
-/* Attach context button */
+/* Attach context button (matches AddFilesButton from chatInputPart) */
 .sessions-chat-attach-button {
 	display: flex;
 	align-items: center;
-	justify-content: center;
-	width: 26px;
-	height: 26px;
-	border-radius: 4px;
-	cursor: pointer;
-	color: var(--vscode-descriptionForeground);
-	background: transparent;
-	border: none;
-	outline: none;
 }
 
-.sessions-chat-attach-button:hover {
+.sessions-chat-attach-button.chat-attachment-button .action-label {
+	display: flex;
+	overflow: hidden;
+	font-size: 11px;
+	padding: 0 4px;
+	border: 1px solid var(--vscode-chat-requestBorder, var(--vscode-input-background, transparent));
+	border-radius: 4px;
+	height: 18px;
+	max-width: 100%;
+	width: fit-content;
+	cursor: pointer;
+	color: var(--vscode-descriptionForeground);
+	text-decoration: none;
+	align-items: center;
+	gap: 2px;
+	white-space: nowrap;
+}
+
+.sessions-chat-attach-button.chat-attachment-button .action-label:hover {
 	background-color: var(--vscode-toolbar-hoverBackground);
 	color: var(--vscode-foreground);
 }
 
-.sessions-chat-attach-button:focus-visible {
+.sessions-chat-attach-button.chat-attachment-button .action-label:focus-visible {
 	outline: 1px solid var(--vscode-focusBorder);
 	outline-offset: -1px;
 }
 
-.sessions-chat-attach-button .codicon {
-	font-size: 16px;
+.sessions-chat-attach-button.chat-attachment-button .action-label > .codicon {
+	font-size: 14px;
+	height: auto;
+}
+
+.sessions-chat-attach-button.chat-attachment-button .action-label:not(.has-label) {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 2px 4px;
+	height: fit-content;
+	gap: 0;
+	border: 1px solid var(--vscode-chat-requestBorder, var(--vscode-input-background, transparent));
+	border-radius: 4px;
+	box-sizing: border-box;
+}
+
+.sessions-chat-attach-button.chat-attachment-button .action-label:not(.has-label) .codicon {
+	width: 14px;
 }
 
 /* Attached context container */

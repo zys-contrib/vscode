@@ -32,7 +32,7 @@ import { IOpenerService } from '../../../../platform/opener/common/opener.js';
 import { IThemeService } from '../../../../platform/theme/common/themeService.js';
 import { IHoverService } from '../../../../platform/hover/browser/hover.js';
 import { HoverPosition } from '../../../../base/browser/ui/hover/hoverWidget.js';
-import { renderIcon } from '../../../../base/browser/ui/iconLabel/iconLabels.js';
+import { renderIcon, renderLabelWithIcons } from '../../../../base/browser/ui/iconLabel/iconLabels.js';
 import { basename, isEqual } from '../../../../base/common/resources.js';
 import { localize } from '../../../../nls.js';
 import { AgentSessionProviders } from '../../../../workbench/contrib/chat/browser/agentSessions/agentSessions.js';
@@ -198,6 +198,7 @@ class NewChatWidget extends Disposable {
 	// Input
 	private _editor!: CodeEditorWidget;
 	private readonly _currentLanguageModel = observableValue<ILanguageModelChatMetadataAndIdentifier | undefined>('currentLanguageModel', undefined);
+	private _updateAddContextButtonLabel: (() => void) | undefined;
 	private readonly _modelPickerDisposable = this._register(new MutableDisposable());
 	private _pendingSessionResource: URI | undefined;
 
@@ -439,14 +440,9 @@ class NewChatWidget extends Disposable {
 	private _createToolbar(container: HTMLElement): void {
 		const toolbar = dom.append(container, dom.$('.sessions-chat-toolbar'));
 
-		// Plus button for attaching context
-		const attachButton = dom.append(toolbar, dom.$('.sessions-chat-attach-button'));
-		attachButton.tabIndex = 0;
-		attachButton.role = 'button';
-		attachButton.title = localize('addContext', "Add Context...");
-		attachButton.ariaLabel = localize('addContext', "Add Context...");
-		dom.append(attachButton, renderIcon(Codicon.add));
-		this._register(dom.addDisposableListener(attachButton, dom.EventType.CLICK, () => this._showAttachContextPicker()));
+		// Add context button (matches AddFilesButton from chatInputPart)
+		const attachContainer = dom.append(toolbar, dom.$('.sessions-chat-attach-button'));
+		this._renderAddContextButton(attachContainer);
 
 		const modelPickerContainer = dom.append(toolbar, dom.$('.sessions-chat-model-picker'));
 		this._createModelPicker(modelPickerContainer);
@@ -459,6 +455,29 @@ class NewChatWidget extends Disposable {
 		sendButton.title = localize('send', "Send");
 		dom.append(sendButton, renderIcon(Codicon.send));
 		this._register(dom.addDisposableListener(sendButton, dom.EventType.CLICK, () => this._send()));
+	}
+
+	private _renderAddContextButton(container: HTMLElement): void {
+		container.classList.add('chat-attachment-button');
+
+		const label = dom.append(container, dom.$('a.action-label'));
+		label.tabIndex = 0;
+		label.role = 'button';
+		label.ariaLabel = localize('addContext', "Add Context...");
+
+		const updateLabel = () => {
+			const hasAttachments = this._attachedContext.length > 0;
+			label.classList.toggle('has-label', !hasAttachments);
+			const message = !hasAttachments
+				? `$(attach) ${localize('addContext.label', "Add Context...")}`
+				: '$(attach)';
+			dom.reset(label, ...renderLabelWithIcons(message));
+		};
+
+		updateLabel();
+		this._updateAddContextButtonLabel = updateLabel;
+
+		this._register(dom.addDisposableListener(label, dom.EventType.CLICK, () => this._showAttachContextPicker()));
 	}
 
 	// --- Model picker ---
@@ -576,6 +595,7 @@ class NewChatWidget extends Disposable {
 		}
 
 		dom.clearNode(this._attachedContextContainer);
+		this._updateAddContextButtonLabel?.();
 
 		if (this._attachedContext.length === 0) {
 			this._attachedContextContainer.style.display = 'none';
