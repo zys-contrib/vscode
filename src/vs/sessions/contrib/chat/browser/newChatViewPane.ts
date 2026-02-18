@@ -321,8 +321,8 @@ class NewChatWidget extends Disposable {
 		const attachedContextContainer = dom.append(inputArea, dom.$('.sessions-chat-attached-context'));
 		this._contextAttachments.renderAttachedContext(attachedContextContainer);
 		this._contextAttachments.registerDropTarget(inputArea);
-		this._createEditor(inputArea);
 		this._createToolbar(inputArea);
+		this._createEditor(inputArea);
 		this._inputSlot.appendChild(inputArea);
 
 		// Local mode picker (below the input, shown when Local is selected)
