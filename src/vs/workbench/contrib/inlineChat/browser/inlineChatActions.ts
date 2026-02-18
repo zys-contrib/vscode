@@ -75,10 +75,6 @@ export class StartSessionAction extends Action2 {
 				id: MenuId.ChatTitleBarMenu,
 				group: 'a_open',
 				order: 3,
-			}, {
-				id: MenuId.ChatEditorInlineGutter,
-				group: '1_chat',
-				order: 1,
 			}]
 		});
 	}

@@ -6,7 +6,7 @@
 .inline-chat-content-widget {
 	background-color: var(--vscode-panel-background);
 	padding: 0 1px;
-	border-radius: 5px;
+	border-radius: 8px;
 	display: flex;
 	align-items: center;
 	box-shadow: 0 4px 8px var(--vscode-widget-shadow);

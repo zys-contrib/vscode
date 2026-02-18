@@ -6,7 +6,10 @@
 import './media/inlineChatOverlayWidget.css';
 import * as dom from '../../../../base/browser/dom.js';
 import { DEFAULT_FONT_FAMILY } from '../../../../base/browser/fonts.js';
+import { StandardKeyboardEvent } from '../../../../base/browser/keyboardEvent.js';
 import { renderAsPlaintext } from '../../../../base/browser/markdownRenderer.js';
+import { ActionBar, ActionsOrientation } from '../../../../base/browser/ui/actionbar/actionbar.js';
+import { BaseActionViewItem } from '../../../../base/browser/ui/actionbar/actionViewItems.js';
 import { Codicon } from '../../../../base/common/codicons.js';
 import { KeyCode } from '../../../../base/common/keyCodes.js';
 import { Disposable, DisposableStore, toDisposable } from '../../../../base/common/lifecycle.js';
@@ -21,7 +24,8 @@ import { CodeEditorWidget, ICodeEditorWidgetOptions } from '../../../../editor/b
 import { IModelService } from '../../../../editor/common/services/model.js';
 import { localize } from '../../../../nls.js';
 import { HiddenItemStrategy, MenuWorkbenchToolBar } from '../../../../platform/actions/browser/toolbar.js';
-import { MenuId } from '../../../../platform/actions/common/actions.js';
+import { getFlatActionBarActions } from '../../../../platform/actions/browser/menuEntryActionViewItem.js';
+import { IMenuService, MenuId } from '../../../../platform/actions/common/actions.js';
 import { IContextKeyService } from '../../../../platform/contextkey/common/contextkey.js';
 import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
 import { ICommandService } from '../../../../platform/commands/common/commands.js';
@@ -62,6 +66,7 @@ export class InlineChatInputWidget extends Disposable {
 		private readonly _editorObs: ObservableCodeEditor,
 		@IContextKeyService private readonly _contextKeyService: IContextKeyService,
 		@ICommandService private readonly _commandService: ICommandService,
+		@IMenuService private readonly _menuService: IMenuService,
 		@IInstantiationService instantiationService: IInstantiationService,
 		@IModelService modelService: IModelService,
 		@IConfigurationService configurationService: IConfigurationService,
@@ -80,6 +85,22 @@ export class InlineChatInputWidget extends Disposable {
 		// Create toolbar container
 		this._toolbarContainer = dom.append(this._container, dom.$('.toolbar'));
 
+		// Create vertical actions bar below the input container
+		const actionsContainer = dom.append(this._domNode, dom.$('.inline-chat-gutter-actions'));
+		const actionBar = this._store.add(new ActionBar(actionsContainer, {
+			orientation: ActionsOrientation.VERTICAL,
+			preventLoopNavigation: true,
+		}));
+		const actionsMenu = this._store.add(this._menuService.createMenu(MenuId.ChatEditorInlineMenu, this._contextKeyService));
+		const updateActions = () => {
+			const actions = getFlatActionBarActions(actionsMenu.getActions({ shouldForwardArgs: true }));
+			actionBar.clear();
+			actionBar.push(actions);
+			dom.setVisibility(actions.length > 0, actionsContainer);
+		};
+		this._store.add(actionsMenu.onDidChange(updateActions));
+		updateActions();
+
 		// Create editor options
 		const options = getSimpleEditorOptions(configurationService);
 		options.wordWrap = 'off';
@@ -93,9 +114,10 @@ export class InlineChatInputWidget extends Disposable {
 		options.scrollbar = { vertical: 'auto', horizontal: 'hidden', alwaysConsumeMouseWheel: true, verticalSliderSize: 6 };
 		options.renderLineHighlight = 'none';
 		options.fontFamily = DEFAULT_FONT_FAMILY;
-		options.fontSize = 12;
-		options.lineHeight = 18;
+		options.fontSize = 13;
+		options.lineHeight = 20;
 		options.cursorWidth = 1;
+		options.padding = { top: 2, bottom: 2 };
 
 		const codeEditorWidgetOptions: ICodeEditorWidgetOptions = {
 			isSimpleWidget: true,
@@ -146,7 +168,7 @@ export class InlineChatInputWidget extends Disposable {
 
 		this._layoutData = derived(r => {
 
-			const totalWidth = contentWidth.read(r) + toolbarWidth.read(r);
+			const totalWidth = contentWidth.read(r) + 6 + toolbarWidth.read(r);
 			const minWidth = minWidgetWidth.read(r);
 			const maxWidth = maxWidgetWidth.read(r);
 			const clampedWidth = this._input.getOption(EditorOption.wordWrap) === 'on'
@@ -172,7 +194,7 @@ export class InlineChatInputWidget extends Disposable {
 		this._store.add(autorun(r => {
 			const { toolbarWidth, totalWidth, height } = this._layoutData.read(r);
 
-			const inputWidth = totalWidth - toolbarWidth;
+			const inputWidth = totalWidth - toolbarWidth - 6;
 			this._container.style.width = `${totalWidth}px`;
 			this._inputContainer.style.width = `${inputWidth}px`;
 			this._input.layout({ width: inputWidth, height });
@@ -187,8 +209,8 @@ export class InlineChatInputWidget extends Disposable {
 			const selection = this._editorObs.cursorSelection.read(r);
 			const hasSelection = selection && !selection.isEmpty();
 			const placeholderText = hasSelection
-				? localize('placeholderWithSelection', "Modify selected code")
-				: localize('placeholderNoSelection', "Generate code");
+				? localize('placeholderWithSelection', "Describe how to change this")
+				: localize('placeholderNoSelection', "Describe what to generate");
 
 			this._input.updateOptions({ placeholder: placeholderText });
 		}));
@@ -201,7 +223,7 @@ export class InlineChatInputWidget extends Disposable {
 		}));
 		this._store.add(toDisposable(() => inputHasText.reset()));
 
-		// Handle Enter key to submit
+		// Handle Enter key to submit, ArrowDown to move to actions
 		this._store.add(this._input.onKeyDown(e => {
 			if (e.keyCode === KeyCode.Enter && !e.shiftKey) {
 				e.preventDefault();
@@ -215,8 +237,29 @@ export class InlineChatInputWidget extends Disposable {
 					e.stopPropagation();
 					this.hide();
 				}
+			} else if (e.keyCode === KeyCode.DownArrow && !actionBar.isEmpty()) {
+				const model = this._input.getModel();
+				const position = this._input.getPosition();
+				if (position && position.lineNumber === model.getLineCount()) {
+					e.preventDefault();
+					e.stopPropagation();
+					actionBar.focus(0);
+				}
 			}
 		}));
+
+		// ArrowUp on first action bar item moves focus back to input editor
+		this._store.add(dom.addDisposableListener(actionBar.domNode, 'keydown', (e: KeyboardEvent) => {
+			const event = new StandardKeyboardEvent(e);
+			if (event.keyCode === KeyCode.UpArrow) {
+				const firstItem = actionBar.viewItems[0] as BaseActionViewItem | undefined;
+				if (firstItem?.element && dom.isAncestorOfActiveElement(firstItem.element)) {
+					event.preventDefault();
+					event.stopPropagation();
+					this._input.focus();
+				}
+			}
+		}, true));
 
 		// Track focus - hide when focus leaves
 		const focusTracker = this._store.add(dom.trackFocus(this._domNode));

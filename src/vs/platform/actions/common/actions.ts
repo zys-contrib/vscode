@@ -281,7 +281,7 @@ export class MenuId {
 	static readonly ChatToolOutputResourceContext = new MenuId('ChatToolOutputResourceContext');
 	static readonly ChatMultiDiffContext = new MenuId('ChatMultiDiffContext');
 	static readonly ChatConfirmationMenu = new MenuId('ChatConfirmationMenu');
-	static readonly ChatEditorInlineGutter = new MenuId('ChatEditorInlineGutter');
+	static readonly ChatEditorInlineMenu = new MenuId('ChatEditorInlineGutter');
 	static readonly ChatEditorInlineExecute = new MenuId('ChatEditorInputExecute');
 	static readonly ChatEditorInlineInputSide = new MenuId('ChatEditorInputSide');
 	static readonly InlineChatEditorAffordance = new MenuId('InlineChatEditorAffordance');
