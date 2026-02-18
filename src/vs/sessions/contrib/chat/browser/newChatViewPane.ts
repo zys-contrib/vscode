@@ -198,7 +198,6 @@ class NewChatWidget extends Disposable {
 	// Input
 	private _editor!: CodeEditorWidget;
 	private readonly _currentLanguageModel = observableValue<ILanguageModelChatMetadataAndIdentifier | undefined>('currentLanguageModel', undefined);
-	private _updateAddContextButtonLabel: (() => void) | undefined;
 	private readonly _modelPickerDisposable = this._register(new MutableDisposable());
 	private _pendingSessionResource: URI | undefined;
 
@@ -440,9 +439,14 @@ class NewChatWidget extends Disposable {
 	private _createToolbar(container: HTMLElement): void {
 		const toolbar = dom.append(container, dom.$('.sessions-chat-toolbar'));
 
-		// Add context button (matches AddFilesButton from chatInputPart)
-		const attachContainer = dom.append(toolbar, dom.$('.sessions-chat-attach-button'));
-		this._renderAddContextButton(attachContainer);
+		// Plus button for attaching context
+		const attachButton = dom.append(toolbar, dom.$('.sessions-chat-attach-button'));
+		attachButton.tabIndex = 0;
+		attachButton.role = 'button';
+		attachButton.title = localize('addContext', "Add Context...");
+		attachButton.ariaLabel = localize('addContext', "Add Context...");
+		dom.append(attachButton, renderIcon(Codicon.add));
+		this._register(dom.addDisposableListener(attachButton, dom.EventType.CLICK, () => this._showAttachContextPicker()));
 
 		const modelPickerContainer = dom.append(toolbar, dom.$('.sessions-chat-model-picker'));
 		this._createModelPicker(modelPickerContainer);
@@ -455,29 +459,6 @@ class NewChatWidget extends Disposable {
 		sendButton.title = localize('send', "Send");
 		dom.append(sendButton, renderIcon(Codicon.send));
 		this._register(dom.addDisposableListener(sendButton, dom.EventType.CLICK, () => this._send()));
-	}
-
-	private _renderAddContextButton(container: HTMLElement): void {
-		container.classList.add('chat-attachment-button');
-
-		const label = dom.append(container, dom.$('a.action-label'));
-		label.tabIndex = 0;
-		label.role = 'button';
-		label.ariaLabel = localize('addContext', "Add Context...");
-
-		const updateLabel = () => {
-			const hasAttachments = this._attachedContext.length > 0;
-			label.classList.toggle('has-label', !hasAttachments);
-			const message = !hasAttachments
-				? `$(attach) ${localize('addContext.label', "Add Context...")}`
-				: '$(attach)';
-			dom.reset(label, ...renderLabelWithIcons(message));
-		};
-
-		updateLabel();
-		this._updateAddContextButtonLabel = updateLabel;
-
-		this._register(dom.addDisposableListener(label, dom.EventType.CLICK, () => this._showAttachContextPicker()));
 	}
 
 	// --- Model picker ---
