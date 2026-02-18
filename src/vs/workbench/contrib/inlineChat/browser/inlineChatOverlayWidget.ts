@@ -224,7 +224,7 @@ export class InlineChatInputWidget extends Disposable {
 	}
 
 	get value(): string {
-		return this._input.getModel().getValue();
+		return this._input.getModel().getValue().trim();
 	}
 
 	/**
@@ -319,6 +319,7 @@ export class InlineChatInputWidget extends Disposable {
 			this._editorObs.editor.focus();
 		}
 		this._position.set(null, undefined);
+		this._input.getModel().setValue('');
 		this._showStore.clear();
 	}
 }
