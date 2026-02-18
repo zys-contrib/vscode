@@ -53,6 +53,13 @@ import { IStorageService, StorageScope, StorageTarget } from '../../../../platfo
 import { IViewPaneOptions, ViewPane } from '../../../../workbench/browser/parts/views/viewPane.js';
 import { ContextMenuController } from '../../../../editor/contrib/contextmenu/browser/contextmenu.js';
 import { getSimpleEditorOptions } from '../../../../workbench/contrib/codeEditor/browser/simpleEditorOptions.js';
+import { IQuickInputService, IQuickPickItemWithResource } from '../../../../platform/quickinput/common/quickInput.js';
+import { AnythingQuickAccessProviderRunOptions } from '../../../../platform/quickinput/common/quickAccess.js';
+import { AnythingQuickAccessProvider } from '../../../../workbench/contrib/search/browser/anythingQuickAccess.js';
+import { IChatRequestVariableEntry, OmittedState } from '../../../../workbench/contrib/chat/common/attachments/chatVariableEntries.js';
+import { ITextModelService } from '../../../../editor/common/services/resolverService.js';
+import { isSupportedChatFileScheme } from '../../../../workbench/contrib/chat/common/constants.js';
+import { IFileService } from '../../../../platform/files/common/files.js';
 
 // #region --- Target Config ---
 
@@ -137,6 +144,7 @@ export interface INewChatSendRequestData {
 	readonly sendOptions: IChatSendRequestOptions;
 	readonly selectedOptions: ReadonlyMap<string, IChatSessionProviderOptionItem>;
 	readonly folderUri?: URI;
+	readonly attachedContext?: IChatRequestVariableEntry[];
 }
 
 /**
@@ -184,6 +192,10 @@ class NewChatWidget extends Disposable {
 	private readonly _selectedOptions = new Map<string, IChatSessionProviderOptionItem>();
 	private readonly _optionContextKeys = new Map<string, IContextKey<string>>();
 	private readonly _whenClauseKeys = new Set<string>();
+
+	// Attached context
+	private readonly _attachedContext: IChatRequestVariableEntry[] = [];
+	private _attachedContextContainer: HTMLElement | undefined;
 
 	constructor(
 		options: INewChatWidgetOptions,
