@@ -105,11 +105,22 @@ export class NewChatContextAttachments extends Disposable {
 		const overlay = dom.append(element, dom.$('.sessions-chat-drop-overlay'));
 
 		this._register(dom.addDisposableListener(element, dom.EventType.DRAG_ENTER, (e) => {
-			if (e.dataTransfer?.types.includes('Files')) {
+			if (e.dataTransfer && Array.from(e.dataTransfer.types).includes('Files')) {
 				e.preventDefault();
 				e.dataTransfer.dropEffect = 'copy';
 				overlay.style.display = 'block';
 				element.classList.add('sessions-chat-drop-active');
+			}
+		}));
+
+		this._register(dom.addDisposableListener(element, dom.EventType.DRAG_OVER, (e) => {
+			if (e.dataTransfer && Array.from(e.dataTransfer.types).includes('Files')) {
+				e.preventDefault();
+				e.dataTransfer.dropEffect = 'copy';
+				if (overlay.style.display !== 'block') {
+					overlay.style.display = 'block';
+					element.classList.add('sessions-chat-drop-active');
+				}
 			}
 		}));
 
@@ -132,44 +143,23 @@ export class NewChatContextAttachments extends Disposable {
 			overlay.style.display = 'none';
 			element.classList.remove('sessions-chat-drop-active');
 
-			const files = e.dataTransfer?.files;
-			if (!files || files.length === 0) {
-				return;
-			}
-
-			for (const file of Array.from(files)) {
-				const filePath = (file as unknown as { path?: string }).path;
-				if (!filePath) {
-					continue;
-				}
-				const uri = URI.file(filePath);
-				if (/\.(png|jpg|jpeg|bmp|gif|tiff)$/i.test(file.name)) {
-					const readFile = await this.fileService.readFile(uri);
-					const resizedImage = await resizeImage(readFile.value.buffer);
-					this._addAttachments({
-						id: uri.toString(),
-						name: file.name,
-						fullName: file.name,
-						value: resizedImage,
-						kind: 'image',
-						references: [{ reference: uri, kind: 'reference' }]
-					});
-				} else {
-					let omittedState = OmittedState.NotOmitted;
-					try {
-						const ref = await this.textModelService.createModelReference(uri);
-						ref.dispose();
-					} catch {
-						omittedState = OmittedState.Full;
+			// Try items first (for URI-based drops from VS Code tree views)
+			const items = e.dataTransfer?.items;
+			if (items) {
+				for (const item of Array.from(items)) {
+					if (item.kind === 'file') {
+						const file = item.getAsFile();
+						if (!file) {
+							continue;
+						}
+						// Electron provides file.path on native File objects
+						const filePath = (file as unknown as { path?: string }).path;
+						if (!filePath) {
+							continue;
+						}
+						const uri = URI.file(filePath);
+						await this._attachFileUri(uri, file.name);
 					}
-
-					this._addAttachments({
-						kind: 'file',
-						id: uri.toString(),
-						value: uri,
-						name: file.name,
-						omittedState,
-					});
 				}
 			}
 		}));
@@ -233,34 +223,7 @@ export class NewChatContextAttachments extends Disposable {
 		}
 
 		for (const uri of selected) {
-			if (/\.(png|jpg|jpeg|bmp|gif|tiff)$/i.test(uri.path)) {
-				const readFile = await this.fileService.readFile(uri);
-				const resizedImage = await resizeImage(readFile.value.buffer);
-				this._addAttachments({
-					id: uri.toString(),
-					name: basename(uri),
-					fullName: basename(uri),
-					value: resizedImage,
-					kind: 'image',
-					references: [{ reference: uri, kind: 'reference' }]
-				});
-			} else {
-				let omittedState = OmittedState.NotOmitted;
-				try {
-					const ref = await this.textModelService.createModelReference(uri);
-					ref.dispose();
-				} catch {
-					omittedState = OmittedState.Full;
-				}
-
-				this._addAttachments({
-					kind: 'file',
-					id: uri.toString(),
-					value: uri,
-					name: basename(uri),
-					omittedState,
-				});
-			}
+			await this._attachFileUri(uri, basename(uri));
 		}
 	}
 
@@ -268,22 +231,25 @@ export class NewChatContextAttachments extends Disposable {
 		if (!pick.resource) {
 			return;
 		}
+		await this._attachFileUri(pick.resource, pick.label);
+	}
 
-		if (/\.(png|jpg|jpeg|bmp|gif|tiff)$/i.test(pick.resource.path)) {
-			const readFile = await this.fileService.readFile(pick.resource);
+	private async _attachFileUri(uri: URI, name: string): Promise<void> {
+		if (/\.(png|jpg|jpeg|bmp|gif|tiff)$/i.test(uri.path)) {
+			const readFile = await this.fileService.readFile(uri);
 			const resizedImage = await resizeImage(readFile.value.buffer);
 			this._addAttachments({
-				id: pick.resource.toString(),
-				name: pick.label,
-				fullName: pick.label,
+				id: uri.toString(),
+				name,
+				fullName: name,
 				value: resizedImage,
 				kind: 'image',
-				references: [{ reference: pick.resource, kind: 'reference' }]
+				references: [{ reference: uri, kind: 'reference' }]
 			});
 		} else {
 			let omittedState = OmittedState.NotOmitted;
 			try {
-				const ref = await this.textModelService.createModelReference(pick.resource);
+				const ref = await this.textModelService.createModelReference(uri);
 				ref.dispose();
 			} catch {
 				omittedState = OmittedState.Full;
@@ -291,9 +257,9 @@ export class NewChatContextAttachments extends Disposable {
 
 			this._addAttachments({
 				kind: 'file',
-				id: pick.resource.toString(),
-				value: pick.resource,
-				name: pick.label,
+				id: uri.toString(),
+				value: uri,
+				name,
 				omittedState,
 			});
 		}
