@@ -56,7 +56,7 @@ export class InlineChatInputWidget extends Disposable {
 
 	private readonly _showStore = this._store.add(new DisposableStore());
 	private readonly _stickyScrollHeight: IObservable<number>;
-	private readonly _layoutData: IObservable<{ totalWidth: number; toolbarWidth: number; height: number }>;
+	private readonly _layoutData: IObservable<{ totalWidth: number; toolbarWidth: number; height: number; editorPad: number }>;
 	private _anchorLineNumber: number = 0;
 	private _anchorLeft: number = 0;
 	private _anchorAbove: boolean = false;
@@ -111,7 +111,7 @@ export class InlineChatInputWidget extends Disposable {
 		options.lineNumbersMinChars = 0;
 		options.folding = false;
 		options.minimap = { enabled: false };
-		options.scrollbar = { vertical: 'auto', horizontal: 'hidden', alwaysConsumeMouseWheel: true, verticalSliderSize: 6 };
+		options.scrollbar = { vertical: 'hidden', horizontal: 'hidden', alwaysConsumeMouseWheel: true };
 		options.renderLineHighlight = 'none';
 		options.fontFamily = DEFAULT_FONT_FAMILY;
 		options.fontSize = 13;
@@ -167,8 +167,8 @@ export class InlineChatInputWidget extends Disposable {
 		const contentHeight = observableFromEvent(this, this._input.onDidContentSizeChange, () => this._input.getContentHeight());
 
 		this._layoutData = derived(r => {
-
-			const totalWidth = contentWidth.read(r) + 6 + toolbarWidth.read(r);
+			const editorPad = 6;
+			const totalWidth = contentWidth.read(r) + editorPad + toolbarWidth.read(r);
 			const minWidth = minWidgetWidth.read(r);
 			const maxWidth = maxWidgetWidth.read(r);
 			const clampedWidth = this._input.getOption(EditorOption.wordWrap) === 'on'
@@ -184,6 +184,7 @@ export class InlineChatInputWidget extends Disposable {
 			}
 
 			return {
+				editorPad,
 				toolbarWidth: toolbarWidth.read(r),
 				totalWidth: clampedWidth,
 				height: clampedHeight
@@ -192,9 +193,9 @@ export class InlineChatInputWidget extends Disposable {
 
 		// Update container width and editor layout when width changes
 		this._store.add(autorun(r => {
-			const { toolbarWidth, totalWidth, height } = this._layoutData.read(r);
+			const { editorPad, toolbarWidth, totalWidth, height } = this._layoutData.read(r);
 
-			const inputWidth = totalWidth - toolbarWidth - 6;
+			const inputWidth = totalWidth - toolbarWidth - editorPad;
 			this._container.style.width = `${totalWidth}px`;
 			this._inputContainer.style.width = `${inputWidth}px`;
 			this._input.layout({ width: inputWidth, height });
@@ -203,6 +204,11 @@ export class InlineChatInputWidget extends Disposable {
 		// Toggle focus class on the container
 		this._store.add(this._input.onDidFocusEditorText(() => this._container.classList.add('focused')));
 		this._store.add(this._input.onDidBlurEditorText(() => this._container.classList.remove('focused')));
+
+		// Toggle scroll decoration on the toolbar
+		this._store.add(this._input.onDidScrollChange(e => {
+			this._toolbarContainer.classList.toggle('fake-scroll-decoration', e.scrollTop > 0);
+		}));
 
 		// Update placeholder based on selection state
 		this._store.add(autorun(r => {
