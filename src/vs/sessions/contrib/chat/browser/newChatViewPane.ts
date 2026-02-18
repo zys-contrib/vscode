@@ -59,7 +59,6 @@ import { AnythingQuickAccessProvider } from '../../../../workbench/contrib/searc
 import { IChatRequestVariableEntry, OmittedState } from '../../../../workbench/contrib/chat/common/attachments/chatVariableEntries.js';
 import { ITextModelService } from '../../../../editor/common/services/resolverService.js';
 import { isSupportedChatFileScheme } from '../../../../workbench/contrib/chat/common/constants.js';
-import { IFileService } from '../../../../platform/files/common/files.js';
 
 // #region --- Target Config ---
 
@@ -212,6 +211,8 @@ class NewChatWidget extends Disposable {
 		@IFileDialogService private readonly fileDialogService: IFileDialogService,
 		@IWorkspacesService private readonly workspacesService: IWorkspacesService,
 		@IStorageService private readonly storageService: IStorageService,
+		@IQuickInputService private readonly quickInputService: IQuickInputService,
+		@ITextModelService private readonly textModelService: ITextModelService,
 	) {
 		super();
 		this._targetConfig = this._register(new TargetConfig(options.targetConfig));
@@ -282,6 +283,7 @@ class NewChatWidget extends Disposable {
 
 		// Input area inside the input slot
 		const inputArea = dom.$('.sessions-chat-input-area');
+		this._attachedContextContainer = dom.append(inputArea, dom.$('.sessions-chat-attached-context'));
 		this._createEditor(inputArea);
 		this._createToolbar(inputArea);
 		this._inputSlot.appendChild(inputArea);
@@ -382,6 +384,15 @@ class NewChatWidget extends Disposable {
 	private _createToolbar(container: HTMLElement): void {
 		const toolbar = dom.append(container, dom.$('.sessions-chat-toolbar'));
 
+		// Plus button for attaching context
+		const attachButton = dom.append(toolbar, dom.$('.sessions-chat-attach-button'));
+		attachButton.tabIndex = 0;
+		attachButton.role = 'button';
+		attachButton.title = localize('addContext', "Add Context...");
+		attachButton.ariaLabel = localize('addContext', "Add Context...");
+		dom.append(attachButton, renderIcon(Codicon.add));
+		this._register(dom.addDisposableListener(attachButton, dom.EventType.CLICK, () => this._showAttachContextPicker()));
+
 		const modelPickerContainer = dom.append(toolbar, dom.$('.sessions-chat-model-picker'));
 		this._createModelPicker(modelPickerContainer);
 
@@ -444,6 +455,96 @@ class NewChatWidget extends Disposable {
 				return metadata ? { metadata, identifier: id } : undefined;
 			})
 			.filter((m): m is ILanguageModelChatMetadataAndIdentifier => !!m && !!m.metadata.isUserSelectable);
+	}
+
+	// --- Attach context ---
+
+	private _showAttachContextPicker(): void {
+		const providerOptions: AnythingQuickAccessProviderRunOptions = {
+			filter: (pick) => {
+				if (isQuickPickItemWithResource(pick) && pick.resource) {
+					return this.instantiationService.invokeFunction(accessor => isSupportedChatFileScheme(accessor, pick.resource!.scheme));
+				}
+				return true;
+			},
+			handleAccept: (item) => {
+				const pick = item as IQuickPickItemWithResource;
+				if (pick.resource) {
+					this._addFileAttachment(pick.resource, pick.label);
+				}
+			}
+		};
+
+		this.quickInputService.quickAccess.show('', {
+			enabledProviderPrefixes: [AnythingQuickAccessProvider.PREFIX],
+			placeholder: localize('chatAttachFiles', "Search for files to add to your request"),
+			providerOptions,
+		});
+	}
+
+	private async _addFileAttachment(resource: URI, label: string): Promise<void> {
+		// Avoid duplicates
+		if (this._attachedContext.some(e => e.id === resource.toString())) {
+			return;
+		}
+
+		let omittedState = OmittedState.NotOmitted;
+		try {
+			const ref = await this.textModelService.createModelReference(resource);
+			ref.dispose();
+		} catch {
+			omittedState = OmittedState.Full;
+		}
+
+		this._attachedContext.push({
+			kind: 'file',
+			id: resource.toString(),
+			value: resource,
+			name: label,
+			omittedState,
+		});
+		this._renderAttachedContext();
+		this._editor?.focus();
+	}
+
+	private _removeAttachment(id: string): void {
+		const index = this._attachedContext.findIndex(e => e.id === id);
+		if (index >= 0) {
+			this._attachedContext.splice(index, 1);
+			this._renderAttachedContext();
+		}
+	}
+
+	private _renderAttachedContext(): void {
+		if (!this._attachedContextContainer) {
+			return;
+		}
+
+		dom.clearNode(this._attachedContextContainer);
+
+		if (this._attachedContext.length === 0) {
+			this._attachedContextContainer.style.display = 'none';
+			return;
+		}
+
+		this._attachedContextContainer.style.display = '';
+
+		for (const entry of this._attachedContext) {
+			const pill = dom.append(this._attachedContextContainer, dom.$('.sessions-chat-attachment-pill'));
+			const fileIcon = renderIcon(Codicon.file);
+			dom.append(pill, fileIcon);
+			dom.append(pill, dom.$('span.sessions-chat-attachment-name', undefined, entry.name));
+
+			const removeButton = dom.append(pill, dom.$('.sessions-chat-attachment-remove'));
+			removeButton.title = localize('removeAttachment', "Remove");
+			removeButton.tabIndex = 0;
+			removeButton.role = 'button';
+			dom.append(removeButton, renderIcon(Codicon.close));
+			this._register(dom.addDisposableListener(removeButton, dom.EventType.CLICK, (e) => {
+				e.stopPropagation();
+				this._removeAttachment(entry.id);
+			}));
+		}
 	}
 
 	// --- Welcome: Target & option pickers (dropdown row below input) ---
@@ -971,6 +1072,7 @@ class NewChatWidget extends Disposable {
 				applyCodeBlockSuggestionId: undefined,
 			},
 			agentIdSilent: contribution?.type,
+			attachedContext: this._attachedContext.length > 0 ? [...this._attachedContext] : undefined,
 		};
 
 		const folderUri = this._selectedFolderUri ?? this.workspaceContextService.getWorkspace().folders[0]?.uri;
@@ -982,6 +1084,7 @@ class NewChatWidget extends Disposable {
 			sendOptions,
 			selectedOptions: new Map(this._selectedOptions),
 			folderUri,
+			attachedContext: this._attachedContext.length > 0 ? [...this._attachedContext] : undefined,
 		});
 	}
 
@@ -1124,4 +1227,11 @@ function getAgentSessionProviderName(provider: AgentSessionProviders): string {
 		case AgentSessionProviders.Growth:
 			return 'Growth';
 	}
+}
+
+function isQuickPickItemWithResource(obj: unknown): obj is IQuickPickItemWithResource {
+	return (
+		typeof obj === 'object'
+		&& obj !== null
+		&& URI.isUri((obj as IQuickPickItemWithResource).resource));
 }
