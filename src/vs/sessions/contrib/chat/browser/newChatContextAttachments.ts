@@ -101,18 +101,35 @@ export class NewChatContextAttachments extends Disposable {
 	// --- Drag and drop ---
 
 	registerDropTarget(element: HTMLElement): void {
-		this._register(dom.addDisposableListener(element, dom.EventType.DRAG_OVER, (e) => {
-			e.preventDefault();
-			e.dataTransfer!.dropEffect = 'copy';
-			element.classList.add('sessions-chat-drop-active');
+		// Use a transparent overlay during drag to capture events over the Monaco editor
+		const overlay = dom.append(element, dom.$('.sessions-chat-drop-overlay'));
+
+		this._register(dom.addDisposableListener(element, dom.EventType.DRAG_ENTER, (e) => {
+			if (e.dataTransfer?.types.includes('Files')) {
+				e.preventDefault();
+				e.dataTransfer.dropEffect = 'copy';
+				overlay.style.display = 'block';
+				element.classList.add('sessions-chat-drop-active');
+			}
 		}));
 
-		this._register(dom.addDisposableListener(element, dom.EventType.DRAG_LEAVE, () => {
+		this._register(dom.addDisposableListener(overlay, dom.EventType.DRAG_OVER, (e) => {
+			e.preventDefault();
+			e.dataTransfer!.dropEffect = 'copy';
+		}));
+
+		this._register(dom.addDisposableListener(overlay, dom.EventType.DRAG_LEAVE, (e) => {
+			if (e.relatedTarget && element.contains(e.relatedTarget as Node)) {
+				return;
+			}
+			overlay.style.display = 'none';
 			element.classList.remove('sessions-chat-drop-active');
 		}));
 
-		this._register(dom.addDisposableListener(element, dom.EventType.DROP, async (e) => {
+		this._register(dom.addDisposableListener(overlay, dom.EventType.DROP, async (e) => {
 			e.preventDefault();
+			e.stopPropagation();
+			overlay.style.display = 'none';
 			element.classList.remove('sessions-chat-drop-active');
 
 			const files = e.dataTransfer?.files;

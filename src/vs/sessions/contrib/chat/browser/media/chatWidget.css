@@ -21,6 +21,7 @@
 
 /* Input area */
 .sessions-chat-input-area {
+	position: relative;
 	width: 100%;
 	max-width: 800px;
 	box-sizing: border-box;
@@ -211,6 +212,16 @@
 }
 
 /* Drag and drop */
+.sessions-chat-drop-overlay {
+	display: none;
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 10;
+}
+
 .sessions-chat-input-area.sessions-chat-drop-active {
 	border-color: var(--vscode-focusBorder);
 	background-color: var(--vscode-list-dropBackground);
