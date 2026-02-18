@@ -258,6 +258,7 @@
 		"quickInputTitle.background": "#F0F0F3",
 		"chat.requestBubbleBackground": "#EEF4FB",
 		"chat.requestBubbleHoverBackground": "#E6EDFA",
+		"chat.thinkingShimmer": "#999999",
 		"editorCommentsWidget.rangeBackground": "#EEF4FB",
 		"editorCommentsWidget.rangeActiveBackground": "#E6EDFA",
 		"charts.foreground": "#202020",
