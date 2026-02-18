@@ -19,6 +19,8 @@ import { AnythingQuickAccessProviderRunOptions } from '../../../../platform/quic
 import { ITextModelService } from '../../../../editor/common/services/resolverService.js';
 import { IFileService } from '../../../../platform/files/common/files.js';
 import { IClipboardService } from '../../../../platform/clipboard/common/clipboardService.js';
+import { IFileDialogService } from '../../../../platform/dialogs/common/dialogs.js';
+import { basename } from '../../../../base/common/resources.js';
 
 import { AnythingQuickAccessProvider } from '../../../../workbench/contrib/search/browser/anythingQuickAccess.js';
 import { IChatRequestVariableEntry, OmittedState } from '../../../../workbench/contrib/chat/common/attachments/chatVariableEntries.js';
@@ -52,6 +54,7 @@ export class NewChatContextAttachments extends Disposable {
 		@ITextModelService private readonly textModelService: ITextModelService,
 		@IFileService private readonly fileService: IFileService,
 		@IClipboardService private readonly clipboardService: IClipboardService,
+		@IFileDialogService private readonly fileDialogService: IFileDialogService,
 	) {
 		super();
 	}
@@ -161,6 +164,13 @@ export class NewChatContextAttachments extends Disposable {
 		// Build addition picks for the quick access
 		const additionPicks: IQuickPickItem[] = [];
 
+		// "Files and Open Folders..." pick — opens a file dialog
+		additionPicks.push({
+			label: localize('filesAndFolders', "Files and Open Folders..."),
+			iconClass: ThemeIcon.asClassName(Codicon.file),
+			id: 'sessions.filesAndFolders',
+		});
+
 		// "Image from Clipboard" pick
 		additionPicks.push({
 			label: localize('imageFromClipboard', "Image from Clipboard"),
@@ -177,7 +187,9 @@ export class NewChatContextAttachments extends Disposable {
 			},
 			additionPicks,
 			handleAccept: async (item: IQuickPickItem) => {
-				if (item.id === 'sessions.imageFromClipboard') {
+				if (item.id === 'sessions.filesAndFolders') {
+					await this._handleFileDialog();
+				} else if (item.id === 'sessions.imageFromClipboard') {
 					await this._handleClipboardImage();
 				} else {
 					await this._handleFilePick(item as IQuickPickItemWithResource);
@@ -190,6 +202,49 @@ export class NewChatContextAttachments extends Disposable {
 			placeholder: localize('chatContext.attach.placeholder', "Search files to attach"),
 			providerOptions,
 		});
+	}
+
+	private async _handleFileDialog(): Promise<void> {
+		const selected = await this.fileDialogService.showOpenDialog({
+			canSelectFiles: true,
+			canSelectFolders: true,
+			canSelectMany: true,
+			title: localize('selectFilesOrFolders', "Select Files or Folders"),
+		});
+		if (!selected) {
+			return;
+		}
+
+		for (const uri of selected) {
+			if (/\.(png|jpg|jpeg|bmp|gif|tiff)$/i.test(uri.path)) {
+				const readFile = await this.fileService.readFile(uri);
+				const resizedImage = await resizeImage(readFile.value.buffer);
+				this._addAttachments({
+					id: uri.toString(),
+					name: basename(uri),
+					fullName: basename(uri),
+					value: resizedImage,
+					kind: 'image',
+					references: [{ reference: uri, kind: 'reference' }]
+				});
+			} else {
+				let omittedState = OmittedState.NotOmitted;
+				try {
+					const ref = await this.textModelService.createModelReference(uri);
+					ref.dispose();
+				} catch {
+					omittedState = OmittedState.Full;
+				}
+
+				this._addAttachments({
+					kind: 'file',
+					id: uri.toString(),
+					value: uri,
+					name: basename(uri),
+					omittedState,
+				});
+			}
+		}
 	}
 
 	private async _handleFilePick(pick: IQuickPickItemWithResource): Promise<void> {
