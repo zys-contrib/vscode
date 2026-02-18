@@ -1074,6 +1074,8 @@ class NewChatWidget extends Disposable {
 			folderUri,
 			attachedContext: this._contextAttachments.attachments.length > 0 ? [...this._contextAttachments.attachments] : undefined,
 		});
+
+		this._contextAttachments.clear();
 	}
 
 	// --- Layout ---
