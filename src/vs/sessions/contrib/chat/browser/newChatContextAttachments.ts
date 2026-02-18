@@ -27,6 +27,7 @@ import { IChatRequestVariableEntry, OmittedState } from '../../../../workbench/c
 import { isSupportedChatFileScheme } from '../../../../workbench/contrib/chat/common/constants.js';
 import { resizeImage } from '../../../../workbench/contrib/chat/browser/chatImageUtils.js';
 import { imageToHash, isImage } from '../../../../workbench/contrib/chat/browser/widget/input/editor/chatPasteProviders.js';
+import { getPathForFile } from '../../../../platform/dnd/browser/dnd.js';
 
 /**
  * Manages context attachments for the sessions new-chat widget.
@@ -153,8 +154,7 @@ export class NewChatContextAttachments extends Disposable {
 						if (!file) {
 							continue;
 						}
-						// Electron provides file.path on native File objects
-						const filePath = (file as unknown as { path?: string }).path;
+						const filePath = getPathForFile(file);
 						if (!filePath) {
 							continue;
 						}
