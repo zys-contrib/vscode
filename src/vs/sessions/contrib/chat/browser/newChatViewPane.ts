@@ -316,15 +316,16 @@ class NewChatWidget extends Disposable {
 		// Input slot
 		this._inputSlot = dom.append(welcomeElement, dom.$('.chat-full-welcome-inputSlot'));
 
-		// Attachments row above the input (plus button + pills)
-		const attachRow = dom.append(this._inputSlot, dom.$('.sessions-chat-attach-row'));
+		// Input area inside the input slot
+		const inputArea = dom.$('.sessions-chat-input-area');
+		this._contextAttachments.registerDropTarget(inputArea);
+
+		// Attachments row (plus button + pills) inside input area, above editor
+		const attachRow = dom.append(inputArea, dom.$('.sessions-chat-attach-row'));
 		this._createAttachButton(attachRow);
 		const attachedContextContainer = dom.append(attachRow, dom.$('.sessions-chat-attached-context'));
 		this._contextAttachments.renderAttachedContext(attachedContextContainer);
 
-		// Input area inside the input slot
-		const inputArea = dom.$('.sessions-chat-input-area');
-		this._contextAttachments.registerDropTarget(inputArea);
 		this._createEditor(inputArea);
 		this._createBottomToolbar(inputArea);
 		this._inputSlot.appendChild(inputArea);
