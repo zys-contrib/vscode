@@ -199,7 +199,7 @@ export class NewChatContextAttachments extends Disposable {
 
 		this.quickInputService.quickAccess.show('', {
 			enabledProviderPrefixes: [AnythingQuickAccessProvider.PREFIX],
-			placeholder: localize('chatContext.attach.placeholder', "Search files to attach"),
+			placeholder: localize('chatContext.attach.placeholder', "Attach as context..."),
 			providerOptions,
 		});
 	}
