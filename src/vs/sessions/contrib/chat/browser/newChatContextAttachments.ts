@@ -5,7 +5,7 @@
 
 import * as dom from '../../../../base/browser/dom.js';
 import { Codicon } from '../../../../base/common/codicons.js';
-import { Disposable, DisposableStore } from '../../../../base/common/lifecycle.js';
+import { Disposable } from '../../../../base/common/lifecycle.js';
 import { URI } from '../../../../base/common/uri.js';
 import { Emitter } from '../../../../base/common/event.js';
 import { renderIcon } from '../../../../base/browser/ui/iconLabel/iconLabels.js';
@@ -118,7 +118,11 @@ export class NewChatContextAttachments extends Disposable {
 			}
 
 			for (const file of Array.from(files)) {
-				const uri = URI.file(file.path);
+				const filePath = (file as unknown as { path?: string }).path;
+				if (!filePath) {
+					continue;
+				}
+				const uri = URI.file(filePath);
 				if (/\.(png|jpg|jpeg|bmp|gif|tiff)$/i.test(file.name)) {
 					const readFile = await this.fileService.readFile(uri);
 					const resizedImage = await resizeImage(readFile.value.buffer);
