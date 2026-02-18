@@ -595,10 +595,6 @@ src/vs/sessions/
 │   │   ├── changesView.contribution.ts
 │   │   ├── changesView.ts
 │   │   └── media/
-│   ├── filesView/browser/                  # Repository file tree view
-│   │   ├── filesView.contribution.ts
-│   │   ├── filesView.ts
-│   │   └── media/
 │   ├── chat/browser/                       # Chat actions and services
 │   │   ├── chat.contribution.ts            # Open in VS Code, Open Terminal, branch chat, run script, prompts service
 │   │   ├── branchChatSessionAction.ts      # Branch chat session action
