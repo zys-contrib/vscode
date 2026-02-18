@@ -321,8 +321,9 @@ class NewChatWidget extends Disposable {
 		const attachedContextContainer = dom.append(inputArea, dom.$('.sessions-chat-attached-context'));
 		this._contextAttachments.renderAttachedContext(attachedContextContainer);
 		this._contextAttachments.registerDropTarget(inputArea);
-		this._createToolbar(inputArea);
+		this._createTopToolbar(inputArea);
 		this._createEditor(inputArea);
+		this._createBottomToolbar(inputArea);
 		this._inputSlot.appendChild(inputArea);
 
 		// Local mode picker (below the input, shown when Local is selected)
@@ -430,7 +431,7 @@ class NewChatWidget extends Disposable {
 		}));
 	}
 
-	private _createToolbar(container: HTMLElement): void {
+	private _createTopToolbar(container: HTMLElement): void {
 		const toolbar = dom.append(container, dom.$('.sessions-chat-toolbar'));
 
 		// Plus button for attaching context
@@ -441,6 +442,10 @@ class NewChatWidget extends Disposable {
 		attachButton.ariaLabel = localize('addContext', "Add Context...");
 		dom.append(attachButton, renderIcon(Codicon.add));
 		this._register(dom.addDisposableListener(attachButton, dom.EventType.CLICK, () => this._contextAttachments.showPicker()));
+	}
+
+	private _createBottomToolbar(container: HTMLElement): void {
+		const toolbar = dom.append(container, dom.$('.sessions-chat-toolbar'));
 
 		const modelPickerContainer = dom.append(toolbar, dom.$('.sessions-chat-model-picker'));
 		this._createModelPicker(modelPickerContainer);
