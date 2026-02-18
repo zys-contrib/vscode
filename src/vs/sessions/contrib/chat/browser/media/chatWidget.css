@@ -197,3 +197,9 @@
 .sessions-chat-attachment-remove:hover {
 	background-color: var(--vscode-toolbar-hoverBackground);
 }
+
+/* Drag and drop */
+.sessions-chat-input-area.sessions-chat-drop-active {
+	border-color: var(--vscode-focusBorder);
+	background-color: var(--vscode-list-dropBackground);
+}
