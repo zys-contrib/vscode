@@ -340,8 +340,9 @@ function shouldShowBuiltInMode(mode: IChatMode, assignments: { showOldAskMode: b
 	if (mode.id === ChatMode.Edit.id || mode.name.get().toLowerCase() === 'edit') {
 		if (mode.id === ChatMode.Edit.id) {
 			return agentModeDisabledViaPolicy;
+		} else {
+			return !agentModeDisabledViaPolicy;
 		}
-		return true;
 	}
 
 	// The "Ask" mode is a special case - we want to show either the old or new version based on the assignment or agent disablement, but not both
@@ -349,8 +350,9 @@ function shouldShowBuiltInMode(mode: IChatMode, assignments: { showOldAskMode: b
 	if (mode.id === ChatMode.Ask.id || mode.name.get().toLowerCase() === 'ask') {
 		if (mode.id === ChatMode.Ask.id) {
 			return assignments.showOldAskMode || agentModeDisabledViaPolicy;
+		} else {
+			return !(assignments.showOldAskMode || agentModeDisabledViaPolicy);
 		}
-		return true;
 	}
 
 	return true;
