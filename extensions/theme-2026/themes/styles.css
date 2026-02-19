@@ -224,7 +224,7 @@
 .monaco-workbench .monaco-list-row:hover .quick-input-list-entry .quick-input-list-separator {
 	background: transparent !important;
 	color: inherit !important;
-	border: none;
+	border: none !important;
 	padding: 0;
 }
 
