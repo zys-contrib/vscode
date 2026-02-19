@@ -36,6 +36,7 @@ import { getPathForFile } from '../../../../platform/dnd/browser/dnd.js';
  * - File picker via quick access ("Files and Open Folders...")
  * - Image from Clipboard
  * - Drag and drop files
+ * - Paste images from clipboard (Ctrl/Cmd+V)
  */
 export class NewChatContextAttachments extends Disposable {
 
@@ -166,6 +167,68 @@ export class NewChatContextAttachments extends Disposable {
 				}
 			}
 		}));
+	}
+
+	// --- Paste ---
+
+	registerPasteHandler(element: HTMLElement): void {
+		const supportedMimeTypes = [
+			'image/png',
+			'image/jpeg',
+			'image/jpg',
+			'image/bmp',
+			'image/gif',
+			'image/tiff'
+		];
+
+		this._register(dom.addDisposableListener(element, dom.EventType.PASTE, async (e: ClipboardEvent) => {
+			const items = e.clipboardData?.items;
+			if (!items) {
+				return;
+			}
+
+			// Check synchronously for image data before any async work
+			// so preventDefault stops the editor from inserting text.
+			let imageFile: File | undefined;
+			for (const item of Array.from(items)) {
+				if (!item.type.startsWith('image/') || !supportedMimeTypes.includes(item.type)) {
+					continue;
+				}
+				const file = item.getAsFile();
+				if (file) {
+					imageFile = file;
+					break;
+				}
+			}
+
+			if (!imageFile) {
+				return;
+			}
+
+			e.preventDefault();
+			e.stopPropagation();
+
+			const arrayBuffer = await imageFile.arrayBuffer();
+			const data = new Uint8Array(arrayBuffer);
+			if (!isImage(data)) {
+				return;
+			}
+
+			const resizedData = await resizeImage(data);
+			const displayName = localize('pastedImage', "Pasted Image");
+			let tempDisplayName = displayName;
+			for (let appendValue = 2; this._attachedContext.some(a => a.name === tempDisplayName); appendValue++) {
+				tempDisplayName = `${displayName} ${appendValue}`;
+			}
+
+			this._addAttachments({
+				id: await imageToHash(resizedData),
+				name: tempDisplayName,
+				fullName: tempDisplayName,
+				value: resizedData,
+				kind: 'image',
+			});
+		}, true));
 	}
 
 	// --- Picker ---
