@@ -21,7 +21,7 @@ switch (process.platform) {
 	case 'win32': platformFolder = 'windows'; break;
 	case 'darwin': platformFolder = 'macos'; break;
 	case 'linux': platformFolder = 'linux'; break;
-	default: platformFolder = '';
+	default: throw new Error(`Unsupported platform: ${process.platform}`);
 }
 
 const arch = process.env.VSCODE_ARCH || process.arch;
