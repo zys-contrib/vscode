@@ -213,15 +213,12 @@
 	display: flex;
 	align-items: center;
 	font-size: 11px;
-	padding: 0 4px 1px 4px;
+	padding: 0 4px;
 	border-radius: var(--vscode-cornerRadius-small) !important;
-	background: color-mix(in srgb, var(--vscode-badge-background) 70%, transparent) !important;
-	color: var(--vscode-badge-foreground) !important;
+	background: transparent !important;
+	color: var(--vscode-descriptionForeground) !important;
+	border: 1px solid color-mix(in srgb, var(--vscode-descriptionForeground) 50%, transparent) !important;
 	margin-right: 8px;
-}
-
-.monaco-workbench.vs-dark .quick-input-list .quick-input-list-entry .quick-input-list-separator {
-	background: color-mix(in srgb, var(--vscode-badge-background) 50%, transparent) !important;
 }
 
 .monaco-workbench .monaco-list-row.focused .quick-input-list-entry .quick-input-list-separator,
@@ -229,6 +226,7 @@
 .monaco-workbench .monaco-list-row:hover .quick-input-list-entry .quick-input-list-separator {
 	background: transparent !important;
 	color: inherit !important;
+	border: none !important;
 	padding: 0;
 }
 
@@ -453,11 +451,9 @@
 
 .monaco-workbench .settings-editor > .settings-header > .search-container > .search-container-widgets > .settings-count-widget {
 	border-radius: var(--radius-sm);
-	background: color-mix(in srgb, var(--vscode-badge-background) 70%, transparent) !important;
-}
-
-.monaco-workbench.vs-dark .settings-editor > .settings-header > .search-container > .search-container-widgets > .settings-count-widget {
-	background: color-mix(in srgb, var(--vscode-badge-background) 50%, transparent) !important;
+	background: transparent !important;
+	color: var(--vscode-descriptionForeground) !important;
+	border: 1px solid color-mix(in srgb, var(--vscode-descriptionForeground) 50%, transparent) !important;
 }
 
 /* Welcome Tiles */
