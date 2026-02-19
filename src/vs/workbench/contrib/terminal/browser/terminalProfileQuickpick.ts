@@ -82,6 +82,7 @@ export class TerminalProfileQuickpick {
 						extensionIdentifier: result.profile.extensionIdentifier,
 						id: result.profile.id,
 						title: result.profile.title,
+						tabTitle: result.profile.tabTitle,
 						options: {
 							icon: result.profile.icon,
 							color: result.profile.color,

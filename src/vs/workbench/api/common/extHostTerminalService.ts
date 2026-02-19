@@ -193,11 +193,12 @@ export class ExtHostTerminal extends Disposable {
 			location: internalOptions?.location || this._serializeParentTerminal(options.location, internalOptions?.resolvedExtHostIdentifier),
 			isTransient: options.isTransient ?? undefined,
 			shellIntegrationNonce: options.shellIntegrationNonce ?? undefined,
+			title: options.title ?? undefined,
 		});
 	}
 
 
-	public async createExtensionTerminal(location?: TerminalLocation | vscode.TerminalEditorLocationOptions | vscode.TerminalSplitLocationOptions, internalOptions?: ITerminalInternalOptions, parentTerminal?: ExtHostTerminalIdentifier, iconPath?: TerminalIcon, color?: ThemeColor, shellIntegrationNonce?: string): Promise<number> {
+	public async createExtensionTerminal(location?: TerminalLocation | vscode.TerminalEditorLocationOptions | vscode.TerminalSplitLocationOptions, internalOptions?: ITerminalInternalOptions, parentTerminal?: ExtHostTerminalIdentifier, iconPath?: TerminalIcon, color?: ThemeColor, shellIntegrationNonce?: string, title?: string): Promise<number> {
 		if (typeof this._id !== 'string') {
 			throw new Error('Terminal has already been created');
 		}
@@ -209,6 +210,7 @@ export class ExtHostTerminal extends Disposable {
 			location: internalOptions?.location || this._serializeParentTerminal(location, parentTerminal),
 			isTransient: true,
 			shellIntegrationNonce: shellIntegrationNonce ?? undefined,
+			title: title ?? undefined,
 		});
 		// At this point, the id has been set via `$acceptTerminalOpened`
 		if (typeof this._id === 'string') {
@@ -513,7 +515,7 @@ export abstract class BaseExtHostTerminalService extends Disposable implements I
 	public createExtensionTerminal(options: vscode.ExtensionTerminalOptions, internalOptions?: ITerminalInternalOptions): vscode.Terminal {
 		const terminal = new ExtHostTerminal(this._proxy, generateUuid(), options, options.name);
 		const p = new ExtHostPseudoterminal(options.pty);
-		terminal.createExtensionTerminal(options.location, internalOptions, this._serializeParentTerminal(options, internalOptions).resolvedExtHostIdentifier, asTerminalIcon(options.iconPath), asTerminalColor(options.color), options.shellIntegrationNonce).then(id => {
+		terminal.createExtensionTerminal(options.location, internalOptions, this._serializeParentTerminal(options, internalOptions).resolvedExtHostIdentifier, asTerminalIcon(options.iconPath), asTerminalColor(options.color), options.shellIntegrationNonce, options.title).then(id => {
 			const disposable = this._setupExtHostProcessListeners(id, p);
 			this._terminalProcessDisposables[id] = disposable;
 		});
@@ -634,7 +636,8 @@ export abstract class BaseExtHostTerminalService extends Disposable implements I
 			shellArgs: shellLaunchConfigDto.args,
 			cwd: typeof shellLaunchConfigDto.cwd === 'string' ? shellLaunchConfigDto.cwd : URI.revive(shellLaunchConfigDto.cwd),
 			env: shellLaunchConfigDto.env,
-			hideFromUser: shellLaunchConfigDto.hideFromUser
+			hideFromUser: shellLaunchConfigDto.hideFromUser,
+			title: shellLaunchConfigDto.title
 		};
 		const terminal = new ExtHostTerminal(this._proxy, id, creationOptions, name);
 		this._terminals.push(terminal);
@@ -854,11 +857,15 @@ export abstract class BaseExtHostTerminalService extends Disposable implements I
 			throw new Error(`No terminal profile options provided for id "${id}"`);
 		}
 
-		if (hasKey(profile.options, { pty: true })) {
-			this.createExtensionTerminal(profile.options, options);
+		const profileOptions = options.title && !profile.options.title
+			? { ...profile.options, title: options.title }
+			: profile.options;
+
+		if (hasKey(profileOptions, { pty: true })) {
+			this.createExtensionTerminal(profileOptions, options);
 			return;
 		}
-		this.createTerminalFromOptions(profile.options, options);
+		this.createTerminalFromOptions(profileOptions, options);
 	}
 
 	public registerLinkProvider(provider: vscode.TerminalLinkProvider): vscode.Disposable {
