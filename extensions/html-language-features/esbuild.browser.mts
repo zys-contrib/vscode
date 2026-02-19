@@ -19,7 +19,7 @@ function javaScriptLibsPlugin(): esbuild.Plugin {
 		name: 'javascript-libs',
 		setup(build) {
 			build.onLoad({ filter: /javascriptLibs\.ts$/ }, () => {
-				const TYPESCRIPT_LIB_SOURCE = path.join(extensionRoot, 'node_modules', 'typescript', 'lib');
+				const TYPESCRIPT_LIB_SOURCE = path.dirname(import.meta.resolve('typescript').replace('file://', ''));
 				const JQUERY_DTS = path.join(extensionRoot, 'server', 'lib', 'jquery.d.ts');
 
 				function getFileName(name: string): string {
