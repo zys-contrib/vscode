@@ -83,7 +83,7 @@ class SlashCommandCompletions extends Disposable {
 					return null;
 				}
 
-				const range = computeCompletionRanges(model, position, /\/\w*/g);
+				const range = computeCompletionRanges(model, position, /\/[a-z0-9_.:-]*/gi);
 				if (!range) {
 					return null;
 				}
@@ -175,7 +175,7 @@ class SlashCommandCompletions extends Disposable {
 					return null;
 				}
 
-				const range = computeCompletionRanges(model, position, /\/\w*/g);
+				const range = computeCompletionRanges(model, position, /\/[a-z0-9_.:-]*/gi);
 				if (!range) {
 					return null;
 				}
@@ -291,7 +291,7 @@ class AgentCompletions extends Disposable {
 					return;
 				}
 
-				const range = computeCompletionRanges(model, position, /\/\w*/g);
+				const range = computeCompletionRanges(model, position, /\/[a-z0-9_.:-]*/gi);
 				if (!range) {
 					return;
 				}
@@ -332,7 +332,7 @@ class AgentCompletions extends Disposable {
 					return null;
 				}
 
-				const range = computeCompletionRanges(model, position, /(@|\/)\w*/g);
+				const range = computeCompletionRanges(model, position, /(@|\/)[a-z0-9_.:-]*/gi);
 				if (!range) {
 					return null;
 				}
@@ -432,7 +432,7 @@ class AgentCompletions extends Disposable {
 					return null;
 				}
 
-				const range = computeCompletionRanges(model, position, /(@|\/)\w*/g);
+				const range = computeCompletionRanges(model, position, /(@|\/)[a-z0-9_.:-]*/gi);
 				if (!range) {
 					return null;
 				}
@@ -499,7 +499,7 @@ class AgentCompletions extends Disposable {
 					return null;
 				}
 
-				const range = computeCompletionRanges(model, position, /(@|\/)\w*/g);
+				const range = computeCompletionRanges(model, position, /(@|\/)[a-z0-9_.:-]*/gi);
 				if (!range) {
 					return;
 				}
@@ -552,7 +552,7 @@ class AgentCompletions extends Disposable {
 
 		for (const partAfterAgent of parsedRequest.slice(usedAgentIdx + 1)) {
 			// Could allow text after 'position'
-			if (!(partAfterAgent instanceof ChatRequestTextPart) || !partAfterAgent.text.trim().match(/^(\/\w*)?$/)) {
+			if (!(partAfterAgent instanceof ChatRequestTextPart) || !partAfterAgent.text.trim().match(/^(\/[a-z0-9_.:-]*)?$/i)) {
 				// No text allowed between agent and subcommand
 				return;
 			}
