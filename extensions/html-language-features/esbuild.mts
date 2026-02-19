@@ -31,7 +31,7 @@ await Promise.all([
 		outdir: path.join(extensionRoot, 'server', 'dist', 'node'),
 		additionalOptions: {
 			tsconfig: path.join(extensionRoot, 'server', 'tsconfig.json'),
-			external: ['typescript'],
+			external: ['vscode', 'typescript'],
 		},
 	}, process.argv),
 ]);
