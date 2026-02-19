@@ -214,17 +214,13 @@ export class NewChatContextAttachments extends Disposable {
 				return;
 			}
 
-			const resizedData = await resizeImage(data);
-			const displayName = localize('pastedImage', "Pasted Image");
-			let tempDisplayName = displayName;
-			for (let appendValue = 2; this._attachedContext.some(a => a.name === tempDisplayName); appendValue++) {
-				tempDisplayName = `${displayName} ${appendValue}`;
-			}
+			const resizedData = await resizeImage(data, imageFile.type);
+			const displayName = this._getUniqueImageName();
 
 			this._addAttachments({
 				id: await imageToHash(resizedData),
-				name: tempDisplayName,
-				fullName: tempDisplayName,
+				name: displayName,
+				fullName: displayName,
 				value: resizedData,
 				kind: 'image',
 			});
@@ -337,16 +333,27 @@ export class NewChatContextAttachments extends Disposable {
 			return;
 		}
 
+		const displayName = this._getUniqueImageName();
+
 		this._addAttachments({
 			id: await imageToHash(imageData),
-			name: localize('pastedImage', "Pasted Image"),
-			fullName: localize('pastedImage', "Pasted Image"),
+			name: displayName,
+			fullName: displayName,
 			value: imageData,
 			kind: 'image',
 		});
 	}
 
 	// --- State management ---
+
+	private _getUniqueImageName(): string {
+		const baseName = localize('pastedImage', "Pasted Image");
+		let name = baseName;
+		for (let i = 2; this._attachedContext.some(a => a.name === name); i++) {
+			name = `${baseName} ${i}`;
+		}
+		return name;
+	}
 
 	private _addAttachments(...entries: IChatRequestVariableEntry[]): void {
 		for (const entry of entries) {
