@@ -403,18 +403,6 @@ export class FileTreeViewPane extends ViewPane {
 	 * Handles various URI formats used by cloud sessions.
 	 */
 	private parseRepoFromFileUri(uri: URI): { owner: string; repo: string; ref: string } | undefined {
-		// Pattern: copilot-pr:/path?{json with owner, repo, commitSha, ...}
-		if (uri.scheme === 'copilot-pr' && uri.query) {
-			try {
-				const data = JSON.parse(decodeURIComponent(uri.query));
-				if (typeof data.owner === 'string' && typeof data.repo === 'string') {
-					return { owner: data.owner, repo: data.repo, ref: data.commitSha ?? 'HEAD' };
-				}
-			} catch {
-				// malformed query
-			}
-		}
-
 		// Pattern: vscode-vfs://github/{owner}/{repo}/...
 		if (uri.authority === 'github' || uri.authority?.startsWith('github')) {
 			const parts = uri.path.split('/').filter(Boolean);
