@@ -4,48 +4,10 @@
  *--------------------------------------------------------------------------------------------*/
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type esbuild from 'esbuild';
 import { run } from '../esbuild-extension-common.mts';
 
 const srcDir = path.join(import.meta.dirname, 'src');
 const outDir = path.join(import.meta.dirname, 'dist', 'browser');
-
-// https://esbuild.github.io/plugins/#webassembly-plugin
-const wasmPlugin: esbuild.Plugin = {
-	name: 'wasm',
-	setup(build) {
-		build.onResolve({ filter: /\.wasm$/ }, args => {
-			if (args.namespace === 'wasm-stub') {
-				return {
-					path: args.path,
-					namespace: 'wasm-binary',
-				};
-			}
-
-			if (args.resolveDir === '') {
-				return;
-			}
-			return {
-				path: path.isAbsolute(args.path)
-					? args.path
-					: path.join(args.resolveDir, args.path),
-				namespace: 'wasm-stub',
-			};
-		});
-
-		build.onLoad({ filter: /.*/, namespace: 'wasm-stub' }, async (args) => ({
-			contents: `import wasm from ${JSON.stringify(args.path)}
-				export default (imports) =>
-					WebAssembly.instantiate(wasm, imports).then(
-						result => result.instance.exports)`,
-		}));
-
-		build.onLoad({ filter: /.*/, namespace: 'wasm-binary' }, async (args) => ({
-			contents: await fs.promises.readFile(args.path),
-			loader: 'binary',
-		}));
-	},
-};
 
 const languages = [
 	'zh-tw',
@@ -120,7 +82,7 @@ await Promise.all([
 		srcDir,
 		outdir: outDir,
 		additionalOptions: {
-			plugins: [wasmPlugin],
+			loader: { '.wasm': 'dataurl' },
 		},
 	}, process.argv, copyTypescriptLibFiles),
 
@@ -135,7 +97,7 @@ await Promise.all([
 		additionalOptions: {
 			tsconfig: path.join(import.meta.dirname, 'web', 'tsconfig.json'),
 			external: ['perf_hooks'],
-			plugins: [wasmPlugin],
+			loader: { '.wasm': 'dataurl' },
 		},
 	}, process.argv),
 ]);
