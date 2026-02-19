@@ -58,6 +58,7 @@ import { getSimpleEditorOptions } from '../../../../workbench/contrib/codeEditor
 import { IChatRequestVariableEntry } from '../../../../workbench/contrib/chat/common/attachments/chatVariableEntries.js';
 import { isString } from '../../../../base/common/types.js';
 import { NewChatContextAttachments } from './newChatContextAttachments.js';
+import { SESSION_REPO_SCHEME } from '../../fileTreeView/browser/sessionRepoFileSystemProvider.js';
 
 // #region --- Target Config ---
 
@@ -442,9 +443,36 @@ class NewChatWidget extends Disposable {
 		attachButton.ariaLabel = localize('addContext', "Add Context...");
 		dom.append(attachButton, renderIcon(Codicon.add));
 		this._register(dom.addDisposableListener(attachButton, dom.EventType.CLICK, () => {
-			const folderUri = this._selectedFolderUri ?? this.workspaceContextService.getWorkspace().folders[0]?.uri;
-			this._contextAttachments.showPicker(folderUri);
+			this._contextAttachments.showPicker(this._getContextFolderUri());
 		}));
+	}
+
+	/**
+	 * Returns the folder URI for the context picker based on the current target.
+	 * Local targets use the workspace folder; cloud targets construct a session-repo:// URI.
+	 */
+	private _getContextFolderUri(): URI | undefined {
+		const target = this._getEffectiveTarget();
+
+		if (!target || target === AgentSessionProviders.Local || target === AgentSessionProviders.Background) {
+			return this._selectedFolderUri ?? this.workspaceContextService.getWorkspace().folders[0]?.uri;
+		}
+
+		// For cloud targets, look for a repository option in the selected options
+		for (const [groupId, option] of this._selectedOptions) {
+			if (isRepoOrFolderGroup({ id: groupId, name: groupId, items: [] })) {
+				const nwo = option.id; // e.g. "owner/repo"
+				if (nwo && nwo.includes('/')) {
+					return URI.from({
+						scheme: SESSION_REPO_SCHEME,
+						authority: 'github',
+						path: `/${nwo}/HEAD`,
+					});
+				}
+			}
+		}
+
+		return undefined;
 	}
 
 	private _createBottomToolbar(container: HTMLElement): void {

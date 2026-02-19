@@ -21,6 +21,7 @@ import { IFileDialogService } from '../../../../platform/dialogs/common/dialogs.
 import { ILabelService } from '../../../../platform/label/common/label.js';
 import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
 import { basename } from '../../../../base/common/resources.js';
+import { Schemas } from '../../../../base/common/network.js';
 
 import { IChatRequestVariableEntry, OmittedState } from '../../../../workbench/contrib/chat/common/attachments/chatVariableEntries.js';
 import { resizeImage } from '../../../../workbench/contrib/chat/browser/chatImageUtils.js';
@@ -259,6 +260,17 @@ export class NewChatContextAttachments extends Disposable {
 
 	private async _collectFilePicks(rootUri: URI, filePattern?: string, token?: CancellationToken): Promise<IQuickPickItem[]> {
 		const maxFiles = 200;
+
+		// For local file:// URIs, use the search service which respects .gitignore and excludes
+		if (rootUri.scheme === Schemas.file || rootUri.scheme === Schemas.vscodeRemote) {
+			return this._collectFilePicksViaSearch(rootUri, maxFiles, filePattern, token);
+		}
+
+		// For virtual filesystems (e.g. session-repo://), walk the tree via IFileService
+		return this._collectFilePicksViaFileService(rootUri, maxFiles, filePattern);
+	}
+
+	private async _collectFilePicksViaSearch(rootUri: URI, maxFiles: number, filePattern?: string, token?: CancellationToken): Promise<IQuickPickItem[]> {
 		const excludePattern = getExcludes(this.configurationService.getValue<ISearchConfiguration>({ resource: rootUri }));
 
 		try {
@@ -283,6 +295,55 @@ export class NewChatContextAttachments extends Disposable {
 		} catch {
 			return [];
 		}
+	}
+
+	private async _collectFilePicksViaFileService(rootUri: URI, maxFiles: number, filePattern?: string): Promise<IQuickPickItem[]> {
+		const picks: IQuickPickItem[] = [];
+		const patternLower = filePattern?.toLowerCase();
+
+		const collect = async (uri: URI): Promise<void> => {
+			if (picks.length >= maxFiles) {
+				return;
+			}
+
+			try {
+				const stat = await this.fileService.resolve(uri);
+				if (!stat.children) {
+					return;
+				}
+
+				const children = stat.children.slice().sort((a, b) => {
+					if (a.isDirectory !== b.isDirectory) {
+						return a.isDirectory ? -1 : 1;
+					}
+					return a.name.localeCompare(b.name);
+				});
+
+				for (const child of children) {
+					if (picks.length >= maxFiles) {
+						break;
+					}
+					if (child.isDirectory) {
+						await collect(child.resource);
+					} else {
+						if (patternLower && !child.name.toLowerCase().includes(patternLower)) {
+							continue;
+						}
+						picks.push({
+							label: child.name,
+							description: this.labelService.getUriLabel(child.resource, { relative: true }),
+							iconClass: ThemeIcon.asClassName(Codicon.file),
+							id: child.resource.toString(),
+						});
+					}
+				}
+			} catch {
+				// ignore errors for individual directories
+			}
+		};
+
+		await collect(rootUri);
+		return picks;
 	}
 
 	private async _handleFileDialog(): Promise<void> {
