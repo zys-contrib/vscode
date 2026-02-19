@@ -9,13 +9,10 @@ import { Disposable } from '../../../../base/common/lifecycle.js';
 import { URI } from '../../../../base/common/uri.js';
 import { Emitter } from '../../../../base/common/event.js';
 import { renderIcon } from '../../../../base/browser/ui/iconLabel/iconLabels.js';
-import { isObject } from '../../../../base/common/types.js';
 import { localize } from '../../../../nls.js';
 import { ThemeIcon } from '../../../../base/common/themables.js';
 
-import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
-import { IQuickInputService, IQuickPickItem, IQuickPickItemWithResource, IQuickPickSeparator, QuickPickItem } from '../../../../platform/quickinput/common/quickInput.js';
-import { AnythingQuickAccessProviderRunOptions } from '../../../../platform/quickinput/common/quickAccess.js';
+import { IQuickInputService, IQuickPickItem, IQuickPickSeparator } from '../../../../platform/quickinput/common/quickInput.js';
 import { ITextModelService } from '../../../../editor/common/services/resolverService.js';
 import { IFileService } from '../../../../platform/files/common/files.js';
 import { IClipboardService } from '../../../../platform/clipboard/common/clipboardService.js';
@@ -24,9 +21,7 @@ import { ILabelService } from '../../../../platform/label/common/label.js';
 import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
 import { basename } from '../../../../base/common/resources.js';
 
-import { AnythingQuickAccessProvider } from '../../../../workbench/contrib/search/browser/anythingQuickAccess.js';
 import { IChatRequestVariableEntry, OmittedState } from '../../../../workbench/contrib/chat/common/attachments/chatVariableEntries.js';
-import { isSupportedChatFileScheme } from '../../../../workbench/contrib/chat/common/constants.js';
 import { resizeImage } from '../../../../workbench/contrib/chat/browser/chatImageUtils.js';
 import { imageToHash, isImage } from '../../../../workbench/contrib/chat/browser/widget/input/editor/chatPasteProviders.js';
 import { getPathForFile } from '../../../../platform/dnd/browser/dnd.js';
@@ -53,7 +48,6 @@ export class NewChatContextAttachments extends Disposable {
 	}
 
 	constructor(
-		@IInstantiationService private readonly instantiationService: IInstantiationService,
 		@IQuickInputService private readonly quickInputService: IQuickInputService,
 		@ITextModelService private readonly textModelService: ITextModelService,
 		@IFileService private readonly fileService: IFileService,
@@ -175,13 +169,11 @@ export class NewChatContextAttachments extends Disposable {
 	// --- Picker ---
 
 	showPicker(folderUri?: URI): void {
-		// Start file search early (non-blocking)
-		const filePicksPromise = folderUri ? this._collectFilePicks(folderUri) : Promise.resolve([]);
-		let filePicks: IQuickPickItem[] | undefined;
-		const folderLabel = folderUri ? basename(folderUri) : undefined;
+		const picker = this.quickInputService.createQuickPick<IQuickPickItem>({ useSeparators: true });
+		picker.placeholder = localize('chatContext.attach.placeholder', "Attach as context...");
+		picker.matchOnDescription = true;
 
-		// Static addition picks shown immediately
-		const additionPicks: QuickPickItem[] = [
+		const staticPicks: (IQuickPickItem | IQuickPickSeparator)[] = [
 			{
 				label: localize('filesAndFolders', "Files and Open Folders..."),
 				iconClass: ThemeIcon.asClassName(Codicon.file),
@@ -194,46 +186,43 @@ export class NewChatContextAttachments extends Disposable {
 			},
 		];
 
-		// Async file picks are appended once resolved; the AnythingQuickAccessProvider
-		// re-reads `additionPicks` on every keystroke so they appear on the next filter.
-		filePicksPromise.then(results => {
-			if (results.length > 0) {
-				filePicks = results;
-				additionPicks.push({ type: 'separator', label: folderLabel! } satisfies IQuickPickSeparator);
-				additionPicks.push(...results);
+		picker.items = staticPicks;
+		picker.show();
+
+		// Load workspace files async — the picker is already visible
+		if (folderUri) {
+			picker.busy = true;
+			this._collectFilePicks(folderUri).then(filePicks => {
+				picker.busy = false;
+				if (filePicks.length > 0) {
+					picker.items = [
+						...staticPicks,
+						{ type: 'separator', label: basename(folderUri) },
+						...filePicks,
+					];
+				}
+			});
+		}
+
+		picker.onDidAccept(async () => {
+			const [selected] = picker.selectedItems;
+			if (!selected) {
+				picker.hide();
+				return;
+			}
+
+			picker.hide();
+
+			if (selected.id === 'sessions.filesAndFolders') {
+				await this._handleFileDialog();
+			} else if (selected.id === 'sessions.imageFromClipboard') {
+				await this._handleClipboardImage();
+			} else if (selected.id) {
+				await this._attachFileUri(URI.parse(selected.id), selected.label);
 			}
 		});
 
-		const providerOptions: AnythingQuickAccessProviderRunOptions = {
-			filter: (pick) => {
-				if (_isQuickPickItemWithResource(pick) && pick.resource) {
-					return this.instantiationService.invokeFunction(accessor => isSupportedChatFileScheme(accessor, pick.resource!.scheme));
-				}
-				return true;
-			},
-			additionPicks,
-			handleAccept: async (item: IQuickPickItem) => {
-				if (item.id === 'sessions.filesAndFolders') {
-					await this._handleFileDialog();
-				} else if (item.id === 'sessions.imageFromClipboard') {
-					await this._handleClipboardImage();
-				} else if (_isQuickPickItemWithResource(item) && item.resource) {
-					await this._handleFilePick(item);
-				} else if (item.id) {
-					// Wait for file picks if still loading, then attach
-					if (!filePicks) {
-						await filePicksPromise;
-					}
-					await this._attachFileUri(URI.parse(item.id), item.label);
-				}
-			}
-		};
-
-		this.quickInputService.quickAccess.show('', {
-			enabledProviderPrefixes: [AnythingQuickAccessProvider.PREFIX],
-			placeholder: localize('chatContext.attach.placeholder', "Attach as context..."),
-			providerOptions,
-		});
+		picker.onDidHide(() => picker.dispose());
 	}
 
 	private async _collectFilePicks(rootUri: URI): Promise<IQuickPickItem[]> {
@@ -274,13 +263,6 @@ export class NewChatContextAttachments extends Disposable {
 		for (const uri of selected) {
 			await this._attachFileUri(uri, basename(uri));
 		}
-	}
-
-	private async _handleFilePick(pick: IQuickPickItemWithResource): Promise<void> {
-		if (!pick.resource) {
-			return;
-		}
-		await this._attachFileUri(pick.resource, pick.label);
 	}
 
 	private async _attachFileUri(uri: URI, name: string): Promise<void> {
@@ -355,10 +337,4 @@ export class NewChatContextAttachments extends Disposable {
 		this._updateRendering();
 		this._onDidChangeContext.fire();
 	}
-}
-
-function _isQuickPickItemWithResource(obj: unknown): obj is IQuickPickItemWithResource {
-	return (
-		isObject(obj)
-		&& URI.isUri((obj as IQuickPickItemWithResource).resource));
 }
