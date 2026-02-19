@@ -77,17 +77,29 @@ export class TerminalProfileQuickpick {
 			await this._configurationService.updateValue(defaultProfileKey, result.profileName, ConfigurationTarget.USER);
 		} else if (type === 'createInstance') {
 			if (hasKey(result.profile, { id: true })) {
+				const config: {
+					extensionIdentifier: string;
+					id: string;
+					title: string;
+					tabTitle?: string;
+					options: {
+						icon: IExtensionTerminalProfile['icon'];
+						color: IExtensionTerminalProfile['color'];
+					};
+				} = {
+					extensionIdentifier: result.profile.extensionIdentifier,
+					id: result.profile.id,
+					title: result.profile.title,
+					options: {
+						icon: result.profile.icon,
+						color: result.profile.color,
+					}
+				};
+				if (result.profile.tabTitle !== undefined) {
+					config.tabTitle = result.profile.tabTitle;
+				}
 				return {
-					config: {
-						extensionIdentifier: result.profile.extensionIdentifier,
-						id: result.profile.id,
-						title: result.profile.title,
-						tabTitle: result.profile.tabTitle,
-						options: {
-							icon: result.profile.icon,
-							color: result.profile.color,
-						}
-					},
+					config,
 					keyMods: result.keyMods
 				};
 			} else {
@@ -178,7 +190,8 @@ export class TerminalProfileQuickpick {
 					title: contributed.title,
 					icon: contributed.icon,
 					id: contributed.id,
-					color: contributed.color
+					color: contributed.color,
+					tabTitle: contributed.tabTitle
 				},
 				profileName: contributed.title,
 				iconClasses
