@@ -172,7 +172,7 @@ export class NewChatContextAttachments extends Disposable {
 		// Build addition picks for the quick access
 		const additionPicks: IQuickPickItem[] = [];
 
-		// "Files and Open Folders..." pick — opens a file dialog
+		// "Files and Open Folders..." pick - opens a file dialog
 		additionPicks.push({
 			label: localize('filesAndFolders', "Files and Open Folders..."),
 			iconClass: ThemeIcon.asClassName(Codicon.file),
