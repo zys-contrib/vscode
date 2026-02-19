@@ -14,12 +14,13 @@ import { localize } from '../../../../nls.js';
 import { ThemeIcon } from '../../../../base/common/themables.js';
 
 import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
-import { IQuickInputService, IQuickPickItem, IQuickPickItemWithResource } from '../../../../platform/quickinput/common/quickInput.js';
+import { IQuickInputService, IQuickPickItem, IQuickPickItemWithResource, IQuickPickSeparator, QuickPickItem } from '../../../../platform/quickinput/common/quickInput.js';
 import { AnythingQuickAccessProviderRunOptions } from '../../../../platform/quickinput/common/quickAccess.js';
 import { ITextModelService } from '../../../../editor/common/services/resolverService.js';
-import { IFileService } from '../../../../platform/files/common/files.js';
+import { IFileService, IFileStat } from '../../../../platform/files/common/files.js';
 import { IClipboardService } from '../../../../platform/clipboard/common/clipboardService.js';
 import { IFileDialogService } from '../../../../platform/dialogs/common/dialogs.js';
+import { ILabelService } from '../../../../platform/label/common/label.js';
 import { basename } from '../../../../base/common/resources.js';
 
 import { AnythingQuickAccessProvider } from '../../../../workbench/contrib/search/browser/anythingQuickAccess.js';
@@ -56,6 +57,7 @@ export class NewChatContextAttachments extends Disposable {
 		@IFileService private readonly fileService: IFileService,
 		@IClipboardService private readonly clipboardService: IClipboardService,
 		@IFileDialogService private readonly fileDialogService: IFileDialogService,
+		@ILabelService private readonly labelService: ILabelService,
 	) {
 		super();
 	}
@@ -168,9 +170,9 @@ export class NewChatContextAttachments extends Disposable {
 
 	// --- Picker ---
 
-	showPicker(): void {
+	async showPicker(folderUri?: URI): Promise<void> {
 		// Build addition picks for the quick access
-		const additionPicks: IQuickPickItem[] = [];
+		const additionPicks: QuickPickItem[] = [];
 
 		// "Files and Open Folders..." pick - opens a file dialog
 		additionPicks.push({
@@ -186,6 +188,15 @@ export class NewChatContextAttachments extends Disposable {
 			id: 'sessions.imageFromClipboard',
 		});
 
+		// List files from the workspace folder
+		if (folderUri) {
+			const filePicks = await this._collectFilePicks(folderUri);
+			if (filePicks.length > 0) {
+				additionPicks.push({ type: 'separator', label: basename(folderUri) } satisfies IQuickPickSeparator);
+				additionPicks.push(...filePicks);
+			}
+		}
+
 		const providerOptions: AnythingQuickAccessProviderRunOptions = {
 			filter: (pick) => {
 				if (_isQuickPickItemWithResource(pick) && pick.resource) {
@@ -199,8 +210,11 @@ export class NewChatContextAttachments extends Disposable {
 					await this._handleFileDialog();
 				} else if (item.id === 'sessions.imageFromClipboard') {
 					await this._handleClipboardImage();
-				} else {
-					await this._handleFilePick(item as IQuickPickItemWithResource);
+				} else if (_isQuickPickItemWithResource(item) && item.resource) {
+					await this._handleFilePick(item);
+				} else if (item.id) {
+					// Workspace file picks store the URI string as id
+					await this._attachFileUri(URI.parse(item.id), item.label);
 				}
 			}
 		};
@@ -210,6 +224,56 @@ export class NewChatContextAttachments extends Disposable {
 			placeholder: localize('chatContext.attach.placeholder', "Attach as context..."),
 			providerOptions,
 		});
+	}
+
+	private async _collectFilePicks(rootUri: URI): Promise<IQuickPickItem[]> {
+		const picks: IQuickPickItem[] = [];
+		const maxFiles = 200;
+
+		const collect = async (uri: URI): Promise<void> => {
+			if (picks.length >= maxFiles) {
+				return;
+			}
+
+			let stat: IFileStat;
+			try {
+				stat = await this.fileService.resolve(uri);
+			} catch {
+				return;
+			}
+
+			if (!stat.children) {
+				return;
+			}
+
+			const children = stat.children
+				.slice()
+				.sort((a, b) => {
+					if (a.isDirectory !== b.isDirectory) {
+						return a.isDirectory ? -1 : 1;
+					}
+					return a.name.localeCompare(b.name);
+				});
+
+			for (const child of children) {
+				if (picks.length >= maxFiles) {
+					break;
+				}
+				if (child.isDirectory) {
+					await collect(child.resource);
+				} else {
+					picks.push({
+						label: child.name,
+						description: this.labelService.getUriLabel(child.resource, { relative: true }),
+						iconClass: ThemeIcon.asClassName(Codicon.file),
+						id: child.resource.toString(),
+					} satisfies IQuickPickItem);
+				}
+			}
+		};
+
+		await collect(rootUri);
+		return picks;
 	}
 
 	private async _handleFileDialog(): Promise<void> {

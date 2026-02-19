@@ -441,7 +441,10 @@ class NewChatWidget extends Disposable {
 		attachButton.title = localize('addContext', "Add Context...");
 		attachButton.ariaLabel = localize('addContext', "Add Context...");
 		dom.append(attachButton, renderIcon(Codicon.add));
-		this._register(dom.addDisposableListener(attachButton, dom.EventType.CLICK, () => this._contextAttachments.showPicker()));
+		this._register(dom.addDisposableListener(attachButton, dom.EventType.CLICK, () => {
+			const folderUri = this._selectedFolderUri ?? this.workspaceContextService.getWorkspace().folders[0]?.uri;
+			this._contextAttachments.showPicker(folderUri);
+		}));
 	}
 
 	private _createBottomToolbar(container: HTMLElement): void {
