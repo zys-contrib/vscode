@@ -179,7 +179,7 @@ export class NewChatContextAttachments extends Disposable {
 
 		const staticPicks: (IQuickPickItem | IQuickPickSeparator)[] = [
 			{
-				label: localize('filesAndFolders', "Files and Open Folders..."),
+				label: localize('files', "Files..."),
 				iconClass: ThemeIcon.asClassName(Codicon.file),
 				id: 'sessions.filesAndFolders',
 			},
