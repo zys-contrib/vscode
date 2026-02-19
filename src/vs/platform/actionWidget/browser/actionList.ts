@@ -89,6 +89,10 @@ export interface IActionListItem<T> {
 	 * Optional badge text to display after the label (e.g., "New").
 	 */
 	readonly badge?: string;
+	/**
+	 * When true, this item is always shown when filtering produces no other results.
+	 */
+	readonly showAlways?: boolean;
 }
 
 interface IActionMenuTemplateData {
@@ -325,9 +329,14 @@ function getKeyboardNavigationLabel<T>(item: IActionListItem<T>): string | undef
  */
 export interface IActionListOptions {
 	/**
-	 * When true, shows a filter input at the bottom of the list.
+	 * When true, shows a filter input.
 	 */
 	readonly showFilter?: boolean;
+
+	/**
+	 * Placement of the filter input. Defaults to 'top'.
+	 */
+	readonly filterPlacement?: 'top' | 'bottom';
 
 	/**
 	 * Section IDs that should be collapsed by default.
@@ -358,6 +367,7 @@ export class ActionList<T> extends Disposable {
 
 	private readonly _collapsedSections = new Set<string>();
 	private _filterText = '';
+	private _suppressHover = false;
 	private readonly _filterInput: HTMLInputElement | undefined;
 	private readonly _filterContainer: HTMLElement | undefined;
 	private _lastMinWidth = 0;
@@ -499,7 +509,23 @@ export class ActionList<T> extends Disposable {
 		this._applyFilter();
 
 		if (this._list.length) {
-			this.focusNext();
+			this._focusCheckedOrFirst();
+		}
+
+		// When the list has focus and user types a printable character,
+		// forward it to the filter input so search begins automatically.
+		if (this._filterInput) {
+			this._register(dom.addDisposableListener(this.domNode, 'keydown', (e: KeyboardEvent) => {
+				if (this._filterInput && !dom.isActiveElement(this._filterInput)
+					&& e.key.length === 1 && e.key !== ' ' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+					this._filterInput.focus();
+					this._filterInput.value = e.key;
+					this._filterText = e.key;
+					this._applyFilter();
+					e.preventDefault();
+					e.stopPropagation();
+				}
+			}));
 		}
 	}
 
@@ -516,6 +542,13 @@ export class ActionList<T> extends Disposable {
 		const filterLower = this._filterText.toLowerCase();
 		const isFiltering = filterLower.length > 0;
 		const visible: IActionListItem<T>[] = [];
+
+		// Remember the focused item before splice
+		const focusedIndexes = this._list.getFocus();
+		let focusedItem: IActionListItem<T> | undefined;
+		if (focusedIndexes.length > 0) {
+			focusedItem = this._list.element(focusedIndexes[0]);
+		}
 
 		for (const item of this._allMenuItems) {
 			if (item.kind === ActionListItemKind.Header) {
@@ -537,6 +570,11 @@ export class ActionList<T> extends Disposable {
 
 			// Action item
 			if (isFiltering) {
+				// Always show items tagged with showAlways
+				if (item.showAlways) {
+					visible.push(item);
+					continue;
+				}
 				// When filtering, skip section toggle items and only match content
 				if (item.isSectionToggle) {
 					continue;
@@ -582,6 +620,20 @@ export class ActionList<T> extends Disposable {
 				this._filterInput?.focus();
 			} else {
 				this._list.domFocus();
+				// Restore focus to the previously focused item
+				if (focusedItem) {
+					const focusedItemId = (focusedItem.item as { id?: string })?.id;
+					if (focusedItemId) {
+						for (let i = 0; i < this._list.length; i++) {
+							const el = this._list.element(i);
+							if ((el.item as { id?: string })?.id === focusedItemId) {
+								this._list.setFocus([i]);
+								this._list.reveal(i);
+								break;
+							}
+						}
+					}
+				}
 			}
 			// Reposition the context view so the widget grows in the correct direction
 			if (reposition) {
@@ -598,15 +650,38 @@ export class ActionList<T> extends Disposable {
 		return this._filterContainer;
 	}
 
+	get filterPlacement(): 'top' | 'bottom' {
+		return this._options?.filterPlacement ?? 'top';
+	}
+
+	get filterInput(): HTMLInputElement | undefined {
+		return this._filterInput;
+	}
+
 	private focusCondition(element: IActionListItem<unknown>): boolean {
 		return !element.disabled && element.kind === ActionListItemKind.Action;
 	}
 
 	focus(): void {
-		if (this._filterInput) {
-			this._filterInput.focus();
-		} else {
-			this._list.domFocus();
+		this._list.domFocus();
+		this._focusCheckedOrFirst();
+	}
+
+	private _focusCheckedOrFirst(): void {
+		this._suppressHover = true;
+		try {
+			// Try to focus the checked item first
+			for (let i = 0; i < this._list.length; i++) {
+				const element = this._list.element(i);
+				if (element.kind === ActionListItemKind.Action && (element.item as { checked?: boolean })?.checked) {
+					this._list.setFocus([i]);
+					this._list.reveal(i);
+					return;
+				}
+			}
+			this.focusNext();
+		} finally {
+			this._suppressHover = false;
 		}
 	}
 
@@ -742,6 +817,45 @@ export class ActionList<T> extends Disposable {
 		}
 	}
 
+	collapseFocusedSection() {
+		const section = this._getFocusedSection();
+		if (section && !this._collapsedSections.has(section)) {
+			this._toggleSection(section);
+		}
+	}
+
+	expandFocusedSection() {
+		const section = this._getFocusedSection();
+		if (section && this._collapsedSections.has(section)) {
+			this._toggleSection(section);
+		}
+	}
+
+	toggleFocusedSection(): boolean {
+		const focused = this._list.getFocus();
+		if (focused.length === 0) {
+			return false;
+		}
+		const element = this._list.element(focused[0]);
+		if (element.isSectionToggle && element.section) {
+			this._toggleSection(element.section);
+			return true;
+		}
+		return false;
+	}
+
+	private _getFocusedSection(): string | undefined {
+		const focused = this._list.getFocus();
+		if (focused.length === 0) {
+			return undefined;
+		}
+		const element = this._list.element(focused[0]);
+		if (element.isSectionToggle && element.section) {
+			return element.section;
+		}
+		return element.section;
+	}
+
 	acceptSelected(preview?: boolean) {
 		const focused = this._list.getFocus();
 		if (focused.length === 0) {
@@ -784,8 +898,10 @@ export class ActionList<T> extends Disposable {
 		const element = this._list.element(focusIndex);
 		this._delegate.onFocus?.(element.item);
 
-		// Show hover on focus change
-		this._showHoverForElement(element, focusIndex);
+		// Show hover on focus change (suppress during programmatic initial focus)
+		if (!this._suppressHover) {
+			this._showHoverForElement(element, focusIndex);
+		}
 	}
 
 	private _getRowElement(index: number): HTMLElement | null {
