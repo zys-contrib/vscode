@@ -17,10 +17,11 @@ import { IInstantiationService } from '../../../../platform/instantiation/common
 import { IQuickInputService, IQuickPickItem, IQuickPickItemWithResource, IQuickPickSeparator, QuickPickItem } from '../../../../platform/quickinput/common/quickInput.js';
 import { AnythingQuickAccessProviderRunOptions } from '../../../../platform/quickinput/common/quickAccess.js';
 import { ITextModelService } from '../../../../editor/common/services/resolverService.js';
-import { IFileService, IFileStat } from '../../../../platform/files/common/files.js';
+import { IFileService } from '../../../../platform/files/common/files.js';
 import { IClipboardService } from '../../../../platform/clipboard/common/clipboardService.js';
 import { IFileDialogService } from '../../../../platform/dialogs/common/dialogs.js';
 import { ILabelService } from '../../../../platform/label/common/label.js';
+import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
 import { basename } from '../../../../base/common/resources.js';
 
 import { AnythingQuickAccessProvider } from '../../../../workbench/contrib/search/browser/anythingQuickAccess.js';
@@ -29,6 +30,7 @@ import { isSupportedChatFileScheme } from '../../../../workbench/contrib/chat/co
 import { resizeImage } from '../../../../workbench/contrib/chat/browser/chatImageUtils.js';
 import { imageToHash, isImage } from '../../../../workbench/contrib/chat/browser/widget/input/editor/chatPasteProviders.js';
 import { getPathForFile } from '../../../../platform/dnd/browser/dnd.js';
+import { getExcludes, ISearchConfiguration, ISearchService, QueryType } from '../../../../workbench/services/search/common/search.js';
 
 /**
  * Manages context attachments for the sessions new-chat widget.
@@ -58,6 +60,8 @@ export class NewChatContextAttachments extends Disposable {
 		@IClipboardService private readonly clipboardService: IClipboardService,
 		@IFileDialogService private readonly fileDialogService: IFileDialogService,
 		@ILabelService private readonly labelService: ILabelService,
+		@ISearchService private readonly searchService: ISearchService,
+		@IConfigurationService private readonly configurationService: IConfigurationService,
 	) {
 		super();
 	}
@@ -227,53 +231,27 @@ export class NewChatContextAttachments extends Disposable {
 	}
 
 	private async _collectFilePicks(rootUri: URI): Promise<IQuickPickItem[]> {
-		const picks: IQuickPickItem[] = [];
 		const maxFiles = 200;
+		const searchExcludePattern = getExcludes(this.configurationService.getValue<ISearchConfiguration>({ resource: rootUri })) || {};
 
-		const collect = async (uri: URI): Promise<void> => {
-			if (picks.length >= maxFiles) {
-				return;
-			}
+		try {
+			const searchResult = await this.searchService.fileSearch({
+				folderQueries: [{ folder: rootUri }],
+				type: QueryType.File,
+				excludePattern: searchExcludePattern,
+				sortByScore: true,
+				maxResults: maxFiles,
+			});
 
-			let stat: IFileStat;
-			try {
-				stat = await this.fileService.resolve(uri);
-			} catch {
-				return;
-			}
-
-			if (!stat.children) {
-				return;
-			}
-
-			const children = stat.children
-				.slice()
-				.sort((a, b) => {
-					if (a.isDirectory !== b.isDirectory) {
-						return a.isDirectory ? -1 : 1;
-					}
-					return a.name.localeCompare(b.name);
-				});
-
-			for (const child of children) {
-				if (picks.length >= maxFiles) {
-					break;
-				}
-				if (child.isDirectory) {
-					await collect(child.resource);
-				} else {
-					picks.push({
-						label: child.name,
-						description: this.labelService.getUriLabel(child.resource, { relative: true }),
-						iconClass: ThemeIcon.asClassName(Codicon.file),
-						id: child.resource.toString(),
-					} satisfies IQuickPickItem);
-				}
-			}
-		};
-
-		await collect(rootUri);
-		return picks;
+			return searchResult.results.map(result => ({
+				label: basename(result.resource),
+				description: this.labelService.getUriLabel(result.resource, { relative: true }),
+				iconClass: ThemeIcon.asClassName(Codicon.file),
+				id: result.resource.toString(),
+			} satisfies IQuickPickItem));
+		} catch {
+			return [];
+		}
 	}
 
 	private async _handleFileDialog(): Promise<void> {
