@@ -5,8 +5,9 @@
 
 import * as dom from '../../../../base/browser/dom.js';
 import { Codicon } from '../../../../base/common/codicons.js';
-import { Disposable } from '../../../../base/common/lifecycle.js';
+import { Disposable, DisposableStore } from '../../../../base/common/lifecycle.js';
 import { URI } from '../../../../base/common/uri.js';
+import { CancellationToken, CancellationTokenSource } from '../../../../base/common/cancellation.js';
 import { Emitter } from '../../../../base/common/event.js';
 import { renderIcon } from '../../../../base/browser/ui/iconLabel/iconLabels.js';
 import { localize } from '../../../../nls.js';
@@ -170,8 +171,10 @@ export class NewChatContextAttachments extends Disposable {
 
 	showPicker(folderUri?: URI): void {
 		const picker = this.quickInputService.createQuickPick<IQuickPickItem>({ useSeparators: true });
+		const disposables = new DisposableStore();
 		picker.placeholder = localize('chatContext.attach.placeholder', "Attach as context...");
 		picker.matchOnDescription = true;
+		picker.sortByLabel = false;
 
 		const staticPicks: (IQuickPickItem | IQuickPickSeparator)[] = [
 			{
@@ -189,22 +192,48 @@ export class NewChatContextAttachments extends Disposable {
 		picker.items = staticPicks;
 		picker.show();
 
-		// Load workspace files async — the picker is already visible
 		if (folderUri) {
-			picker.busy = true;
-			this._collectFilePicks(folderUri).then(filePicks => {
-				picker.busy = false;
-				if (filePicks.length > 0) {
-					picker.items = [
-						...staticPicks,
-						{ type: 'separator', label: basename(folderUri) },
-						...filePicks,
-					];
+			let searchCts: CancellationTokenSource | undefined;
+			let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+
+			const runSearch = (filePattern?: string) => {
+				searchCts?.dispose(true);
+				searchCts = new CancellationTokenSource();
+				const token = searchCts.token;
+
+				picker.busy = true;
+				this._collectFilePicks(folderUri, filePattern, token).then(filePicks => {
+					if (token.isCancellationRequested) {
+						return;
+					}
+					picker.busy = false;
+					if (filePicks.length > 0) {
+						picker.items = [
+							...staticPicks,
+							{ type: 'separator', label: basename(folderUri) },
+							...filePicks,
+						];
+					} else {
+						picker.items = staticPicks;
+					}
+				});
+			};
+
+			// Initial search (no filter)
+			runSearch();
+
+			// Re-search on user input with debounce
+			disposables.add(picker.onDidChangeValue(value => {
+				if (debounceTimer) {
+					clearTimeout(debounceTimer);
 				}
-			});
+				debounceTimer = setTimeout(() => runSearch(value || undefined), 200);
+			}));
+
+			disposables.add({ dispose: () => { searchCts?.dispose(true); if (debounceTimer) { clearTimeout(debounceTimer); } } });
 		}
 
-		picker.onDidAccept(async () => {
+		disposables.add(picker.onDidAccept(async () => {
 			const [selected] = picker.selectedItems;
 			if (!selected) {
 				picker.hide();
@@ -220,12 +249,15 @@ export class NewChatContextAttachments extends Disposable {
 			} else if (selected.id) {
 				await this._attachFileUri(URI.parse(selected.id), selected.label);
 			}
-		});
+		}));
 
-		picker.onDidHide(() => picker.dispose());
+		disposables.add(picker.onDidHide(() => {
+			picker.dispose();
+			disposables.dispose();
+		}));
 	}
 
-	private async _collectFilePicks(rootUri: URI): Promise<IQuickPickItem[]> {
+	private async _collectFilePicks(rootUri: URI, filePattern?: string, token?: CancellationToken): Promise<IQuickPickItem[]> {
 		const maxFiles = 200;
 		const searchExcludePattern = getExcludes(this.configurationService.getValue<ISearchConfiguration>({ resource: rootUri })) || {};
 
@@ -233,10 +265,11 @@ export class NewChatContextAttachments extends Disposable {
 			const searchResult = await this.searchService.fileSearch({
 				folderQueries: [{ folder: rootUri }],
 				type: QueryType.File,
+				filePattern: filePattern || '',
 				excludePattern: searchExcludePattern,
 				sortByScore: true,
 				maxResults: maxFiles,
-			});
+			}, token);
 
 			return searchResult.results.map(result => ({
 				label: basename(result.resource),
