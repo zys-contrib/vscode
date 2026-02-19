@@ -300,9 +300,10 @@ export class NewChatContextAttachments extends Disposable {
 	private async _collectFilePicksViaFileService(rootUri: URI, maxFiles: number, filePattern?: string): Promise<IQuickPickItem[]> {
 		const picks: IQuickPickItem[] = [];
 		const patternLower = filePattern?.toLowerCase();
+		const maxDepth = 10;
 
-		const collect = async (uri: URI): Promise<void> => {
-			if (picks.length >= maxFiles) {
+		const collect = async (uri: URI, depth: number): Promise<void> => {
+			if (picks.length >= maxFiles || depth > maxDepth) {
 				return;
 			}
 
@@ -324,7 +325,7 @@ export class NewChatContextAttachments extends Disposable {
 						break;
 					}
 					if (child.isDirectory) {
-						await collect(child.resource);
+						await collect(child.resource, depth + 1);
 					} else {
 						if (patternLower && !child.name.toLowerCase().includes(patternLower)) {
 							continue;
@@ -342,7 +343,7 @@ export class NewChatContextAttachments extends Disposable {
 			}
 		};
 
-		await collect(rootUri);
+		await collect(rootUri, 0);
 		return picks;
 	}
 
