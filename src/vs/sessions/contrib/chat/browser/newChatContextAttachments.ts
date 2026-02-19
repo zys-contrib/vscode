@@ -174,32 +174,35 @@ export class NewChatContextAttachments extends Disposable {
 
 	// --- Picker ---
 
-	async showPicker(folderUri?: URI): Promise<void> {
-		// Build addition picks for the quick access
-		const additionPicks: QuickPickItem[] = [];
+	showPicker(folderUri?: URI): void {
+		// Start file search early (non-blocking)
+		const filePicksPromise = folderUri ? this._collectFilePicks(folderUri) : Promise.resolve([]);
+		let filePicks: IQuickPickItem[] | undefined;
+		const folderLabel = folderUri ? basename(folderUri) : undefined;
 
-		// "Files and Open Folders..." pick - opens a file dialog
-		additionPicks.push({
-			label: localize('filesAndFolders', "Files and Open Folders..."),
-			iconClass: ThemeIcon.asClassName(Codicon.file),
-			id: 'sessions.filesAndFolders',
-		});
+		// Static addition picks shown immediately
+		const additionPicks: QuickPickItem[] = [
+			{
+				label: localize('filesAndFolders', "Files and Open Folders..."),
+				iconClass: ThemeIcon.asClassName(Codicon.file),
+				id: 'sessions.filesAndFolders',
+			},
+			{
+				label: localize('imageFromClipboard', "Image from Clipboard"),
+				iconClass: ThemeIcon.asClassName(Codicon.fileMedia),
+				id: 'sessions.imageFromClipboard',
+			},
+		];
 
-		// "Image from Clipboard" pick
-		additionPicks.push({
-			label: localize('imageFromClipboard', "Image from Clipboard"),
-			iconClass: ThemeIcon.asClassName(Codicon.fileMedia),
-			id: 'sessions.imageFromClipboard',
-		});
-
-		// List files from the workspace folder
-		if (folderUri) {
-			const filePicks = await this._collectFilePicks(folderUri);
-			if (filePicks.length > 0) {
-				additionPicks.push({ type: 'separator', label: basename(folderUri) } satisfies IQuickPickSeparator);
-				additionPicks.push(...filePicks);
+		// Async file picks are appended once resolved; the AnythingQuickAccessProvider
+		// re-reads `additionPicks` on every keystroke so they appear on the next filter.
+		filePicksPromise.then(results => {
+			if (results.length > 0) {
+				filePicks = results;
+				additionPicks.push({ type: 'separator', label: folderLabel! } satisfies IQuickPickSeparator);
+				additionPicks.push(...results);
 			}
-		}
+		});
 
 		const providerOptions: AnythingQuickAccessProviderRunOptions = {
 			filter: (pick) => {
@@ -217,7 +220,10 @@ export class NewChatContextAttachments extends Disposable {
 				} else if (_isQuickPickItemWithResource(item) && item.resource) {
 					await this._handleFilePick(item);
 				} else if (item.id) {
-					// Workspace file picks store the URI string as id
+					// Wait for file picks if still loading, then attach
+					if (!filePicks) {
+						await filePicksPromise;
+					}
 					await this._attachFileUri(URI.parse(item.id), item.label);
 				}
 			}
