@@ -5,6 +5,7 @@
 		"./src/test/**"
 	],
 	"files": [
-		"./src/ipynbMain.browser.ts"
+		"./src/ipynbMain.browser.ts",
+		"./src/notebookSerializerWorker.web.ts"
 	]
 }
