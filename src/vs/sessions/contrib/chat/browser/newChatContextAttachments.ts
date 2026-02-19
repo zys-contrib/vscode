@@ -259,14 +259,26 @@ export class NewChatContextAttachments extends Disposable {
 
 	private async _collectFilePicks(rootUri: URI, filePattern?: string, token?: CancellationToken): Promise<IQuickPickItem[]> {
 		const maxFiles = 200;
-		const searchExcludePattern = getExcludes(this.configurationService.getValue<ISearchConfiguration>({ resource: rootUri })) || {};
+		const configExcludes = getExcludes(this.configurationService.getValue<ISearchConfiguration>({ resource: rootUri }));
+		// Ensure common build output folders are always excluded
+		const excludePattern = {
+			...configExcludes,
+			'**/node_modules': true,
+			'out/**': true,
+			'out-build/**': true,
+			'out-vscode/**': true,
+			'.build/**': true,
+		};
 
 		try {
 			const searchResult = await this.searchService.fileSearch({
-				folderQueries: [{ folder: rootUri }],
+				folderQueries: [{
+					folder: rootUri,
+					disregardIgnoreFiles: false,
+				}],
 				type: QueryType.File,
 				filePattern: filePattern || '',
-				excludePattern: searchExcludePattern,
+				excludePattern,
 				sortByScore: true,
 				maxResults: maxFiles,
 			}, token);
