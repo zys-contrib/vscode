@@ -40,7 +40,7 @@ export class AgentFeedbackGlyphMarginContribution extends Disposable implements 
 
 	static readonly ID = 'agentFeedback.glyphMarginContribution';
 
-	private readonly _feedbackDecorations = this._editor.createDecorationsCollection();
+	private readonly _feedbackDecorations;
 
 	private _hintDecorationId: string | null = null;
 	private _hintLine = -1;
@@ -54,6 +54,8 @@ export class AgentFeedbackGlyphMarginContribution extends Disposable implements 
 		@IAgentSessionsService private readonly _agentSessionsService: IAgentSessionsService,
 	) {
 		super();
+
+		this._feedbackDecorations = this._editor.createDecorationsCollection();
 
 		this._store.add(this._agentFeedbackService.onDidChangeFeedback(() => this._updateFeedbackDecorations()));
 		this._store.add(this._editor.onDidChangeModel(() => this._onModelChanged()));
