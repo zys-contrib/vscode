@@ -31,5 +31,5 @@ class SessionRepoFileSystemProviderContribution extends Disposable {
 registerWorkbenchContribution2(
 	SessionRepoFileSystemProviderContribution.ID,
 	SessionRepoFileSystemProviderContribution,
-	WorkbenchPhase.BlockStartup
+	WorkbenchPhase.AfterRestored
 );
