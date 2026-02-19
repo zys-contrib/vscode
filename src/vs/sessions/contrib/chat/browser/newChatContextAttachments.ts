@@ -266,7 +266,7 @@ export class NewChatContextAttachments extends Disposable {
 			return this._collectFilePicksViaSearch(rootUri, maxFiles, filePattern, token);
 		}
 
-		// For virtual filesystems (e.g. session-repo://), walk the tree via IFileService
+		// For virtual filesystems (e.g. github-remote-file://), walk the tree via IFileService
 		return this._collectFilePicksViaFileService(rootUri, maxFiles, filePattern);
 	}
 

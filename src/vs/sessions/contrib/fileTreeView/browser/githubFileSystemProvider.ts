@@ -12,7 +12,7 @@ import { IAuthenticationService } from '../../../../workbench/services/authentic
 import { CancellationToken } from '../../../../base/common/cancellation.js';
 import { ILogService } from '../../../../platform/log/common/log.js';
 
-export const SESSION_REPO_SCHEME = 'session-repo';
+export const GITHUB_REMOTE_FILE_SCHEME = 'github-remote-file';
 
 /**
  * GitHub REST API response for the Trees endpoint.
@@ -43,15 +43,15 @@ interface ITreeCacheEntry {
 /**
  * A readonly virtual filesystem provider backed by the GitHub REST API.
  *
- * URI format: session-repo://github/{owner}/{repo}/{ref}/{path...}
+ * URI format: github-remote-file://github/{owner}/{repo}/{ref}/{path...}
  *
- * For example: session-repo://github/microsoft/vscode/main/src/vs/base/common/uri.ts
+ * For example: github-remote-file://github/microsoft/vscode/main/src/vs/base/common/uri.ts
  *
  * This provider fetches the full recursive tree from the GitHub Trees API on first
  * access and caches it. Individual file contents are fetched on demand via the
  * Blobs API.
  */
-export class SessionRepoFileSystemProvider extends Disposable implements IFileSystemProviderWithFileReadWriteCapability {
+export class GitHubFileSystemProvider extends Disposable implements IFileSystemProviderWithFileReadWriteCapability {
 
 	private readonly _onDidChangeCapabilities = this._register(new Emitter<void>());
 	readonly onDidChangeCapabilities: Event<void> = this._onDidChangeCapabilities.event;
@@ -81,15 +81,15 @@ export class SessionRepoFileSystemProvider extends Disposable implements IFileSy
 	// --- URI parsing
 
 	/**
-	 * Parse a session-repo URI into its components.
-	 * Format: session-repo://github/{owner}/{repo}/{ref}/{path...}
+	 * Parse a github-remote-file URI into its components.
+	 * Format: github-remote-file://github/{owner}/{repo}/{ref}/{path...}
 	 */
 	private parseUri(resource: URI): { owner: string; repo: string; ref: string; path: string } {
 		// authority = "github"
 		// path = /{owner}/{repo}/{ref}/{rest...}
 		const parts = resource.path.split('/').filter(Boolean);
 		if (parts.length < 3) {
-			throw createFileSystemProviderError('Invalid session-repo URI: expected /{owner}/{repo}/{ref}/...', FileSystemProviderErrorCode.FileNotFound);
+			throw createFileSystemProviderError('Invalid github-remote-file URI: expected /{owner}/{repo}/{ref}/...', FileSystemProviderErrorCode.FileNotFound);
 		}
 
 		const owner = parts[0];
@@ -120,7 +120,7 @@ export class SessionRepoFileSystemProvider extends Disposable implements IFileSy
 	private async fetchTree(owner: string, repo: string, ref: string): Promise<ITreeCacheEntry> {
 		const cacheKey = this.getCacheKey(owner, repo, ref);
 		const cached = this.treeCache.get(cacheKey);
-		if (cached && (Date.now() - cached.fetchedAt) < SessionRepoFileSystemProvider.CACHE_TTL_MS) {
+		if (cached && (Date.now() - cached.fetchedAt) < GitHubFileSystemProvider.CACHE_TTL_MS) {
 			return cached;
 		}
 

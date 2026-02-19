@@ -58,7 +58,7 @@ import { getSimpleEditorOptions } from '../../../../workbench/contrib/codeEditor
 import { IChatRequestVariableEntry } from '../../../../workbench/contrib/chat/common/attachments/chatVariableEntries.js';
 import { isString } from '../../../../base/common/types.js';
 import { NewChatContextAttachments } from './newChatContextAttachments.js';
-import { SESSION_REPO_SCHEME } from '../../fileTreeView/browser/sessionRepoFileSystemProvider.js';
+import { GITHUB_REMOTE_FILE_SCHEME } from '../../fileTreeView/browser/githubFileSystemProvider.js';
 
 // #region --- Target Config ---
 
@@ -449,7 +449,7 @@ class NewChatWidget extends Disposable {
 
 	/**
 	 * Returns the folder URI for the context picker based on the current target.
-	 * Local targets use the workspace folder; cloud targets construct a session-repo:// URI.
+	 * Local targets use the workspace folder; cloud targets construct a github-remote-file:// URI.
 	 */
 	private _getContextFolderUri(): URI | undefined {
 		const target = this._getEffectiveTarget();
@@ -464,7 +464,7 @@ class NewChatWidget extends Disposable {
 				const nwo = option.id; // e.g. "owner/repo"
 				if (nwo && nwo.includes('/')) {
 					return URI.from({
-						scheme: SESSION_REPO_SCHEME,
+						scheme: GITHUB_REMOTE_FILE_SCHEME,
 						authority: 'github',
 						path: `/${nwo}/HEAD`,
 					});

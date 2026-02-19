@@ -43,7 +43,7 @@ import { IStorageService } from '../../../../platform/storage/common/storage.js'
 import { ITelemetryService } from '../../../../platform/telemetry/common/telemetry.js';
 import { ILogService } from '../../../../platform/log/common/log.js';
 import { ISessionsManagementService, IActiveSessionItem } from '../../sessions/browser/sessionsManagementService.js';
-import { SESSION_REPO_SCHEME } from './sessionRepoFileSystemProvider.js';
+import { GITHUB_REMOTE_FILE_SCHEME } from './githubFileSystemProvider.js';
 import { basename } from '../../../../base/common/path.js';
 import { isEqual } from '../../../../base/common/resources.js';
 
@@ -195,7 +195,7 @@ export class FileTreeViewPane extends ViewPane {
 	/**
 	 * Observable that tracks the root URI for the file tree.
 	 * - For background sessions: the worktree or repository local path
-	 * - For cloud sessions: a session-repo:// URI derived from the session's repository metadata
+	 * - For cloud sessions: a github-remote-file:// URI derived from the session's repository metadata
 	 * - For local sessions: the workspace folder
 	 */
 	private readonly treeRootUri: IObservable<URI | undefined>;
@@ -300,7 +300,7 @@ export class FileTreeViewPane extends ViewPane {
 			if (parsed) {
 				this.logService.info(`[FileTreeView] Parsed repository URI as GitHub: ${parsed.owner}/${parsed.repo}`);
 				return URI.from({
-					scheme: SESSION_REPO_SCHEME,
+					scheme: GITHUB_REMOTE_FILE_SCHEME,
 					authority: 'github',
 					path: `/${parsed.owner}/${parsed.repo}/HEAD`,
 				});
@@ -312,7 +312,7 @@ export class FileTreeViewPane extends ViewPane {
 	}
 
 	/**
-	 * Extracts a session-repo:// URI from session metadata, trying various known fields.
+	 * Extracts a github-remote-file:// URI from session metadata, trying various known fields.
 	 */
 	private extractRepoUriFromMetadata(metadata: { readonly [key: string]: unknown }): URI | undefined {
 		// repositoryNwo: "owner/repo"
@@ -320,7 +320,7 @@ export class FileTreeViewPane extends ViewPane {
 		if (repositoryNwo && repositoryNwo.includes('/')) {
 			this.logService.info(`[FileTreeView] Using metadata.repositoryNwo: ${repositoryNwo}`);
 			return URI.from({
-				scheme: SESSION_REPO_SCHEME,
+				scheme: GITHUB_REMOTE_FILE_SCHEME,
 				authority: 'github',
 				path: `/${repositoryNwo}/HEAD`,
 			});
@@ -333,7 +333,7 @@ export class FileTreeViewPane extends ViewPane {
 			if (parsed) {
 				this.logService.info(`[FileTreeView] Using metadata.repositoryUrl: ${repositoryUrl}`);
 				return URI.from({
-					scheme: SESSION_REPO_SCHEME,
+					scheme: GITHUB_REMOTE_FILE_SCHEME,
 					authority: 'github',
 					path: `/${parsed.owner}/${parsed.repo}/HEAD`,
 				});
@@ -347,7 +347,7 @@ export class FileTreeViewPane extends ViewPane {
 				// Looks like "owner/repo"
 				this.logService.info(`[FileTreeView] Using metadata.repository as nwo: ${repository}`);
 				return URI.from({
-					scheme: SESSION_REPO_SCHEME,
+					scheme: GITHUB_REMOTE_FILE_SCHEME,
 					authority: 'github',
 					path: `/${repository}/HEAD`,
 				});
@@ -356,7 +356,7 @@ export class FileTreeViewPane extends ViewPane {
 			if (parsed) {
 				this.logService.info(`[FileTreeView] Using metadata.repository as URL: ${repository}`);
 				return URI.from({
-					scheme: SESSION_REPO_SCHEME,
+					scheme: GITHUB_REMOTE_FILE_SCHEME,
 					authority: 'github',
 					path: `/${parsed.owner}/${parsed.repo}/HEAD`,
 				});
@@ -388,7 +388,7 @@ export class FileTreeViewPane extends ViewPane {
 			const parsed = this.parseRepoFromFileUri(fileUri);
 			if (parsed) {
 				return URI.from({
-					scheme: SESSION_REPO_SCHEME,
+					scheme: GITHUB_REMOTE_FILE_SCHEME,
 					authority: 'github',
 					path: `/${parsed.owner}/${parsed.repo}/${parsed.ref}`,
 				});
