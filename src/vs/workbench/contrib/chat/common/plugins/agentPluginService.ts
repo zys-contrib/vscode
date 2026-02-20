@@ -5,6 +5,7 @@
 
 import { IDisposable } from '../../../../../base/common/lifecycle.js';
 import { IObservable } from '../../../../../base/common/observable.js';
+import { basename } from '../../../../../base/common/resources.js';
 import { URI } from '../../../../../base/common/uri.js';
 import { SyncDescriptor0 } from '../../../../../platform/instantiation/common/descriptors.js';
 import { createDecorator } from '../../../../../platform/instantiation/common/instantiation.js';
@@ -24,6 +25,13 @@ export interface IAgentPluginCommand {
 	readonly content: string;
 }
 
+export interface IAgentPluginSkill {
+	readonly uri: URI;
+	readonly name: string;
+	readonly description?: string;
+	readonly content: string;
+}
+
 export interface IAgentPluginMcpServerDefinition {
 	readonly name: string;
 	readonly configuration: IMcpServerConfiguration;
@@ -33,6 +41,7 @@ export interface IAgentPlugin {
 	readonly uri: URI;
 	readonly hooks: IObservable<readonly IAgentPluginHook[]>;
 	readonly commands: IObservable<readonly IAgentPluginCommand[]>;
+	readonly skills: IObservable<readonly IAgentPluginSkill[]>;
 	readonly mcpServerDefinitions: IObservable<readonly IAgentPluginMcpServerDefinition[]>;
 }
 
@@ -50,13 +59,9 @@ export interface IAgentPluginDiscovery extends IDisposable {
 }
 
 export function getCanonicalPluginCommandId(plugin: IAgentPlugin, commandName: string): string {
-	const pluginSegment = plugin.uri.path.split('/').at(-1) ?? '';
+	const pluginSegment = basename(plugin.uri);
 	const prefix = normalizePluginToken(pluginSegment);
 	const normalizedCommand = normalizePluginToken(commandName);
-	if (!prefix || !normalizedCommand) {
-		return '';
-	}
-
 	if (normalizedCommand.startsWith(`${prefix}:`)) {
 		return normalizedCommand;
 	}

@@ -8,7 +8,10 @@ import { parse as parseJSONC } from '../../../../../base/common/json.js';
 import { Disposable, DisposableStore } from '../../../../../base/common/lifecycle.js';
 import { ResourceSet } from '../../../../../base/common/map.js';
 import { autorun, derived, IObservable, observableValue } from '../../../../../base/common/observable.js';
-import { extname, joinPath } from '../../../../../base/common/resources.js';
+import {
+	basename,
+	extname, joinPath
+} from '../../../../../base/common/resources.js';
 import { URI } from '../../../../../base/common/uri.js';
 import { IConfigurationService } from '../../../../../platform/configuration/common/configuration.js';
 import { IFileService } from '../../../../../platform/files/common/files.js';
@@ -19,9 +22,11 @@ import { observableConfigValue } from '../../../../../platform/observable/common
 import { IStorageService, StorageScope, StorageTarget } from '../../../../../platform/storage/common/storage.js';
 import { ChatConfiguration } from '../constants.js';
 import { PromptFileParser } from '../promptSyntax/promptFileParser.js';
-import { agentPluginDiscoveryRegistry, IAgentPlugin, IAgentPluginCommand, IAgentPluginDiscovery, IAgentPluginHook, IAgentPluginMcpServerDefinition, IAgentPluginService } from './agentPluginService.js';
+import { agentPluginDiscoveryRegistry, IAgentPlugin, IAgentPluginCommand, IAgentPluginDiscovery, IAgentPluginHook, IAgentPluginMcpServerDefinition, IAgentPluginService, IAgentPluginSkill } from './agentPluginService.js';
 
 const STORAGE_KEY = 'workbench.chat.plugins.disabled';
+const COMMAND_FILE_SUFFIX = '.md';
+
 const disabledPluginUrisMemento = observableMemento<ReadonlySet<URI>>({
 	key: STORAGE_KEY,
 	defaultValue: new ResourceSet(),
@@ -193,34 +198,46 @@ export class ConfiguredAgentPluginDiscovery extends Disposable implements IAgent
 
 		const store = this._register(new DisposableStore());
 		const commands = observableValue<readonly IAgentPluginCommand[]>('agentPluginCommands', []);
+		const skills = observableValue<readonly IAgentPluginSkill[]>('agentPluginSkills', []);
 		const mcpServerDefinitions = observableValue<readonly IAgentPluginMcpServerDefinition[]>('agentPluginMcpServerDefinitions', []);
 		const plugin: IAgentPlugin = {
 			uri,
 			hooks: observableValue<readonly IAgentPluginHook[]>('agentPluginHooks', []),
 			commands,
+			skills,
 			mcpServerDefinitions,
 		};
 
-		const scheduler = store.add(new RunOnceScheduler(() => {
-			void (async () => {
-				const [nextCommands, nextMcpDefinitions] = await Promise.all([
-					this._readCommands(uri),
-					this._readMcpDefinitions(uri),
-				]);
-				if (!store.isDisposed) {
-					commands.set(nextCommands, undefined);
-					mcpServerDefinitions.set(nextMcpDefinitions, undefined);
-				}
-			})();
+		const commandsDir = joinPath(uri, 'commands');
+		const skillsDir = joinPath(uri, 'skills');
+
+		const commandsScheduler = store.add(new RunOnceScheduler(async () => {
+			commands.set(await this._readCommands(uri), undefined);
+		}, 200));
+		const skillsScheduler = store.add(new RunOnceScheduler(async () => {
+			skills.set(await this._readSkills(uri), undefined);
+		}, 200));
+		const mcpScheduler = store.add(new RunOnceScheduler(async () => {
+			mcpServerDefinitions.set(await this._readMcpDefinitions(uri), undefined);
 		}, 200));
 
 		store.add(this._fileService.watch(uri, { recursive: true, excludes: [] }));
 		store.add(this._fileService.onDidFilesChange(e => {
-			if (e.affects(uri)) {
-				scheduler.schedule();
+			if (e.affects(commandsDir)) {
+				commandsScheduler.schedule();
+			}
+			if (e.affects(skillsDir)) {
+				skillsScheduler.schedule();
+			}
+			// MCP definitions come from .mcp.json, plugin.json, or .claude-plugin/plugin.json
+			if (e.affects(joinPath(uri, '.mcp.json')) || e.affects(joinPath(uri, 'plugin.json')) || e.affects(joinPath(uri, '.claude-plugin'))) {
+				mcpScheduler.schedule();
 			}
 		}));
-		scheduler.schedule();
+
+		commandsScheduler.schedule();
+		skillsScheduler.schedule();
+		mcpScheduler.schedule();
 
 		this._pluginEntries.set(key, { plugin, store });
 		return plugin;
@@ -362,6 +379,48 @@ export class ConfiguredAgentPluginDiscovery extends Disposable implements IAgent
 		}
 	}
 
+	private async _readSkills(uri: URI): Promise<readonly IAgentPluginSkill[]> {
+		const skillsDir = joinPath(uri, 'skills');
+		let stat;
+		try {
+			stat = await this._fileService.resolve(skillsDir);
+		} catch {
+			return [];
+		}
+
+		if (!stat.isDirectory || !stat.children) {
+			return [];
+		}
+
+		const parser = new PromptFileParser();
+		const skills: IAgentPluginSkill[] = [];
+		for (const child of stat.children) {
+			if (!child.isFile || extname(child.resource).toLowerCase() !== COMMAND_FILE_SUFFIX) {
+				continue;
+			}
+
+			let fileContents;
+			try {
+				fileContents = await this._fileService.readFile(child.resource);
+			} catch {
+				continue;
+			}
+
+			const parsed = parser.parse(child.resource, fileContents.value.toString());
+			const name = parsed.header?.name?.trim() || basename(child.resource).slice(0, -COMMAND_FILE_SUFFIX.length);
+
+			skills.push({
+				uri: child.resource,
+				name,
+				description: parsed.header?.description,
+				content: parsed.body?.getContent()?.trim() ?? '',
+			});
+		}
+
+		skills.sort((a, b) => a.name.localeCompare(b.name));
+		return skills;
+	}
+
 	private async _readCommands(uri: URI): Promise<readonly IAgentPluginCommand[]> {
 		const commandsDir = joinPath(uri, 'commands');
 		let stat;
@@ -378,7 +437,7 @@ export class ConfiguredAgentPluginDiscovery extends Disposable implements IAgent
 		const parser = new PromptFileParser();
 		const commands: IAgentPluginCommand[] = [];
 		for (const child of stat.children) {
-			if (!child.isFile || extname(child.resource) !== '.md') {
+			if (!child.isFile || extname(child.resource).toLowerCase() !== COMMAND_FILE_SUFFIX) {
 				continue;
 			}
 
@@ -390,10 +449,7 @@ export class ConfiguredAgentPluginDiscovery extends Disposable implements IAgent
 			}
 
 			const parsed = parser.parse(child.resource, fileContents.value.toString());
-			const name = parsed.header?.name?.trim();
-			if (!name) {
-				continue;
-			}
+			const name = parsed.header?.name?.trim() || basename(child.resource).slice(0, -COMMAND_FILE_SUFFIX.length);
 
 			commands.push({
 				uri: child.resource,

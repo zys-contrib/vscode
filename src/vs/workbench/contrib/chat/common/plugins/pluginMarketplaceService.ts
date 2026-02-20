@@ -4,6 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { CancellationToken } from '../../../../../base/common/cancellation.js';
+import { URI } from '../../../../../base/common/uri.js';
 import { createDecorator } from '../../../../../platform/instantiation/common/instantiation.js';
 import { IConfigurationService } from '../../../../../platform/configuration/common/configuration.js';
 import { asJson, IRequestService } from '../../../../../platform/request/common/request.js';
@@ -16,6 +17,7 @@ export interface IMarketplacePlugin {
 	readonly version: string;
 	readonly source: string;
 	readonly marketplace: string;
+	readonly readmeUri?: URI;
 }
 
 interface IMarketplaceJson {
@@ -80,13 +82,17 @@ export class PluginMarketplaceService implements IPluginMarketplaceService {
 					.filter((p): p is { name: string; description: string; version: string; source: string } =>
 						typeof p.name === 'string' && !!p.name
 					)
-					.map(p => ({
-						name: p.name,
-						description: p.description ?? '',
-						version: p.version ?? '',
-						source: p.source ?? '',
-						marketplace: repo,
-					}));
+					.map(p => {
+						const source = p.source ?? '';
+						return {
+							name: p.name,
+							description: p.description ?? '',
+							version: p.version ?? '',
+							source,
+							marketplace: repo,
+							readmeUri: getMarketplaceReadmeUri(repo, source),
+						};
+					});
 			} catch (err) {
 				this._logService.debug(`[PluginMarketplaceService] Failed to fetch marketplace.json from ${url}:`, err);
 				continue;
@@ -95,4 +101,10 @@ export class PluginMarketplaceService implements IPluginMarketplaceService {
 		this._logService.debug(`[PluginMarketplaceService] No marketplace.json found in ${repo}`);
 		return [];
 	}
+}
+
+function getMarketplaceReadmeUri(repo: string, source: string): URI {
+	const normalizedSource = source.trim().replace(/^\/+|\/+$/g, '');
+	const readmePath = normalizedSource ? `${normalizedSource}/README.md` : 'README.md';
+	return URI.parse(`https://github.com/${repo}/blob/main/${readmePath}`);
 }

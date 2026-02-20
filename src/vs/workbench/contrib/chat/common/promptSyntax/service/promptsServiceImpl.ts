@@ -8,7 +8,7 @@ import { CancellationError } from '../../../../../../base/common/errors.js';
 import { Emitter, Event } from '../../../../../../base/common/event.js';
 import { parse as parseJSONC } from '../../../../../../base/common/json.js';
 import { Disposable, DisposableStore, IDisposable } from '../../../../../../base/common/lifecycle.js';
-import { autorun } from '../../../../../../base/common/observable.js';
+import { autorun, IReader } from '../../../../../../base/common/observable.js';
 import { ResourceMap, ResourceSet } from '../../../../../../base/common/map.js';
 import { basename, dirname, isEqual, joinPath } from '../../../../../../base/common/resources.js';
 import { URI } from '../../../../../../base/common/uri.js';
@@ -42,7 +42,7 @@ import { IWorkspaceContextService } from '../../../../../../platform/workspace/c
 import { IPathService } from '../../../../../services/path/common/pathService.js';
 import { getTarget, mapClaudeModels, mapClaudeTools } from '../languageProviders/promptValidator.js';
 import { ContextKeyExpr, IContextKeyService } from '../../../../../../platform/contextkey/common/contextkey.js';
-import { getCanonicalPluginCommandId, IAgentPluginService } from '../../plugins/agentPluginService.js';
+import { getCanonicalPluginCommandId, IAgentPlugin, IAgentPluginService } from '../../plugins/agentPluginService.js';
 
 /**
  * Error thrown when a skill file is missing the required name attribute.
@@ -142,7 +142,7 @@ export class PromptsService extends Disposable implements IPromptsService {
 	private readonly _contributedWhenKeys = new Set<string>();
 	private readonly _contributedWhenClauses = new Map<string, string>();
 	private readonly _onDidContributedWhenChange = this._register(new Emitter<void>());
-	private _pluginPromptFiles: readonly ILocalPromptPath[] = [];
+	private _pluginPromptFilesByType = new Map<PromptsType, readonly ILocalPromptPath[]>();
 
 	constructor(
 		@ILogService public readonly logger: ILogService,
@@ -210,35 +210,38 @@ export class PromptsService extends Disposable implements IPromptsService {
 		this._register(this.cachedSkills.onDidChange(() => { }));
 		this._register(this.cachedHooks.onDidChange(() => { }));
 
-		this._register(this.watchPluginPromptFiles());
+		this._register(this.watchPluginPromptFilesForType(
+			PromptsType.prompt,
+			(plugin, reader) => plugin.commands.read(reader),
+		));
+		this._register(this.watchPluginPromptFilesForType(
+			PromptsType.skill,
+			(plugin, reader) => plugin.skills.read(reader),
+		));
 	}
 
-	private watchPluginPromptFiles() {
+	private watchPluginPromptFilesForType(
+		type: PromptsType,
+		getItems: (plugin: IAgentPlugin, reader: IReader) => readonly { uri: URI; name: string; description?: string }[],
+	) {
 		return autorun(reader => {
 			const plugins = this.agentPluginService.plugins.read(reader);
-			const nextPromptFiles: ILocalPromptPath[] = [];
-			const seen = new Set<string>();
+			const nextFiles: ILocalPromptPath[] = [];
 			for (const plugin of plugins) {
-				for (const pluginCommand of plugin.commands.read(reader)) {
-					const commandId = getCanonicalPluginCommandId(plugin, pluginCommand.name);
-					if (!commandId || seen.has(commandId)) {
-						continue;
-					}
-
-					seen.add(commandId);
-					nextPromptFiles.push({
-						uri: pluginCommand.uri,
+				for (const item of getItems(plugin, reader)) {
+					nextFiles.push({
+						uri: item.uri,
 						storage: PromptsStorage.local,
-						type: PromptsType.prompt,
-						name: commandId,
-						description: pluginCommand.description,
+						type,
+						name: getCanonicalPluginCommandId(plugin, item.name),
+						description: item.description,
 					});
 				}
 			}
 
-			nextPromptFiles.sort((a, b) => `${a.name ?? ''}|${a.uri.toString()}`.localeCompare(`${b.name ?? ''}|${b.uri.toString()}`));
-			this._pluginPromptFiles = nextPromptFiles;
-			this.invalidatePromptFileCache(PromptsType.prompt);
+			nextFiles.sort((a, b) => `${a.name ?? ''}|${a.uri.toString()}`.localeCompare(`${b.name ?? ''}|${b.uri.toString()}`));
+			this._pluginPromptFilesByType.set(type, nextFiles);
+			this.invalidatePromptFileCache(type);
 		});
 	}
 
@@ -287,7 +290,7 @@ export class PromptsService extends Disposable implements IPromptsService {
 			this.fileLocator.listFiles(type, PromptsStorage.user, token).then(uris => uris.map(uri => ({ uri, storage: PromptsStorage.user, type } satisfies IUserPromptPath))),
 			this.fileLocator.listFiles(type, PromptsStorage.local, token).then(uris => uris.map(uri => ({ uri, storage: PromptsStorage.local, type } satisfies ILocalPromptPath))),
 			this.getExtensionPromptFiles(type, token),
-			this._pluginPromptFiles,
+			this._pluginPromptFilesByType.get(type) ?? [],
 		]);
 
 		return [...prompts.flat()];
@@ -540,7 +543,7 @@ export class PromptsService extends Disposable implements IPromptsService {
 	}
 
 	public isValidSlashCommandName(command: string): boolean {
-		return command.match(/^[\p{L}\d_\-\.]+$/u) !== null;
+		return command.match(/^[\p{L}\d_\-\.:]+$/u) !== null;
 	}
 
 	public async resolvePromptSlashCommand(name: string, token: CancellationToken): Promise<IChatPromptSlashCommand | undefined> {
@@ -550,7 +553,7 @@ export class PromptsService extends Disposable implements IPromptsService {
 
 	private asChatPromptSlashCommand(parsedPromptFile: ParsedPromptFile, promptPath: IPromptPath): IChatPromptSlashCommand {
 		let name = parsedPromptFile?.header?.name ?? promptPath.name ?? getCleanPromptName(promptPath.uri);
-		name = name.replace(/[^\p{L}\d_\-\.]+/gu, '-'); // replace spaces with dashes
+		name = name.replace(/[^\p{L}\d_\-\.:]+/gu, '-'); // replace spaces with dashes
 		return {
 			name: name,
 			description: parsedPromptFile?.header?.description ?? promptPath.description,
