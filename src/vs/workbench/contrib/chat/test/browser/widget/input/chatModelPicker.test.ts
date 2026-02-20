@@ -519,7 +519,7 @@ suite('buildModelPickerItems', () => {
 			[auto],
 			undefined,
 			['missing-model'],
-			{ 'missing-model': { id: 'missing-model', label: 'Missing Model' } },
+			{ 'missing-model': { label: 'Missing Model' } },
 			true,
 			'1.100.0',
 			StateType.Idle,
