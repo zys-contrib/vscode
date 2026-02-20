@@ -141,7 +141,7 @@ suite('buildModelPickerItems', () => {
 		const items = callBuild([auto, modelA], {
 			selectedModelId: modelA.identifier,
 			controlModels: {
-				'gpt-4o': { label: 'GPT-4o', minVSCodeVersion: '2.0.0' },
+				'gpt-4o': { label: 'GPT-4o', minVSCodeVersion: '2.0.0', exists: true },
 			},
 			currentVSCodeVersion: '1.90.0',
 		});
@@ -172,7 +172,7 @@ suite('buildModelPickerItems', () => {
 		const items = callBuild([auto], {
 			recentModelIds: ['missing-model'],
 			controlModels: {
-				'missing-model': { label: 'Missing Model' },
+				'missing-model': { label: 'Missing Model', exists: false },
 			},
 			isProUser: false,
 		});
@@ -187,7 +187,7 @@ suite('buildModelPickerItems', () => {
 		const items = callBuild([auto], {
 			recentModelIds: ['missing-model'],
 			controlModels: {
-				'missing-model': { label: 'Missing Model', minVSCodeVersion: '2.0.0' },
+				'missing-model': { label: 'Missing Model', minVSCodeVersion: '2.0.0', exists: false },
 			},
 			isProUser: true,
 			currentVSCodeVersion: '1.90.0',
@@ -203,7 +203,7 @@ suite('buildModelPickerItems', () => {
 		const items = callBuild([auto], {
 			recentModelIds: ['missing-model'],
 			controlModels: {
-				'missing-model': { label: 'Missing Model' },
+				'missing-model': { label: 'Missing Model', exists: false },
 			},
 			isProUser: true,
 		});
@@ -219,7 +219,7 @@ suite('buildModelPickerItems', () => {
 		const modelB = createModel('claude', 'Claude');
 		const items = callBuild([auto, modelA, modelB], {
 			controlModels: {
-				'gpt-4o': { label: 'GPT-4o', featured: true },
+				'gpt-4o': { label: 'GPT-4o', featured: true, exists: true },
 			},
 		});
 		const actions = getActionItems(items);
@@ -232,7 +232,7 @@ suite('buildModelPickerItems', () => {
 		const auto = createAutoModel();
 		const items = callBuild([auto], {
 			controlModels: {
-				'premium-model': { label: 'Premium Model', featured: true },
+				'premium-model': { label: 'Premium Model', featured: true, exists: false },
 			},
 			isProUser: false,
 		});
@@ -246,7 +246,7 @@ suite('buildModelPickerItems', () => {
 		const auto = createAutoModel();
 		const items = callBuild([auto], {
 			controlModels: {
-				'premium-model': { label: 'Premium Model', featured: true },
+				'premium-model': { label: 'Premium Model', featured: true, exists: false },
 			},
 			isProUser: true,
 		});
@@ -261,7 +261,7 @@ suite('buildModelPickerItems', () => {
 		const modelA = createModel('gpt-4o', 'GPT-4o');
 		const items = callBuild([auto, modelA], {
 			controlModels: {
-				'gpt-4o': { label: 'GPT-4o', featured: true, minVSCodeVersion: '2.0.0' },
+				'gpt-4o': { label: 'GPT-4o', featured: true, minVSCodeVersion: '2.0.0', exists: true },
 			},
 			currentVSCodeVersion: '1.90.0',
 		});
@@ -277,7 +277,7 @@ suite('buildModelPickerItems', () => {
 		const modelB = createModel('claude', 'Claude');
 		const items = callBuild([auto, modelA, modelB], {
 			controlModels: {
-				'gpt-4o': { label: 'GPT-4o', featured: false },
+				'gpt-4o': { label: 'GPT-4o', featured: false, exists: true },
 			},
 		});
 		// With no selected, no recent, and no featured, both models should be in Other
@@ -311,7 +311,7 @@ suite('buildModelPickerItems', () => {
 		const items = callBuild([auto, modelA], {
 			recentModelIds: [modelA.identifier, 'missing-model'],
 			controlModels: {
-				'missing-model': { label: 'Missing Model' },
+				'missing-model': { label: 'Missing Model', exists: false },
 			},
 			isProUser: false,
 		});
@@ -359,7 +359,7 @@ suite('buildModelPickerItems', () => {
 		const modelA = createModel('gpt-4o', 'GPT-4o');
 		const items = callBuild([auto, modelA], {
 			controlModels: {
-				'gpt-4o': { label: 'GPT-4o', minVSCodeVersion: '2.0.0' },
+				'gpt-4o': { label: 'GPT-4o', minVSCodeVersion: '2.0.0', exists: true },
 			},
 			currentVSCodeVersion: '1.90.0',
 		});
@@ -378,8 +378,8 @@ suite('buildModelPickerItems', () => {
 			selectedModelId: modelA.identifier,
 			recentModelIds: [modelA.identifier, modelB.identifier],
 			controlModels: {
-				'gpt-4o': { label: 'GPT-4o', featured: true },
-				'claude': { label: 'Claude', featured: true },
+				'gpt-4o': { label: 'GPT-4o', featured: true, exists: true },
+				'claude': { label: 'Claude', featured: true, exists: true },
 			},
 		});
 		const labels = getActionLabels(items).filter(l => l !== 'Other Models' && !l.includes('Manage Models'));
@@ -394,7 +394,7 @@ suite('buildModelPickerItems', () => {
 			selectedModelId: auto.identifier,
 			recentModelIds: [auto.identifier],
 			controlModels: {
-				'auto': { label: 'Auto', featured: true },
+				'auto': { label: 'Auto', featured: true, exists: true },
 			},
 		});
 		const autoItems = getActionItems(items).filter(a => a.label === 'Auto');
@@ -501,7 +501,7 @@ suite('buildModelPickerItems', () => {
 		const items = callBuild([auto, modelA, modelB, modelC, modelD], {
 			recentModelIds: [modelC.identifier],
 			controlModels: {
-				'alpha': { label: 'Alpha', featured: true },
+				'alpha': { label: 'Alpha', featured: true, exists: true },
 			},
 		});
 		const actions = getActionItems(items);
