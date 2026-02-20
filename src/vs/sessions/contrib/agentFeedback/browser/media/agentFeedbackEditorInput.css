@@ -18,7 +18,7 @@
 	border: none;
 	color: var(--vscode-input-foreground);
 	border-radius: 4px;
-	padding: none;
+	padding: 0;
 	outline: none;
 	min-width: 150px;
 	max-width: 400px;
