@@ -185,7 +185,7 @@ export function buildModelPickerItems(
 		// --- 2. Promoted section (selected + recently used + featured) ---
 		type PromotedItem =
 			| { kind: 'available'; model: ILanguageModelChatMetadataAndIdentifier }
-			| { kind: 'unavailable'; entry: IModelControlEntry; reason: 'upgrade' | 'update' | 'admin' };
+			| { kind: 'unavailable'; id: string; entry: IModelControlEntry; reason: 'upgrade' | 'update' | 'admin' };
 
 		const promotedItems: PromotedItem[] = [];
 
@@ -199,7 +199,7 @@ export function buildModelPickerItems(
 				markPlaced(model.identifier, model.metadata.id);
 				const entry = controlModels[model.metadata.id];
 				if (entry?.minVSCodeVersion && !isVersionAtLeast(currentVSCodeVersion, entry.minVSCodeVersion)) {
-					promotedItems.push({ kind: 'unavailable', entry, reason: 'update' });
+					promotedItems.push({ kind: 'unavailable', id: model.metadata.id, entry, reason: 'update' });
 				} else {
 					promotedItems.push({ kind: 'available', model });
 				}
@@ -209,7 +209,7 @@ export function buildModelPickerItems(
 				const entry = controlModels[id];
 				if (entry) {
 					markPlaced(id);
-					promotedItems.push({ kind: 'unavailable', entry, reason: getUnavailableReason(entry) });
+					promotedItems.push({ kind: 'unavailable', id, entry, reason: getUnavailableReason(entry) });
 					return true;
 				}
 			}
@@ -227,21 +227,21 @@ export function buildModelPickerItems(
 		}
 
 		// Featured models from control manifest
-		for (const entry of Object.values(controlModels)) {
-			if (!entry.featured || placed.has(entry.id)) {
+		for (const [entryId, entry] of Object.entries(controlModels)) {
+			if (!entry.featured || placed.has(entryId)) {
 				continue;
 			}
-			const model = resolveModel(entry.id);
+			const model = resolveModel(entryId);
 			if (model && !placed.has(model.identifier)) {
 				markPlaced(model.identifier, model.metadata.id);
 				if (entry.minVSCodeVersion && !isVersionAtLeast(currentVSCodeVersion, entry.minVSCodeVersion)) {
-					promotedItems.push({ kind: 'unavailable', entry, reason: 'update' });
+					promotedItems.push({ kind: 'unavailable', id: entryId, entry, reason: 'update' });
 				} else {
 					promotedItems.push({ kind: 'available', model });
 				}
 			} else if (!model) {
-				markPlaced(entry.id);
-				promotedItems.push({ kind: 'unavailable', entry, reason: getUnavailableReason(entry) });
+				markPlaced(entryId);
+				promotedItems.push({ kind: 'unavailable', id: entryId, entry, reason: getUnavailableReason(entry) });
 			}
 		}
 
@@ -260,7 +260,7 @@ export function buildModelPickerItems(
 				if (item.kind === 'available') {
 					items.push(createModelItem(createModelAction(item.model, selectedModelId, onSelect), item.model));
 				} else {
-					items.push(createUnavailableModelItem(item.entry, item.reason, upgradePlanUrl, manageSettingsUrl, updateStateType));
+					items.push(createUnavailableModelItem(item.id, item.entry, item.reason, upgradePlanUrl, manageSettingsUrl, updateStateType));
 				}
 			}
 		}
@@ -302,7 +302,7 @@ export function buildModelPickerItems(
 			for (const model of otherModels) {
 				const entry = controlModels[model.metadata.id] ?? controlModels[model.identifier];
 				if (entry?.minVSCodeVersion && !isVersionAtLeast(currentVSCodeVersion, entry.minVSCodeVersion)) {
-					items.push(createUnavailableModelItem(entry, 'update', upgradePlanUrl, manageSettingsUrl, updateStateType, ModelPickerSection.Other));
+					items.push(createUnavailableModelItem(model.metadata.id, entry, 'update', upgradePlanUrl, manageSettingsUrl, updateStateType, ModelPickerSection.Other));
 				} else {
 					items.push(createModelItem(createModelAction(model, selectedModelId, onSelect, ModelPickerSection.Other), model));
 				}
@@ -374,6 +374,7 @@ export function buildModelPickerItems(
 }
 
 function createUnavailableModelItem(
+	id: string,
 	entry: IModelControlEntry,
 	reason: 'upgrade' | 'update' | 'admin',
 	upgradePlanUrl: string | undefined,
@@ -382,7 +383,6 @@ function createUnavailableModelItem(
 	section?: string,
 ): IActionListItem<IActionWidgetDropdownAction> {
 	let description: string | MarkdownString | undefined;
-	let icon: ThemeIcon = Codicon.blank;
 
 	if (reason === 'upgrade') {
 		description = upgradePlanUrl
@@ -390,12 +390,10 @@ function createUnavailableModelItem(
 			: localize('chat.modelPicker.upgrade', "Upgrade");
 	} else if (reason === 'update') {
 		description = localize('chat.modelPicker.updateDescription', "Update VS Code");
-		icon = Codicon.warning;
 	} else {
 		description = manageSettingsUrl
 			? new MarkdownString(localize('chat.modelPicker.adminLink', "[Contact your admin]({0})", manageSettingsUrl), { isTrusted: true })
 			: localize('chat.modelPicker.adminDescription', "Contact your admin");
-		icon = Codicon.warning;
 	}
 
 	let hoverContent: MarkdownString;
@@ -413,7 +411,7 @@ function createUnavailableModelItem(
 
 	return {
 		item: {
-			id: entry.id,
+			id,
 			enabled: false,
 			checked: false,
 			class: undefined,
@@ -426,7 +424,6 @@ function createUnavailableModelItem(
 		label: entry.label,
 		description,
 		disabled: true,
-		group: { title: '', icon },
 		hideIcon: false,
 		section,
 		hover: { content: hoverContent },
@@ -561,7 +558,7 @@ export class ModelPickerWidget extends Disposable {
 
 		const listOptions = {
 			showFilter: models.length >= 10,
-			filterPlaceholder: localize('chat.modelPicker.search', "Search models..."),
+			filterPlaceholder: localize('chat.modelPicker.search', "Search models"),
 			collapsedByDefault: new Set([ModelPickerSection.Other]),
 			minWidth: 300,
 		};
@@ -656,13 +653,6 @@ function getModelHoverContent(model: ILanguageModelChatMetadataAndIdentifier): M
 	const isAuto = model.metadata.id === 'auto' && model.metadata.vendor === 'copilot';
 	const markdown = new MarkdownString('', { isTrusted: true, supportThemeIcons: true });
 	markdown.appendMarkdown(`**${model.metadata.name}**`);
-	if (!isAuto) {
-		if (model.metadata.id !== model.metadata.version) {
-			markdown.appendMarkdown(`&nbsp;<span style="background-color:#8080802B;">&nbsp;_${model.metadata.id}@${model.metadata.version}_&nbsp;</span>`);
-		} else {
-			markdown.appendMarkdown(`&nbsp;<span style="background-color:#8080802B;">&nbsp;_${model.metadata.id}_&nbsp;</span>`);
-		}
-	}
 	markdown.appendText(`\n`);
 
 	if (model.metadata.statusIcon && model.metadata.tooltip) {
@@ -674,9 +664,7 @@ function getModelHoverContent(model: ILanguageModelChatMetadataAndIdentifier): M
 	}
 
 	if (model.metadata.multiplier) {
-		markdown.appendMarkdown(`${localize('models.cost', 'Multiplier')}: `);
-		markdown.appendMarkdown(model.metadata.multiplier);
-		markdown.appendMarkdown(` - ${localize('multiplier.tooltip', "Every chat message counts {0} towards your premium model request quota", model.metadata.multiplier)}`);
+		markdown.appendMarkdown(`${localize('multiplier.tooltip', "Each chat message counts {0} toward your premium request quota", model.metadata.multiplier)}`);
 		markdown.appendText(`\n`);
 	}
 
