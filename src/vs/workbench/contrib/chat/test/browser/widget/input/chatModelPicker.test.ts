@@ -71,7 +71,6 @@ function callBuild(
 		isProUser?: boolean;
 		currentVSCodeVersion?: string;
 		updateStateType?: StateType;
-		upgradePlanUrl?: string;
 		manageSettingsUrl?: string;
 	} = {},
 ): IActionListItem<IActionWidgetDropdownAction>[] {
@@ -85,7 +84,6 @@ function callBuild(
 		opts.currentVSCodeVersion ?? '1.100.0',
 		opts.updateStateType ?? StateType.Idle,
 		onSelect,
-		opts.upgradePlanUrl,
 		opts.manageSettingsUrl,
 		stubCommandService,
 		stubChatEntitlementService as IChatEntitlementService,
@@ -442,7 +440,6 @@ suite('buildModelPickerItems', () => {
 			StateType.Idle,
 			onSelect,
 			undefined,
-			undefined,
 			stubCommandService,
 			stubChatEntitlementService as IChatEntitlementService,
 		);
@@ -524,7 +521,6 @@ suite('buildModelPickerItems', () => {
 			'1.100.0',
 			StateType.Idle,
 			() => { },
-			undefined,
 			'https://aka.ms/github-copilot-settings',
 			stubCommandService,
 			stubChatEntitlementService as IChatEntitlementService,
