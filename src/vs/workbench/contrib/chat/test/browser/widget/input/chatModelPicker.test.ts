@@ -6,6 +6,7 @@
 import assert from 'assert';
 import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../../../../base/test/common/utils.js';
 import { IStringDictionary } from '../../../../../../../base/common/collections.js';
+import { MarkdownString } from '../../../../../../../base/common/htmlContent.js';
 import { ActionListItemKind, IActionListItem } from '../../../../../../../platform/actionWidget/browser/actionList.js';
 import { IActionWidgetDropdownAction } from '../../../../../../../platform/actionWidget/browser/actionWidgetDropdown.js';
 import { ICommandService } from '../../../../../../../platform/commands/common/commands.js';
@@ -71,6 +72,7 @@ function callBuild(
 		currentVSCodeVersion?: string;
 		updateStateType?: StateType;
 		upgradePlanUrl?: string;
+		manageSettingsUrl?: string;
 	} = {},
 ): IActionListItem<IActionWidgetDropdownAction>[] {
 	const onSelect = () => { };
@@ -84,6 +86,7 @@ function callBuild(
 		opts.updateStateType ?? StateType.Idle,
 		onSelect,
 		opts.upgradePlanUrl,
+		opts.manageSettingsUrl,
 		stubCommandService,
 		stubChatEntitlementService as IChatEntitlementService,
 	);
@@ -439,6 +442,7 @@ suite('buildModelPickerItems', () => {
 			StateType.Idle,
 			onSelect,
 			undefined,
+			undefined,
 			stubCommandService,
 			stubChatEntitlementService as IChatEntitlementService,
 		);
@@ -507,5 +511,30 @@ suite('buildModelPickerItems', () => {
 		assert.strictEqual(actions[2].label, 'Gamma');
 		// Then Other Models toggle
 		assert.ok(actions[3].isSectionToggle);
+	});
+
+	test('admin unavailable model shows manage settings link in description', () => {
+		const auto = createAutoModel();
+		const items = buildModelPickerItems(
+			[auto],
+			undefined,
+			['missing-model'],
+			{ 'missing-model': { label: 'Missing Model' } },
+			true,
+			'1.100.0',
+			StateType.Idle,
+			() => { },
+			undefined,
+			'https://aka.ms/github-copilot-settings',
+			stubCommandService,
+			stubChatEntitlementService as IChatEntitlementService,
+		);
+
+		const adminItem = getActionItems(items).find(a => a.label === 'Missing Model');
+		assert.ok(adminItem);
+		assert.strictEqual(adminItem.disabled, true);
+		const description = adminItem.description;
+		assert.ok(description instanceof MarkdownString);
+		assert.ok(description.value.includes('https://aka.ms/github-copilot-settings'));
 	});
 });
