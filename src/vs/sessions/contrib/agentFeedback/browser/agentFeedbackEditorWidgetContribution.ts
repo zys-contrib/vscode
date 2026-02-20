@@ -487,7 +487,6 @@ class AgentFeedbackEditorWidgetContribution extends Disposable implements IEdito
 		for (const group of groups) {
 			const widget = new AgentFeedbackEditorWidget(this._editor, group, this._agentFeedbackService, this._sessionResource);
 			this._widgets.push(widget);
-			this._register(widget);
 
 			widget.layout(group[0].range.startLineNumber);
 		}
