@@ -520,7 +520,7 @@ suite('buildModelPickerItems', () => {
 			[auto],
 			undefined,
 			['missing-model'],
-			{ 'missing-model': { label: 'Missing Model' } },
+			{ 'missing-model': { label: 'Missing Model' } as IModelControlEntry },
 			true,
 			'1.100.0',
 			StateType.Idle,
@@ -544,7 +544,7 @@ suite('buildModelPickerItems', () => {
 		const items = callBuild([auto], {
 			recentModelIds: ['missing-model'],
 			controlModels: {
-				'missing-model': { label: 'Missing Model' },
+				'missing-model': { label: 'Missing Model' } as IModelControlEntry,
 			},
 			isProUser: false,
 		});
