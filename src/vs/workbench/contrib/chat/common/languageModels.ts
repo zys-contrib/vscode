@@ -1384,7 +1384,7 @@ export class LanguageModelsService implements ILanguageModelsService {
 		// Filter to only include models that still exist in the cache
 		return this._recentlyUsedModelIds
 			.filter(id => this._modelCache.has(id) && id !== 'copilot/auto')
-			.slice(0, 5);
+			.slice(0, 4);
 	}
 
 	addToRecentlyUsedList(modelIdentifier: string): void {

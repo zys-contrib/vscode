@@ -380,7 +380,6 @@ function createUnavailableModelItem(
 	section?: string,
 ): IActionListItem<IActionWidgetDropdownAction> {
 	let description: string | MarkdownString | undefined;
-	let icon: ThemeIcon = Codicon.blank;
 
 	if (reason === 'upgrade') {
 		description = upgradePlanUrl
@@ -388,10 +387,8 @@ function createUnavailableModelItem(
 			: localize('chat.modelPicker.upgrade', "Upgrade");
 	} else if (reason === 'update') {
 		description = localize('chat.modelPicker.updateDescription', "Update VS Code");
-		icon = Codicon.warning;
 	} else {
-		description = localize('chat.modelPicker.adminDescription', "Contact admin");
-		icon = Codicon.warning;
+		description = localize('chat.modelPicker.adminDescription', "Contact your admin");
 	}
 
 	let hoverContent: MarkdownString;
@@ -422,7 +419,7 @@ function createUnavailableModelItem(
 		label: entry.label,
 		description,
 		disabled: true,
-		group: { title: '', icon },
+		group: { title: '' },
 		hideIcon: false,
 		section,
 		hover: { content: hoverContent },
@@ -556,7 +553,7 @@ export class ModelPickerWidget extends Disposable {
 
 		const listOptions = {
 			showFilter: models.length >= 10,
-			filterPlaceholder: localize('chat.modelPicker.search', "Search models..."),
+			filterPlaceholder: localize('chat.modelPicker.search', "Search models"),
 			collapsedByDefault: new Set([ModelPickerSection.Other]),
 			minWidth: 300,
 		};
@@ -651,13 +648,6 @@ function getModelHoverContent(model: ILanguageModelChatMetadataAndIdentifier): M
 	const isAuto = model.metadata.id === 'auto' && model.metadata.vendor === 'copilot';
 	const markdown = new MarkdownString('', { isTrusted: true, supportThemeIcons: true });
 	markdown.appendMarkdown(`**${model.metadata.name}**`);
-	if (!isAuto) {
-		if (model.metadata.id !== model.metadata.version) {
-			markdown.appendMarkdown(`&nbsp;<span style="background-color:#8080802B;">&nbsp;_${model.metadata.id}@${model.metadata.version}_&nbsp;</span>`);
-		} else {
-			markdown.appendMarkdown(`&nbsp;<span style="background-color:#8080802B;">&nbsp;_${model.metadata.id}_&nbsp;</span>`);
-		}
-	}
 	markdown.appendText(`\n`);
 
 	if (model.metadata.statusIcon && model.metadata.tooltip) {
@@ -669,9 +659,7 @@ function getModelHoverContent(model: ILanguageModelChatMetadataAndIdentifier): M
 	}
 
 	if (model.metadata.multiplier) {
-		markdown.appendMarkdown(`${localize('models.cost', 'Multiplier')}: `);
-		markdown.appendMarkdown(model.metadata.multiplier);
-		markdown.appendMarkdown(` - ${localize('multiplier.tooltip', "Every chat message counts {0} towards your premium model request quota", model.metadata.multiplier)}`);
+		markdown.appendMarkdown(`${localize('multiplier.tooltip', "Each chat message counts {0} toward your premium request quota", model.metadata.multiplier)}`);
 		markdown.appendText(`\n`);
 	}
 
