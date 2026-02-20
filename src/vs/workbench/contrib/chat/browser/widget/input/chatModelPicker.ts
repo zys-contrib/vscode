@@ -423,8 +423,10 @@ function createUnavailableModelItem(
 		kind: ActionListItemKind.Action,
 		label: entry.label,
 		description,
+		group: { title: '', icon: ThemeIcon.fromId(Codicon.blank.id) },
 		disabled: true,
 		hideIcon: false,
+		className: 'chat-model-picker-unavailable',
 		section,
 		hover: { content: hoverContent },
 	};
