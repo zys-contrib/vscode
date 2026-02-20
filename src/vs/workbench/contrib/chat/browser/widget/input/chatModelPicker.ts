@@ -129,6 +129,7 @@ export function buildModelPickerItems(
 	updateStateType: StateType,
 	onSelect: (model: ILanguageModelChatMetadataAndIdentifier) => void,
 	upgradePlanUrl: string | undefined,
+	manageSettingsUrl: string | undefined,
 	commandService: ICommandService,
 	chatEntitlementService: IChatEntitlementService,
 ): IActionListItem<IActionWidgetDropdownAction>[] {
@@ -259,7 +260,7 @@ export function buildModelPickerItems(
 				if (item.kind === 'available') {
 					items.push(createModelItem(createModelAction(item.model, selectedModelId, onSelect), item.model));
 				} else {
-					items.push(createUnavailableModelItem(item.entry, item.reason, upgradePlanUrl, updateStateType));
+					items.push(createUnavailableModelItem(item.entry, item.reason, upgradePlanUrl, manageSettingsUrl, updateStateType));
 				}
 			}
 		}
@@ -301,7 +302,7 @@ export function buildModelPickerItems(
 			for (const model of otherModels) {
 				const entry = controlModels[model.metadata.id] ?? controlModels[model.identifier];
 				if (entry?.minVSCodeVersion && !isVersionAtLeast(currentVSCodeVersion, entry.minVSCodeVersion)) {
-					items.push(createUnavailableModelItem(entry, 'update', upgradePlanUrl, updateStateType, ModelPickerSection.Other));
+					items.push(createUnavailableModelItem(entry, 'update', upgradePlanUrl, manageSettingsUrl, updateStateType, ModelPickerSection.Other));
 				} else {
 					items.push(createModelItem(createModelAction(model, selectedModelId, onSelect, ModelPickerSection.Other), model));
 				}
@@ -376,6 +377,7 @@ function createUnavailableModelItem(
 	entry: IModelControlEntry,
 	reason: 'upgrade' | 'update' | 'admin',
 	upgradePlanUrl: string | undefined,
+	manageSettingsUrl: string | undefined,
 	updateStateType: StateType,
 	section?: string,
 ): IActionListItem<IActionWidgetDropdownAction> {
@@ -390,7 +392,9 @@ function createUnavailableModelItem(
 		description = localize('chat.modelPicker.updateDescription', "Update VS Code");
 		icon = Codicon.warning;
 	} else {
-		description = localize('chat.modelPicker.adminDescription', "Contact admin");
+		description = manageSettingsUrl
+			? new MarkdownString(localize('chat.modelPicker.adminLink', "[Contact your admin]({0})", manageSettingsUrl), { isTrusted: true })
+			: localize('chat.modelPicker.adminDescription', "Contact your admin");
 		icon = Codicon.warning;
 	}
 
@@ -550,6 +554,7 @@ export class ModelPickerWidget extends Disposable {
 			this._updateService.state.type,
 			onSelect,
 			this._productService.defaultChatAgent?.upgradePlanUrl,
+			this._productService.defaultChatAgent?.manageSettingsUrl,
 			this._commandService,
 			this._entitlementService
 		);
