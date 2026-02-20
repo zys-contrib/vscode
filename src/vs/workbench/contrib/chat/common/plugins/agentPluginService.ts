@@ -21,15 +21,11 @@ export interface IAgentPluginHook {
 export interface IAgentPluginCommand {
 	readonly uri: URI;
 	readonly name: string;
-	readonly description?: string;
-	readonly content: string;
 }
 
 export interface IAgentPluginSkill {
 	readonly uri: URI;
 	readonly name: string;
-	readonly description?: string;
-	readonly content: string;
 }
 
 export interface IAgentPluginMcpServerDefinition {
@@ -39,6 +35,8 @@ export interface IAgentPluginMcpServerDefinition {
 
 export interface IAgentPlugin {
 	readonly uri: URI;
+	readonly enabled: IObservable<boolean>;
+	setEnabled(enabled: boolean): void;
 	readonly hooks: IObservable<readonly IAgentPluginHook[]>;
 	readonly commands: IObservable<readonly IAgentPluginCommand[]>;
 	readonly skills: IObservable<readonly IAgentPluginSkill[]>;
@@ -49,7 +47,6 @@ export interface IAgentPluginService {
 	readonly _serviceBrand: undefined;
 	readonly plugins: IObservable<readonly IAgentPlugin[]>;
 	readonly allPlugins: IObservable<readonly IAgentPlugin[]>;
-	readonly disabledPluginUris: IObservable<ReadonlySet<URI>>;
 	setPluginEnabled(pluginUri: URI, enabled: boolean): void;
 }
 

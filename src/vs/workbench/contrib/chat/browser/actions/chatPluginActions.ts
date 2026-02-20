@@ -80,7 +80,6 @@ class ManagePluginsAction extends Action2 {
 		const pluginMarketplaceService = accessor.get(IPluginMarketplaceService);
 
 		const allPlugins = agentPluginService.allPlugins.get();
-		const disabledUris = agentPluginService.disabledPluginUris.get();
 		const hasWorkspace = workspaceContextService.getWorkspace().folders.length > 0;
 
 		// Group plugins by parent directory label
@@ -105,7 +104,7 @@ class ManagePluginsAction extends Action2 {
 					kind: ManagePluginItemKind.Plugin,
 					label: pluginName,
 					plugin,
-					picked: !disabledUris.has(plugin.uri),
+					picked: plugin.enabled.get(),
 				};
 				if (item.picked) {
 					preselectedPluginItems.push(item);
@@ -157,11 +156,10 @@ class ManagePluginsAction extends Action2 {
 				return;
 			}
 
-			const currentPaths = configurationService.getValue<readonly unknown[]>(ChatConfiguration.PluginPaths) ?? [];
-			const normalizedPaths = currentPaths.filter((path): path is string => typeof path === 'string' && path.length > 0);
+			const currentPaths = configurationService.getValue<Record<string, boolean>>(ChatConfiguration.PluginPaths) ?? {};
 			const nextPath = folderUri.fsPath;
-			if (!normalizedPaths.includes(nextPath)) {
-				await configurationService.updateValue(ChatConfiguration.PluginPaths, [...normalizedPaths, nextPath], ConfigurationTarget.USER_LOCAL);
+			if (!Object.prototype.hasOwnProperty.call(currentPaths, nextPath)) {
+				await configurationService.updateValue(ChatConfiguration.PluginPaths, { ...currentPaths, [nextPath]: true }, ConfigurationTarget.USER_LOCAL);
 			}
 			return;
 		}
@@ -176,13 +174,13 @@ class ManagePluginsAction extends Action2 {
 
 		const enabledUris = new ResourceSet(result.selectedPluginItems.map(i => i.plugin.uri));
 		for (const plugin of allPlugins) {
-			const wasDisabled = disabledUris.has(plugin.uri);
+			const wasEnabled = plugin.enabled.get();
 			const isNowEnabled = enabledUris.has(plugin.uri);
 
-			if (wasDisabled && isNowEnabled) {
-				agentPluginService.setPluginEnabled(plugin.uri, true);
-			} else if (!wasDisabled && !isNowEnabled) {
-				agentPluginService.setPluginEnabled(plugin.uri, false);
+			if (!wasEnabled && isNowEnabled) {
+				plugin.setEnabled(true);
+			} else if (wasEnabled && !isNowEnabled) {
+				plugin.setEnabled(false);
 			}
 		}
 	}

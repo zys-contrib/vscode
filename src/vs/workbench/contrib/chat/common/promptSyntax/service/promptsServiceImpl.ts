@@ -142,6 +142,7 @@ export class PromptsService extends Disposable implements IPromptsService {
 	private readonly _contributedWhenKeys = new Set<string>();
 	private readonly _contributedWhenClauses = new Map<string, string>();
 	private readonly _onDidContributedWhenChange = this._register(new Emitter<void>());
+	private readonly _onDidPluginPromptFilesChange = this._register(new Emitter<void>());
 	private _pluginPromptFilesByType = new Map<PromptsType, readonly ILocalPromptPath[]>();
 
 	constructor(
@@ -190,12 +191,13 @@ export class PromptsService extends Disposable implements IPromptsService {
 				this.getFileLocatorEvent(PromptsType.skill),
 				Event.filter(modelChangeEvent, e => e.promptType === PromptsType.prompt),
 				Event.filter(modelChangeEvent, e => e.promptType === PromptsType.skill),
-				this._onDidContributedWhenChange.event),
+				this._onDidContributedWhenChange.event,
+				this._onDidPluginPromptFilesChange.event),
 		));
 
 		this.cachedSkills = this._register(new CachedPromise(
 			(token) => this.computeAgentSkills(token),
-			() => Event.any(this.getFileLocatorEvent(PromptsType.skill), Event.filter(modelChangeEvent, e => e.promptType === PromptsType.skill), this._onDidContributedWhenChange.event)
+			() => Event.any(this.getFileLocatorEvent(PromptsType.skill), Event.filter(modelChangeEvent, e => e.promptType === PromptsType.skill), this._onDidContributedWhenChange.event, this._onDidPluginPromptFilesChange.event)
 		));
 
 		this.cachedHooks = this._register(new CachedPromise(
@@ -222,7 +224,7 @@ export class PromptsService extends Disposable implements IPromptsService {
 
 	private watchPluginPromptFilesForType(
 		type: PromptsType,
-		getItems: (plugin: IAgentPlugin, reader: IReader) => readonly { uri: URI; name: string; description?: string }[],
+		getItems: (plugin: IAgentPlugin, reader: IReader) => readonly { uri: URI; name: string }[],
 	) {
 		return autorun(reader => {
 			const plugins = this.agentPluginService.plugins.read(reader);
@@ -234,14 +236,14 @@ export class PromptsService extends Disposable implements IPromptsService {
 						storage: PromptsStorage.local,
 						type,
 						name: getCanonicalPluginCommandId(plugin, item.name),
-						description: item.description,
 					});
 				}
 			}
 
 			nextFiles.sort((a, b) => `${a.name ?? ''}|${a.uri.toString()}`.localeCompare(`${b.name ?? ''}|${b.uri.toString()}`));
 			this._pluginPromptFilesByType.set(type, nextFiles);
-			this.invalidatePromptFileCache(type);
+			this.cachedFileLocations[type] = undefined;
+			this._onDidPluginPromptFilesChange.fire();
 		});
 	}
 

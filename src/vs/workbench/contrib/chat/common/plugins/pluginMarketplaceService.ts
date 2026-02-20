@@ -72,14 +72,16 @@ export class PluginMarketplaceService implements IPluginMarketplaceService {
 			try {
 				const context = await this._requestService.request({ type: 'GET', url }, token);
 				if (context.res.statusCode !== 200) {
+					this._logService.debug(`[PluginMarketplaceService] ${url} returned status ${context.res.statusCode}, skipping`);
 					continue;
 				}
 				const json = await asJson<IMarketplaceJson>(context);
 				if (!json?.plugins || !Array.isArray(json.plugins)) {
+					this._logService.debug(`[PluginMarketplaceService] ${url} did not contain a valid plugins array, skipping`);
 					continue;
 				}
 				return json.plugins
-					.filter((p): p is { name: string; description: string; version: string; source: string } =>
+					.filter((p): p is { name: string; description?: string; version?: string; source?: string } =>
 						typeof p.name === 'string' && !!p.name
 					)
 					.map(p => {

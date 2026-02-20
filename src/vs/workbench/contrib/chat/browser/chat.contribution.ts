@@ -624,12 +624,11 @@ configurationRegistry.registerConfiguration({
 			}
 		},
 		[ChatConfiguration.PluginPaths]: {
-			type: 'array',
-			items: {
-				type: 'string',
-			},
-			description: nls.localize('chat.plugins.paths', "Additional local plugin directories to discover. Each path should point directly to a plugin folder."),
-			default: [],
+			type: 'object',
+			additionalProperties: { type: 'boolean' },
+			restricted: true,
+			markdownDescription: nls.localize('chat.plugins.paths', "Plugin directories to discover. Each key is a path that points directly to a plugin folder, and the value enables (`true`) or disables (`false`) it. Paths can be absolute or relative to the workspace root."),
+			default: {},
 			scope: ConfigurationScope.MACHINE,
 			tags: ['experimental'],
 		},
