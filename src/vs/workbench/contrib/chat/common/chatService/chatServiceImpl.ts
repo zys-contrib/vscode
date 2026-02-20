@@ -445,7 +445,7 @@ export class ChatService extends Disposable implements IChatService {
 	}
 
 	startNewLocalSession(location: ChatAgentLocation, options?: IChatSessionStartOptions): IChatModelReference {
-		this.trace('startSession');
+		this.trace('startNewLocalSession');
 		const sessionResource = LocalChatSessionUri.forSession(generateUuid());
 		return this._sessionModels.acquireOrCreate({
 			initialData: undefined,
