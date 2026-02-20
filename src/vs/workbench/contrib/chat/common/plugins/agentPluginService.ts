@@ -39,6 +39,9 @@ export interface IAgentPlugin {
 export interface IAgentPluginService {
 	readonly _serviceBrand: undefined;
 	readonly plugins: IObservable<readonly IAgentPlugin[]>;
+	readonly allPlugins: IObservable<readonly IAgentPlugin[]>;
+	readonly disabledPluginUris: IObservable<ReadonlySet<URI>>;
+	setPluginEnabled(pluginUri: URI, enabled: boolean): void;
 }
 
 export interface IAgentPluginDiscovery extends IDisposable {

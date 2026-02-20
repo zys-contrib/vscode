@@ -78,6 +78,7 @@ import { ChatGettingStartedContribution } from './actions/chatGettingStarted.js'
 import { registerChatForkActions } from './actions/chatForkActions.js';
 import { registerChatExportActions } from './actions/chatImportExport.js';
 import { registerLanguageModelActions } from './actions/chatLanguageModelActions.js';
+import { registerChatPluginActions } from './actions/chatPluginActions.js';
 import { registerMoveActions } from './actions/chatMoveActions.js';
 import { registerNewChatActions } from './actions/chatNewActions.js';
 import { registerChatPromptNavigationActions } from './actions/chatPromptNavigationActions.js';
@@ -132,7 +133,8 @@ import './widget/input/editor/chatInputEditorContrib.js';
 import './widget/input/editor/chatInputEditorHover.js';
 import { LanguageModelToolsConfirmationService } from './tools/languageModelToolsConfirmationService.js';
 import { LanguageModelToolsService, globalAutoApproveDescription } from './tools/languageModelToolsService.js';
-import { AgentPluginService, ClaudeAgentPluginDiscovery, CopilotAgentPluginDiscovery } from '../common/plugins/agentPluginServiceImpl.js';
+import { AgentPluginService, ConfiguredAgentPluginDiscovery } from '../common/plugins/agentPluginServiceImpl.js';
+import { IPluginMarketplaceService, PluginMarketplaceService } from '../common/plugins/pluginMarketplaceService.js';
 import './promptSyntax/promptCodingAgentActionContribution.js';
 import './promptSyntax/promptToolsCodeLensProvider.js';
 import { ChatSlashCommandsContribution } from './chatSlashCommands.js';
@@ -621,18 +623,6 @@ configurationRegistry.registerConfiguration({
 				},
 			}
 		},
-		[ChatConfiguration.CopilotPluginsEnabled]: {
-			type: 'boolean',
-			description: nls.localize('chat.plugins.copilot.enabled', "Enable discovery of Copilot-compatible agent plugins in the workspace."),
-			default: true,
-			tags: ['experimental'],
-		},
-		[ChatConfiguration.ClaudePluginsEnabled]: {
-			type: 'boolean',
-			description: nls.localize('chat.plugins.claude.enabled', "Enable discovery of Claude-compatible agent plugins in the workspace."),
-			default: false,
-			tags: ['experimental'],
-		},
 		[ChatConfiguration.PluginPaths]: {
 			type: 'array',
 			items: {
@@ -641,6 +631,16 @@ configurationRegistry.registerConfiguration({
 			description: nls.localize('chat.plugins.paths', "Additional local plugin directories to discover. Each path should point directly to a plugin folder."),
 			default: [],
 			scope: ConfigurationScope.MACHINE,
+			tags: ['experimental'],
+		},
+		[ChatConfiguration.PluginMarketplaces]: {
+			type: 'array',
+			items: {
+				type: 'string',
+			},
+			markdownDescription: nls.localize('chat.plugins.marketplaces', "GitHub repositories to use as plugin marketplaces. Each entry should be in `owner/repo` format."),
+			default: ['github/copilot-plugins', 'github/awesome-copilot'],
+			scope: ConfigurationScope.APPLICATION,
 			tags: ['experimental'],
 		},
 		[ChatConfiguration.AgentEnabled]: {
@@ -1548,11 +1548,11 @@ registerChatEditorActions();
 registerChatElicitationActions();
 registerChatToolActions();
 registerLanguageModelActions();
+registerChatPluginActions();
 registerAction2(ConfigureToolSets);
 registerEditorFeature(ChatPasteProvidersFeature);
 
-agentPluginDiscoveryRegistry.register(new SyncDescriptor(CopilotAgentPluginDiscovery));
-agentPluginDiscoveryRegistry.register(new SyncDescriptor(ClaudeAgentPluginDiscovery));
+agentPluginDiscoveryRegistry.register(new SyncDescriptor(ConfiguredAgentPluginDiscovery));
 
 
 registerSingleton(IChatTransferService, ChatTransferService, InstantiationType.Delayed);
@@ -1569,6 +1569,7 @@ registerSingleton(IChatAgentService, ChatAgentService, InstantiationType.Delayed
 registerSingleton(IChatAgentNameService, ChatAgentNameService, InstantiationType.Delayed);
 registerSingleton(IChatVariablesService, ChatVariablesService, InstantiationType.Delayed);
 registerSingleton(IAgentPluginService, AgentPluginService, InstantiationType.Delayed);
+registerSingleton(IPluginMarketplaceService, PluginMarketplaceService, InstantiationType.Delayed);
 registerSingleton(ILanguageModelToolsService, LanguageModelToolsService, InstantiationType.Delayed);
 registerSingleton(ILanguageModelToolsConfirmationService, LanguageModelToolsConfirmationService, InstantiationType.Delayed);
 registerSingleton(IVoiceChatService, VoiceChatService, InstantiationType.Delayed);

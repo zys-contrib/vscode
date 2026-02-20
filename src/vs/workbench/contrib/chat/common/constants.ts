@@ -10,9 +10,8 @@ import { RawContextKey } from '../../../../platform/contextkey/common/contextkey
 
 export enum ChatConfiguration {
 	AIDisabled = 'chat.disableAIFeatures',
-	CopilotPluginsEnabled = 'chat.plugins.copilot.enabled',
-	ClaudePluginsEnabled = 'chat.plugins.claude.enabled',
 	PluginPaths = 'chat.plugins.paths',
+	PluginMarketplaces = 'chat.plugins.marketplaces',
 	AgentEnabled = 'chat.agent.enabled',
 	PlanAgentDefaultModel = 'chat.planAgent.defaultModel',
 	ExploreAgentDefaultModel = 'chat.exploreAgent.defaultModel',
