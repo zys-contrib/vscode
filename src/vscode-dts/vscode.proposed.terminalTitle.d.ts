@@ -15,10 +15,10 @@ declare module 'vscode' {
 		 * behavior (which uses the `name` as a static title) and instead uses the template for
 		 * dynamic title resolution.
 		 *
-		 * For example, setting `title` to `"${sequence}"` allows the terminal's escape sequence
+		 * For example, setting `titleTemplate` to `"${sequence}"` allows the terminal's escape sequence
 		 * title to be used as the tab title.
 		 */
-		title?: string;
+		titleTemplate?: string;
 	}
 
 	export interface ExtensionTerminalOptions {
@@ -29,9 +29,9 @@ declare module 'vscode' {
 		 * behavior (which uses the `name` as a static title) and instead uses the template for
 		 * dynamic title resolution.
 		 *
-		 * For example, setting `title` to `"${sequence}"` allows the terminal's escape sequence
+		 * For example, setting `titleTemplate` to `"${sequence}"` allows the terminal's escape sequence
 		 * title to be used as the tab title.
 		 */
-		title?: string;
+		titleTemplate?: string;
 	}
 }

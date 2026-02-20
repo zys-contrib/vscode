@@ -81,7 +81,7 @@ export class TerminalProfileQuickpick {
 					extensionIdentifier: string;
 					id: string;
 					title: string;
-					tabTitle?: string;
+					titleTemplate?: string;
 					options: {
 						icon: IExtensionTerminalProfile['icon'];
 						color: IExtensionTerminalProfile['color'];
@@ -95,8 +95,8 @@ export class TerminalProfileQuickpick {
 						color: result.profile.color,
 					}
 				};
-				if (result.profile.tabTitle !== undefined) {
-					config.tabTitle = result.profile.tabTitle;
+				if (result.profile.titleTemplate !== undefined) {
+					config.titleTemplate = result.profile.titleTemplate;
 				}
 				return {
 					config,
@@ -191,7 +191,7 @@ export class TerminalProfileQuickpick {
 					icon: contributed.icon,
 					id: contributed.id,
 					color: contributed.color,
-					tabTitle: contributed.tabTitle
+					titleTemplate: contributed.titleTemplate
 				},
 				profileName: contributed.title,
 				iconClasses

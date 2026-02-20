@@ -257,7 +257,7 @@ export class TerminalService extends Disposable implements ITerminalService {
 					icon: result.config.options?.icon,
 					color: result.config.options?.color,
 					location: !!(keyMods?.alt && activeInstance) ? { splitActiveTerminal: true } : defaultLocation,
-					title: result.config.tabTitle,
+					titleTemplate: result.config.titleTemplate,
 				});
 				return;
 			} else if (result.config && hasKey(result.config, { profileName: true })) {
@@ -1033,7 +1033,7 @@ export class TerminalService extends Disposable implements ITerminalService {
 				color: contributedProfile.color,
 				location,
 				cwd: shellLaunchConfig.cwd,
-				title: contributedProfile.tabTitle,
+				titleTemplate: contributedProfile.titleTemplate,
 			});
 			const instanceHost = resolvedLocation === TerminalLocation.Editor ? this._terminalEditorService : this._terminalGroupService;
 			// TODO@meganrogge: This returns undefined in the remote & web smoke tests but the function

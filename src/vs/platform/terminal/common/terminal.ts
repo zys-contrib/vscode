@@ -677,7 +677,7 @@ export interface IShellLaunchConfig {
 	 * `terminal.integrated.tabs.title` setting. When set, this overrides the config-based
 	 * title template for this terminal instance.
 	 */
-	title?: string;
+	titleTemplate?: string;
 }
 
 export interface ITerminalTabAction {
@@ -693,7 +693,7 @@ export interface ICreateContributedTerminalProfileOptions {
 	color?: string;
 	location?: TerminalLocation | { viewColumn: number; preserveState?: boolean } | { splitActiveTerminal: boolean };
 	cwd?: string | URI;
-	title?: string;
+	titleTemplate?: string;
 }
 
 export enum TerminalLocation {
@@ -721,7 +721,7 @@ export interface IShellLaunchConfigDto {
 	isFeatureTerminal?: boolean;
 	tabActions?: ITerminalTabAction[];
 	shellIntegrationEnvironmentReporting?: boolean;
-	title?: string;
+	titleTemplate?: string;
 }
 
 /**
@@ -971,7 +971,7 @@ export interface ITerminalProfileContribution {
 	id: string;
 	icon?: URI | { light: URI; dark: URI } | string;
 	color?: string;
-	tabTitle?: string;
+	titleTemplate?: string;
 }
 
 export interface IExtensionTerminalProfile extends ITerminalProfileContribution {

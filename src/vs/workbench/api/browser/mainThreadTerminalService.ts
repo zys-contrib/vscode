@@ -174,7 +174,7 @@ export class MainThreadTerminalService extends Disposable implements MainThreadT
 			useShellEnvironment: launchConfig.useShellEnvironment,
 			isTransient: launchConfig.isTransient,
 			shellIntegrationNonce: launchConfig.shellIntegrationNonce,
-			title: launchConfig.title,
+			titleTemplate: launchConfig.titleTemplate,
 		};
 		const terminal = Promises.withAsyncBody<ITerminalInstance>(async r => {
 			const terminal = await this._terminalService.createTerminal({
@@ -417,7 +417,7 @@ export class MainThreadTerminalService extends Disposable implements MainThreadT
 			env: terminalInstance.shellLaunchConfig.env,
 			hideFromUser: terminalInstance.shellLaunchConfig.hideFromUser,
 			tabActions: terminalInstance.shellLaunchConfig.tabActions,
-			title: terminalInstance.shellLaunchConfig.title
+			titleTemplate: terminalInstance.shellLaunchConfig.titleTemplate
 		};
 		this._proxy.$acceptTerminalOpened(terminalInstance.instanceId, extHostTerminalId, terminalInstance.title, shellLaunchConfigDto);
 	}
