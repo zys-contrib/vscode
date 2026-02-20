@@ -659,9 +659,7 @@ function getModelHoverContent(model: ILanguageModelChatMetadataAndIdentifier): M
 	}
 
 	if (model.metadata.multiplier) {
-		markdown.appendMarkdown(`${localize('models.cost', 'Multiplier')}: `);
-		markdown.appendMarkdown(model.metadata.multiplier);
-		markdown.appendMarkdown(` - ${localize('multiplier.tooltip', "each chat message counts {0} toward your premium request quota", model.metadata.multiplier)}`);
+		markdown.appendMarkdown(`${localize('multiplier.tooltip', "Each chat message counts {0} toward your premium request quota", model.metadata.multiplier)}`);
 		markdown.appendText(`\n`);
 	}
 
