@@ -380,7 +380,6 @@ function createUnavailableModelItem(
 	section?: string,
 ): IActionListItem<IActionWidgetDropdownAction> {
 	let description: string | MarkdownString | undefined;
-	let icon: ThemeIcon = Codicon.blank;
 
 	if (reason === 'upgrade') {
 		description = upgradePlanUrl
@@ -388,10 +387,8 @@ function createUnavailableModelItem(
 			: localize('chat.modelPicker.upgrade', "Upgrade");
 	} else if (reason === 'update') {
 		description = localize('chat.modelPicker.updateDescription', "Update VS Code");
-		icon = Codicon.warning;
 	} else {
-		description = localize('chat.modelPicker.adminDescription', "Contact admin");
-		icon = Codicon.warning;
+		description = localize('chat.modelPicker.adminDescription', "Contact your admin");
 	}
 
 	let hoverContent: MarkdownString;
@@ -422,7 +419,7 @@ function createUnavailableModelItem(
 		label: entry.label,
 		description,
 		disabled: true,
-		group: { title: '', icon },
+		group: { title: '', icon: Codicon.blank },
 		hideIcon: false,
 		section,
 		hover: { content: hoverContent },
@@ -556,7 +553,7 @@ export class ModelPickerWidget extends Disposable {
 
 		const listOptions = {
 			showFilter: models.length >= 10,
-			filterPlaceholder: localize('chat.modelPicker.search', "Search models..."),
+			filterPlaceholder: localize('chat.modelPicker.search', "Search models"),
 			collapsedByDefault: new Set([ModelPickerSection.Other]),
 			minWidth: 300,
 		};
