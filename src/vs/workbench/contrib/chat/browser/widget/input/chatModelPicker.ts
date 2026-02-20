@@ -419,7 +419,7 @@ function createUnavailableModelItem(
 		label: entry.label,
 		description,
 		disabled: true,
-		group: { title: '', icon: Codicon.blank },
+		group: { title: '' },
 		hideIcon: false,
 		section,
 		hover: { content: hoverContent },
