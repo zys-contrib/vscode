@@ -420,7 +420,6 @@ function createUnavailableModelItem(
 		label: entry.label,
 		description,
 		disabled: true,
-		group: { title: '' },
 		hideIcon: false,
 		section,
 		hover: { content: hoverContent },
