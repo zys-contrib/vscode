@@ -29,6 +29,7 @@ import { MarshalledId } from '../../../base/common/marshallingIds.js';
 import { ISerializedTerminalInstanceContext } from '../../contrib/terminal/common/terminal.js';
 import { isWindows } from '../../../base/common/platform.js';
 import { hasKey } from '../../../base/common/types.js';
+import { checkProposedApiEnabled } from '../../services/extensions/common/extensions.js';
 
 export interface IExtHostTerminalService extends ExtHostTerminalServiceShape, IDisposable {
 
@@ -425,7 +426,7 @@ export abstract class BaseExtHostTerminalService extends Disposable implements I
 	private readonly _bufferer: TerminalDataBufferer;
 	private readonly _linkProviders: Set<vscode.TerminalLinkProvider> = new Set();
 	private readonly _completionProviders: Map<string, vscode.TerminalCompletionProvider<vscode.TerminalCompletionItem>> = new Map();
-	private readonly _profileProviders: Map<string, vscode.TerminalProfileProvider> = new Map();
+	private readonly _profileProviders: Map<string, { provider: vscode.TerminalProfileProvider; extension: IExtensionDescription }> = new Map();
 	private readonly _quickFixProviders: Map<string, vscode.TerminalQuickFixProvider> = new Map();
 	private readonly _terminalLinkCache: Map<number, Map<number, ICachedLinkEntry>> = new Map();
 	private readonly _terminalLinkCancellationSource: Map<number, CancellationTokenSource> = new Map();
@@ -752,7 +753,7 @@ export abstract class BaseExtHostTerminalService extends Disposable implements I
 		if (this._profileProviders.has(id)) {
 			throw new Error(`Terminal profile provider "${id}" already registered`);
 		}
-		this._profileProviders.set(id, provider);
+		this._profileProviders.set(id, { provider, extension });
 		this._proxy.$registerProfileProvider(id, extension.identifier.value);
 		return new VSCodeDisposable(() => {
 			this._profileProviders.delete(id);
@@ -845,7 +846,11 @@ export abstract class BaseExtHostTerminalService extends Disposable implements I
 
 	public async $createContributedProfileTerminal(id: string, options: ICreateContributedTerminalProfileOptions): Promise<void> {
 		const token = new CancellationTokenSource().token;
-		let profile = await this._profileProviders.get(id)?.provideTerminalProfile(token);
+		const profileProviderData = this._profileProviders.get(id);
+		if (!profileProviderData) {
+			throw new Error(`No terminal profile provider registered for id "${id}"`);
+		}
+		let profile = await profileProviderData.provider.provideTerminalProfile(token);
 		if (token.isCancellationRequested) {
 			return;
 		}
@@ -855,6 +860,10 @@ export abstract class BaseExtHostTerminalService extends Disposable implements I
 
 		if (!profile || !hasKey(profile, { options: true })) {
 			throw new Error(`No terminal profile options provided for id "${id}"`);
+		}
+
+		if (profile.options.titleTemplate !== undefined) {
+			checkProposedApiEnabled(profileProviderData.extension, 'terminalTitle');
 		}
 
 		const profileOptions = options.titleTemplate && !profile.options.titleTemplate
