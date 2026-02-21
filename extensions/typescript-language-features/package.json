@@ -1366,22 +1366,44 @@
         "type": "object",
         "title": "%configuration.validation%",
         "properties": {
+          "js/ts.validate.enabled": {
+            "type": "boolean",
+            "default": true,
+            "description": "%configuration.validate.enable%",
+            "scope": "language-overridable",
+            "tags": [
+              "JavaScript",
+              "TypeScript"
+            ]
+          },
           "typescript.validate.enable": {
             "type": "boolean",
             "default": true,
             "description": "%typescript.validate.enable%",
+            "markdownDeprecationMessage": "%configuration.validate.enable.unifiedDeprecationMessage%",
             "scope": "window"
           },
           "javascript.validate.enable": {
             "type": "boolean",
             "default": true,
             "description": "%javascript.validate.enable%",
+            "markdownDeprecationMessage": "%configuration.validate.enable.unifiedDeprecationMessage%",
             "scope": "window"
+          },
+          "js/ts.reportStyleChecksAsWarnings": {
+            "type": "boolean",
+            "default": true,
+            "description": "%typescript.reportStyleChecksAsWarnings%",
+            "scope": "window",
+            "tags": [
+              "TypeScript"
+            ]
           },
           "typescript.reportStyleChecksAsWarnings": {
             "type": "boolean",
             "default": true,
             "description": "%typescript.reportStyleChecksAsWarnings%",
+            "markdownDeprecationMessage": "%configuration.reportStyleChecksAsWarnings.unifiedDeprecationMessage%",
             "scope": "window"
           },
           "js/ts.suggestionActions.enabled": {
