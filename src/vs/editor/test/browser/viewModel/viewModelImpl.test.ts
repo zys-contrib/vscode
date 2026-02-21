@@ -616,5 +616,37 @@ suite('ViewModel', () => {
 				}
 			});
 		});
+
+		test('tab size change with drifted hidden area decorations must not leave 0 visible lines', () => {
+			const text = [
+				'line1',
+				'line2',
+				'line3',
+			];
+			testViewModel(text, {}, (viewModel, model) => {
+				// Hide lines 1-2, leaving only line 3 visible.
+				viewModel.setHiddenAreas([new Range(1, 1, 2, 1)]);
+				assert.strictEqual(viewModel.getLineCount(), 1);
+
+				// Insert at (2,1) — the end edge of the hidden area decoration.
+				// AlwaysGrowsWhenTypingAtEdges causes the decoration to grow from
+				// [1,1 → 2,1] to [1,1 → 3,1], covering what was the visible line 3.
+				// After this insert, the file has 4 lines, decoration covers [1-3], line 4 visible.
+				model.applyEdits([{ range: new Range(2, 1, 2, 1), text: 'x\n' }]);
+				// Insert again to push decoration further
+				model.applyEdits([{ range: new Range(3, 1, 3, 1), text: 'y\n' }]);
+				// Now file has 5 lines, decoration covers [1-4], line 5 visible.
+
+				// Delete lines 4-5 to collapse back, making decoration cover everything
+				model.applyEdits([{ range: new Range(4, 1, 5, 6), text: '' }]);
+				// Now file has 4 lines. acceptVersionId ensures viewLines >= 1.
+
+				// Tab size change: triggers _constructLines(resetHiddenAreas=false)
+				// which re-reads the decoration ranges (which may cover all lines).
+				model.updateOptions({ tabSize: 8 });
+
+				assert.ok(viewModel.getLineCount() >= 1, `expected at least 1 view line but got ${viewModel.getLineCount()}`);
+			});
+		});
 	});
 });
