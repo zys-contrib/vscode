@@ -423,9 +423,12 @@ export class ViewModelLinesFromProjectedModel implements IViewModelLines {
 
 	public acceptVersionId(versionId: number): void {
 		this._validModelVersionId = versionId;
-		if (this.modelLineProjections.length === 1 && !this.modelLineProjections[0].isVisible()) {
-			// At least one line must be visible => reset hidden areas
-			this.setHiddenAreas([]);
+		if (this.getViewLineCount() === 0 && this.modelLineProjections.length > 0) {
+			// At least one line must be visible.
+			// An edit caused all visible lines to be removed/merged into hidden lines.
+			// Make just the first line visible to minimally disrupt the intended hidden areas.
+			this.modelLineProjections[0] = this.modelLineProjections[0].setVisible(true);
+			this.projectedModelLineLineCounts.setValue(0, this.modelLineProjections[0].getViewLineCount());
 		}
 	}
 

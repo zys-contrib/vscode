@@ -426,4 +426,165 @@ suite('ViewModel', () => {
 			}
 		);
 	});
+
+	suite('hidden areas must always leave at least one visible line', () => {
+
+		test('replacing the only visible line content does not make it hidden', () => {
+			const text = [
+				'line1',
+				'line2',
+				'line3',
+			];
+			testViewModel(text, {}, (viewModel, model) => {
+				// Hide lines 1 and 3, leaving only line 2 visible
+				viewModel.setHiddenAreas([
+					new Range(1, 1, 1, 1),
+					new Range(3, 1, 3, 1),
+				]);
+				assert.strictEqual(viewModel.getLineCount(), 1);
+
+				// Replace line 2 content entirely
+				model.applyEdits([{
+					range: new Range(2, 1, 2, 6),
+					text: 'new content'
+				}]);
+
+				assert.ok(viewModel.getLineCount() >= 1, `expected at least 1 view line but got ${viewModel.getLineCount()}`);
+			});
+		});
+
+		test('deleting the only visible line when it is the last line', () => {
+			const text = [
+				'line1',
+				'line2',
+				'line3',
+			];
+			testViewModel(text, {}, (viewModel, model) => {
+				// Hide lines 1-2, leaving only line 3 visible
+				viewModel.setHiddenAreas([new Range(1, 1, 2, 1)]);
+				assert.strictEqual(viewModel.getLineCount(), 1);
+
+				// Delete line 3 by merging it into line 2
+				model.applyEdits([{
+					range: new Range(2, 6, 3, 6),
+					text: null
+				}]);
+
+				assert.ok(viewModel.getLineCount() >= 1, `expected at least 1 view line but got ${viewModel.getLineCount()}`);
+			});
+		});
+
+		test('deleting the only visible line when it is in the middle', () => {
+			const text = [
+				'line1',
+				'line2',
+				'line3',
+				'line4',
+				'line5',
+			];
+			testViewModel(text, {}, (viewModel, model) => {
+				// Hide lines 1-2 and 4-5, leaving only line 3 visible
+				viewModel.setHiddenAreas([
+					new Range(1, 1, 2, 1),
+					new Range(4, 1, 5, 1),
+				]);
+				assert.strictEqual(viewModel.getLineCount(), 1);
+
+				// Delete line 3 by merging adjacent lines
+				model.applyEdits([{
+					range: new Range(2, 6, 4, 1),
+					text: null
+				}]);
+
+				assert.ok(viewModel.getLineCount() >= 1, `expected at least 1 view line but got ${viewModel.getLineCount()}`);
+			});
+		});
+
+		test('undo that removes the only visible line', () => {
+			const text = [
+				'line1',
+			];
+			testViewModel(text, {}, (viewModel, model) => {
+				assert.strictEqual(viewModel.getLineCount(), 1);
+
+				// Insert lines to create content
+				model.pushEditOperations([], [{
+					range: new Range(1, 6, 1, 6),
+					text: '\nline2\nline3\nline4\nline5'
+				}], () => ([]));
+
+				assert.strictEqual(viewModel.getLineCount(), 5);
+
+				// Hide lines 1-2 and 4-5, leaving only line 3 visible
+				viewModel.setHiddenAreas([
+					new Range(1, 1, 2, 1),
+					new Range(4, 1, 5, 1),
+				]);
+				assert.strictEqual(viewModel.getLineCount(), 1);
+
+				// Undo collapses back to 1 line, but hidden area decorations may grow
+				model.undo();
+
+				assert.ok(viewModel.getLineCount() >= 1, `expected at least 1 view line but got ${viewModel.getLineCount()}`);
+			});
+		});
+
+		test('deleting the only visible line between two hidden areas leaves all lines hidden', () => {
+			const text = [
+				'line1',
+				'line2',
+				'line3',
+				'line4',
+				'line5',
+				'line6',
+				'line7',
+				'line8',
+			];
+			testViewModel(text, {}, (viewModel, model) => {
+				assert.strictEqual(viewModel.getLineCount(), 8);
+
+				// Hide lines 1-5 and 7-8, leaving only line 6 visible
+				viewModel.setHiddenAreas([
+					new Range(1, 1, 5, 1),
+					new Range(7, 1, 8, 1),
+				]);
+				assert.strictEqual(viewModel.getLineCount(), 1);
+
+				// Delete lines 6, 7, 8 — the only visible line plus some hidden ones
+				model.applyEdits([{
+					range: new Range(6, 1, 8, 5),
+					text: null
+				}]);
+
+				// The view model must still have at least one visible line
+				assert.ok(viewModel.getLineCount() >= 1, `expected at least 1 view line but got ${viewModel.getLineCount()}`);
+			});
+		});
+
+		test('multiple visible lines deleted leaving only hidden lines', () => {
+			const text = [
+				'hidden1',
+				'hidden2',
+				'visible1',
+				'visible2',
+				'hidden3',
+				'hidden4',
+			];
+			testViewModel(text, {}, (viewModel, model) => {
+				viewModel.setHiddenAreas([
+					new Range(1, 1, 2, 1),
+					new Range(5, 1, 6, 1),
+				]);
+				assert.strictEqual(viewModel.getLineCount(), 2);
+
+				// Delete visible lines 3 and 4
+				model.applyEdits([{
+					range: new Range(2, 8, 5, 1),
+					text: null
+				}]);
+
+				assert.ok(viewModel.getLineCount() >= 1, `expected at least 1 view line but got ${viewModel.getLineCount()}`);
+			});
+		});
+	});
 });
