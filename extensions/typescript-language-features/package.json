@@ -650,7 +650,7 @@
                 ],
                 "markdownEnumDescriptions": [
                   "%typescript.preferences.organizeImports.caseSensitivity.auto%",
-                  "%typescript.preferences.organizeImports.caseSensitivity.insensitive",
+                  "%typescript.preferences.organizeImports.caseSensitivity.insensitive%",
                   "%typescript.preferences.organizeImports.caseSensitivity.sensitive%"
                 ],
                 "default": "auto"
@@ -733,7 +733,7 @@
                 ],
                 "markdownEnumDescriptions": [
                   "%typescript.preferences.organizeImports.caseSensitivity.auto%",
-                  "%typescript.preferences.organizeImports.caseSensitivity.insensitive",
+                  "%typescript.preferences.organizeImports.caseSensitivity.insensitive%",
                   "%typescript.preferences.organizeImports.caseSensitivity.sensitive%"
                 ],
                 "default": "auto"
