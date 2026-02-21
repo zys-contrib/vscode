@@ -586,5 +586,35 @@ suite('ViewModel', () => {
 				assert.ok(viewModel.getLineCount() >= 1, `expected at least 1 view line but got ${viewModel.getLineCount()}`);
 			});
 		});
+
+		test('hidden areas from multiple sources that overlap produce valid merged result', () => {
+			const text: string[] = [];
+			for (let i = 1; i <= 10; i++) {
+				text.push(`line${i}`);
+			}
+			testViewModel(text, {}, (viewModel, model) => {
+				// Source A hides a large range [1-8].
+				// Source B hides small ranges [2-3] and [5-6] that are subsumed by A.
+				// mergeLineRangeArray has a bug where it advances both pointers after
+				// merging [1-8]+[2-3]=[1-8], leaving [5-6] and [8,9] as separate entries
+				// that overlap with or are subsumed by [1-8].
+				// normalizeLineRanges in setHiddenAreas cleans this up, so the result
+				// should still be correct: lines 1-8 hidden, lines 9-10 visible.
+				viewModel.setHiddenAreas([new Range(1, 1, 8, 1)], 'sourceA');
+				viewModel.setHiddenAreas([new Range(2, 1, 3, 1), new Range(5, 1, 6, 1), new Range(8, 1, 9, 1)], 'sourceB');
+
+				// Lines 1-9 should be hidden (merged from [1-8] and [8-9]), line 10 visible
+				assert.strictEqual(viewModel.getLineCount(), 1, 'only line 10 should be visible');
+
+				// The hidden areas returned should be non-overlapping and sorted
+				const hiddenAreas = viewModel.getHiddenAreas();
+				for (let i = 1; i < hiddenAreas.length; i++) {
+					assert.ok(
+						hiddenAreas[i].startLineNumber > hiddenAreas[i - 1].endLineNumber,
+						`hidden areas should not overlap: [${hiddenAreas[i - 1].startLineNumber}-${hiddenAreas[i - 1].endLineNumber}] and [${hiddenAreas[i].startLineNumber}-${hiddenAreas[i].endLineNumber}]`
+					);
+				}
+			});
+		});
 	});
 });
