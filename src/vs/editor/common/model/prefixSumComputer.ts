@@ -236,7 +236,7 @@ export class ConstantTimePrefixSumComputer {
 		this._ensureValid();
 		const idx = this._indexBySum[sum];
 		if (idx === undefined) {
-			// sum is out of bounds (e.g. all values are zero)
+			// sum does not have a direct entry in _indexBySum (e.g. sum >= getTotalSum() or the array is empty / all values are zero)
 			const lastIdx = Math.max(0, this._values.length - 1);
 			const lastPrefixSum = lastIdx > 0 ? this._prefixSum[lastIdx - 1] : 0;
 			return new PrefixSumIndexOfResult(lastIdx, sum - lastPrefixSum);
