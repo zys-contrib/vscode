@@ -31,7 +31,7 @@
 	"typescript.validate.enable": "Enable/disable TypeScript validation.",
 	"javascript.validate.enable": "Enable/disable JavaScript validation.",
 	"configuration.validate.enable": "Enable/disable JavaScript and TypeScript validation.",
-	"configuration.validate.enable.unifiedDeprecationMessage": "This setting is deprecated. Use `#js/ts.validate.enable#` instead.",
+	"configuration.validate.enable.unifiedDeprecationMessage": "This setting is deprecated. Use `#js/ts.validate.enabled#` instead.",
 	"typescript.format.enable": "Enable/disable default TypeScript formatter.",
 	"javascript.format.enable": "Enable/disable default JavaScript formatter.",
 	"format.insertSpaceAfterCommaDelimiter": "Defines space handling after a comma delimiter.",
