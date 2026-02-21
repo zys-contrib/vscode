@@ -229,6 +229,7 @@ suite('Editor ViewModel - PrefixSumComputer', () => {
 			assert.deepStrictEqual(psc.getIndexOf(5), new PrefixSumIndexOfResult(4, 0));
 			assert.deepStrictEqual(psc.getIndexOf(6), new PrefixSumIndexOfResult(4, 1));
 			assert.deepStrictEqual(psc.getIndexOf(7), new PrefixSumIndexOfResult(4, 2));
+			assert.deepStrictEqual(psc.getIndexOf(8), new PrefixSumIndexOfResult(4, 3));
 		});
 	});
 
