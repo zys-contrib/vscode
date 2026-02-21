@@ -299,7 +299,7 @@ export class AgentFeedbackHover extends Disposable {
 		const MAX_ROWS = 8;
 		const totalRows = commentElements.length + children.length;
 		const treeHeight = Math.min(totalRows * ROW_HEIGHT, MAX_ROWS * ROW_HEIGHT);
-		tree.layout(treeHeight, 380);
+		tree.layout(treeHeight, 200);
 		treeContainer.style.height = `${treeHeight}px`;
 
 		return {
