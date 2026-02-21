@@ -513,8 +513,8 @@ export default class BufferSyncSupport extends Disposable {
 
 		this._register(vscode.workspace.onDidChangeConfiguration((e) => {
 			if (e.affectsConfiguration(`${unifiedConfigSection}.validate.enabled`)
-				|| e.affectsConfiguration('typescript.validate.enabled')
-				|| e.affectsConfiguration('javascript.validate.enabled')
+				|| e.affectsConfiguration('typescript.validate.enable')
+				|| e.affectsConfiguration('javascript.validate.enable')
 			) {
 				this.requestAllDiagnostics();
 			}
