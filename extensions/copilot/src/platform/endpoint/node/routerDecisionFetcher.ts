@@ -86,7 +86,10 @@ export class RouterDecisionFetcher {
 			const errorText = await response.text().catch(() => '');
 			let errorCode: string | undefined;
 			try {
-				errorCode = JSON.parse(errorText).error;
+				const parsed = JSON.parse(errorText);
+				if (typeof parsed === 'object' && parsed !== null && 'error' in parsed && typeof parsed.error === 'string') {
+					errorCode = parsed.error;
+				}
 			} catch { /* not JSON */ }
 			throw new RouterDecisionError(`Router decision request failed with status ${response.status}: ${response.statusText}`, errorCode || errorText);
 		}
