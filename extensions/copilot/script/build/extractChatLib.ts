@@ -634,21 +634,55 @@ class ChatLibExtractor {
 	}
 
 	private async copyVSCodeProposedTypes(): Promise<void> {
-		console.log('Copying VS Code proposed API types...');
+		console.log('Copying vscode*.d.ts files referenced by vscode-api.d.ts...');
 
-		// Find all vscode.proposed.*.d.ts files in src/extension/
-		const extensionDir = path.join(REPO_ROOT, 'src', 'extension');
-		const proposedTypeFiles = await glob('vscode.proposed.*.d.ts', { cwd: extensionDir });
+		const vscodeApiSrcPath = path.join(REPO_ROOT, 'src', 'vscode-api.d.ts');
+		if (!fs.existsSync(vscodeApiSrcPath)) {
+			throw new Error(`vscode-api.d.ts not found at ${vscodeApiSrcPath}`);
+		}
 
-		for (const file of proposedTypeFiles) {
-			const srcPath = path.join(extensionDir, file);
-			const destPath = path.join(TARGET_DIR, '_internal', 'extension', file);
+		const content = await fs.promises.readFile(vscodeApiSrcPath, 'utf-8');
 
-			await fs.promises.mkdir(path.dirname(destPath), { recursive: true });
+		// Parse all /// <reference path="..." /> directives
+		const refRegex = /\/\/\/\s*<reference\s+path="([^"]+)"\s*\/>/g;
+		let match;
+		const referencedFiles: { refPath: string; fileName: string }[] = [];
+
+		while ((match = refRegex.exec(content)) !== null) {
+			const refPath = match[1];
+			const fileName = path.basename(refPath);
+			referencedFiles.push({ refPath, fileName });
+		}
+
+		// Copy each referenced .d.ts file from the vscode repo
+		const vscodeDtsDestDir = path.join(TARGET_DIR, '_internal', 'vscode-dts');
+		await fs.promises.mkdir(vscodeDtsDestDir, { recursive: true });
+
+		for (const { refPath, fileName } of referencedFiles) {
+			// Resolve the reference path relative to the source file
+			const srcPath = path.resolve(path.dirname(vscodeApiSrcPath), refPath);
+			if (!fs.existsSync(srcPath)) {
+				console.warn(`Warning: Referenced file not found: ${srcPath}`);
+				continue;
+			}
+
+			const destPath = path.join(vscodeDtsDestDir, fileName);
 			await fs.promises.copyFile(srcPath, destPath);
 		}
 
-		console.log(`Copied ${proposedTypeFiles.length} VS Code proposed API type files`);
+		// Copy vscode-api.d.ts itself, updating reference paths
+		const updatedContent = content.replace(
+			/\/\/\/\s*<reference\s+path="([^"]+)"\s*\/>/g,
+			(_match, refPath: string) => {
+				const fileName = path.basename(refPath);
+				return `/// <reference path="./vscode-dts/${fileName}" />`;
+			}
+		);
+
+		const vscodeApiDestPath = path.join(TARGET_DIR, '_internal', 'vscode-api.d.ts');
+		await fs.promises.writeFile(vscodeApiDestPath, updatedContent);
+
+		console.log(`Copied vscode-api.d.ts and ${referencedFiles.length} referenced .d.ts files`);
 	}
 
 	private async copyTikTokenFiles(): Promise<void> {
