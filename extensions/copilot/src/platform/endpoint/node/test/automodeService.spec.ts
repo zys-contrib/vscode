@@ -758,12 +758,10 @@ describe('AutomodeService', () => {
 			const result = await automodeService.resolveAutoModeEndpoint(chatRequest as ChatRequest, [gpt4oEndpoint, claudeEndpoint]);
 			expect(result.model).toBe('gpt-4o');
 			// Verify router WAS called (not skipped)
-			expect(mockCAPIClientService.makeRequest).toHaveBeenCalledWith(
-				expect.objectContaining({
-					body: expect.stringContaining('"has_image":true')
-				}),
-				expect.objectContaining({ type: RequestType.ModelRouter })
-			);
+			const routerCall = (mockCAPIClientService.makeRequest as ReturnType<typeof vi.fn>).mock.calls.find(([, opts]) => opts?.type === RequestType.ModelRouter);
+			expect(routerCall).toBeDefined();
+			const [routerRequestBody] = routerCall!;
+			expect(JSON.parse(routerRequestBody.body).has_image).toBe(true);
 		});
 
 		it('should fall back to vision model when router returns no_vision_models error', async () => {
