@@ -682,6 +682,16 @@ class ChatLibExtractor {
 		const vscodeApiDestPath = path.join(TARGET_DIR, '_internal', 'vscode-api.d.ts');
 		await fs.promises.writeFile(vscodeApiDestPath, updatedContent);
 
+		// Also copy thenable.d.ts which is referenced by vscode.d.ts
+		const vscodeRepoRoot = path.join(REPO_ROOT, '..', '..');
+		const thenableSrcPath = path.join(vscodeRepoRoot, 'src', 'typings', 'thenable.d.ts');
+		if (fs.existsSync(thenableSrcPath)) {
+			await fs.promises.copyFile(thenableSrcPath, path.join(vscodeDtsDestDir, 'thenable.d.ts'));
+			console.log('Copied thenable.d.ts');
+		} else {
+			console.warn(`Warning: thenable.d.ts not found at ${thenableSrcPath}`);
+		}
+
 		console.log(`Copied vscode-api.d.ts and ${referencedFiles.length} referenced .d.ts files`);
 	}
 

@@ -3,9 +3,10 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-// List of all API proposals we depend on
-
+/// <reference path="../../../src/typings/thenable.d.ts" />
 /// <reference path="../../../src/vscode-dts/vscode.d.ts" />
+
+// List of all API proposals we depend on
 /// <reference path="../../../src/vscode-dts/vscode.proposed.activeComment.d.ts" />
 /// <reference path="../../../src/vscode-dts/vscode.proposed.agentSessionsWorkspace.d.ts" />
 /// <reference path="../../../src/vscode-dts/vscode.proposed.aiRelatedInformation.d.ts" />

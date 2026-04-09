@@ -21,9 +21,8 @@
 		}
 	},
 	"include": [
-		"vscodeTypes.ts",
-		"src",
-		"test",
+		"./src",
+		"./test",
 		".vscode/extensions/test-extension"
 	],
 	"exclude": [
