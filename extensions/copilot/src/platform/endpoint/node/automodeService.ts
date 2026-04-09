@@ -201,11 +201,13 @@ export class AutomodeService extends Disposable implements IAutomodeService {
 					"automode.routerFallback" : {
 						"owner": "lramos15",
 						"comment": "Reports when the auto mode router is skipped or fails and falls back to default model selection",
-						"reason": { "classification": "SystemMetaData", "purpose": "PerformanceAndHealth", "comment": "The reason the router was skipped or failed (emptyPrompt, emptyCandidateList, noMatchingEndpoint, noVisionModels, routerError, routerTimeout)" }
+						"reason": { "classification": "SystemMetaData", "purpose": "PerformanceAndHealth", "comment": "The reason the router was skipped or failed, e.g. emptyPrompt, emptyCandidateList, noMatchingEndpoint, routerError, routerTimeout, or a server error code" },
+						"hasImage": { "classification": "SystemMetaData", "purpose": "PerformanceAndHealth", "comment": "Whether the request contained an attached image" }
 					}
 				*/
 				this._telemetryService.sendMSFTTelemetryEvent('automode.routerFallback', {
 					reason: routerFallbackReason,
+					hasImage: String(hasImage(chatRequest)),
 				});
 			}
 			selectedModel = this._selectDefaultModel(entry?.endpoint?.modelProvider, token.available_models, knownEndpoints);
@@ -293,8 +295,14 @@ export class AutomodeService extends Disposable implements IAutomodeService {
 			return { selectedModel, lastRoutedPrompt: prompt };
 		} catch (e) {
 			const isTimeout = isAbortError(e);
-			const errorCode = e instanceof RouterDecisionError ? e.errorCode : undefined;
-			const fallbackReason = isTimeout ? 'routerTimeout' : errorCode === 'no_vision_models' ? 'noVisionModels' : 'routerError';
+			let fallbackReason: string;
+			if (isTimeout) {
+				fallbackReason = 'routerTimeout';
+			} else if (e instanceof RouterDecisionError && e.errorCode) {
+				fallbackReason = e.errorCode;
+			} else {
+				fallbackReason = 'routerError';
+			}
 			this._logService.error(`Failed to get routed model for conversation ${conversationId} (${fallbackReason}):`, (e as Error).message);
 			return { lastRoutedPrompt: prompt, fallbackReason };
 		}

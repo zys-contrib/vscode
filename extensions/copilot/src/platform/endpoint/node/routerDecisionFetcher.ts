@@ -33,6 +33,7 @@ export interface RoutingContextSignals {
 }
 
 export class RouterDecisionError extends Error {
+	override readonly name = 'RouterDecisionError';
 	constructor(message: string, public readonly errorCode?: string) {
 		super(message);
 	}
@@ -87,7 +88,7 @@ export class RouterDecisionFetcher {
 			try {
 				errorCode = JSON.parse(errorText).error;
 			} catch { /* not JSON */ }
-			throw new RouterDecisionError(`Router decision request failed with status ${response.status}: ${response.statusText}`, errorCode);
+			throw new RouterDecisionError(`Router decision request failed with status ${response.status}: ${response.statusText}`, errorCode || errorText);
 		}
 
 		const text = await response.text();

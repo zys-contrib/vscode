@@ -797,13 +797,13 @@ describe('AutomodeService', () => {
 			const result = await automodeService.resolveAutoModeEndpoint(chatRequest as ChatRequest, [gpt4oEndpoint, claudeEndpoint]);
 			// Should fall back to default selection, then vision fallback picks gpt-4o
 			expect(result.model).toBe('gpt-4o');
-			// Verify the router was called and the error was classified as noVisionModels
+			// Verify the router was called and the error code was passed through from the server
 			expect(mockCAPIClientService.makeRequest).toHaveBeenCalledWith(
 				expect.anything(),
 				expect.objectContaining({ type: RequestType.ModelRouter })
 			);
 			expect(mockLogService.error).toHaveBeenCalledWith(
-				expect.stringContaining('(noVisionModels)'),
+				expect.stringContaining('(no_vision_models)'),
 				expect.anything()
 			);
 		});
