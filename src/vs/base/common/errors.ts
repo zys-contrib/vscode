@@ -298,6 +298,24 @@ export class ExpectedError extends Error {
 }
 
 /**
+ * An Error subclass that carries a diagnostic property bag. Subclasses populate
+ * {@link diagProperties} so that the telemetry layer can flatten them into the
+ * telemetry event alongside the standard callstack/message fields.
+ */
+export class ErrorWithDiagProps extends Error {
+	readonly diagProperties: Record<string, string | number | boolean | undefined>;
+
+	constructor(message: string, diagProperties?: Record<string, string | number | boolean | undefined>) {
+		super(message);
+		this.diagProperties = diagProperties ?? {};
+	}
+
+	static is(err: unknown): err is ErrorWithDiagProps {
+		return err instanceof ErrorWithDiagProps;
+	}
+}
+
+/**
  * Error that when thrown won't be logged in telemetry as an unhandled error.
  */
 export class ErrorNoTelemetry extends Error {

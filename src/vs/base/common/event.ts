@@ -6,7 +6,7 @@
 import { CancelablePromise } from './async.js';
 import { CancellationToken } from './cancellation.js';
 import { diffSets } from './collections.js';
-import { onUnexpectedError } from './errors.js';
+import { ErrorWithDiagProps, onUnexpectedError } from './errors.js';
 import { createSingleCallFunction } from './functional.js';
 import { combinedDisposable, Disposable, DisposableMap, DisposableStore, IDisposable, toDisposable } from './lifecycle.js';
 import { LinkedList } from './linkedList.js';
@@ -1030,7 +1030,7 @@ class LeakageMonitor {
 			console.warn(topStack);
 
 			const kind = topCount / listenerCount > 0.3 ? 'dominated' : 'popular';
-			const error = new ListenerLeakError(kind, message, topStack);
+			const error = new ListenerLeakError(kind, message, topStack, listenerCount);
 			this._errorHandler(error);
 		}
 
@@ -1071,15 +1071,15 @@ class Stacktrace {
 }
 
 // error that is logged when going over the configured listener threshold
-export class ListenerLeakError extends Error {
+export class ListenerLeakError extends ErrorWithDiagProps {
 	/**
 	 * The detailed message including listener count and most frequent stack.
 	 * Available locally for debugging but intentionally not used as the error
 	 * `message` so that all leak errors group under the same title in telemetry.
 	 */
 	readonly details: string;
-	constructor(kind: 'dominated' | 'popular', details: string, stack: string) {
-		super(`potential listener LEAK detected, ${kind}`);
+	constructor(kind: 'dominated' | 'popular', details: string, stack: string, listenerCount: number) {
+		super(`potential listener LEAK detected, ${kind}`, { kind, listenerCount });
 		this.name = 'ListenerLeakError';
 		this.details = details;
 		this.stack = stack;
@@ -1088,15 +1088,15 @@ export class ListenerLeakError extends Error {
 
 // SEVERE error that is logged when having gone way over the configured listener
 // threshold so that the emitter refuses to accept more listeners
-export class ListenerRefusalError extends Error {
+export class ListenerRefusalError extends ErrorWithDiagProps {
 	/**
 	 * The detailed message including listener count and most frequent stack.
 	 * Available locally for debugging but intentionally not used as the error
 	 * `message` so that all leak errors group under the same title in telemetry.
 	 */
 	readonly details: string;
-	constructor(kind: 'dominated' | 'popular', details: string, stack: string) {
-		super(`potential listener LEAK detected, ${kind} (REFUSED to add)`);
+	constructor(kind: 'dominated' | 'popular', details: string, stack: string, listenerCount: number) {
+		super(`potential listener LEAK detected, ${kind} (REFUSED to add)`, { kind, listenerCount });
 		this.name = 'ListenerRefusalError';
 		this.details = details;
 		this.stack = stack;
@@ -1237,7 +1237,7 @@ export class Emitter<T> {
 
 				const tuple = this._leakageMon.getMostFrequentStack() ?? ['UNKNOWN stack', -1];
 				const kind = tuple[1] / this._size > 0.3 ? 'dominated' : 'popular';
-				const error = new ListenerRefusalError(kind, `${message}. HINT: Stack shows most frequent listener (${tuple[1]}-times)`, tuple[0]);
+				const error = new ListenerRefusalError(kind, `${message}. HINT: Stack shows most frequent listener (${tuple[1]}-times)`, tuple[0], this._size);
 				const errorHandler = this._options?.onListenerError || onUnexpectedError;
 				errorHandler(error);
 

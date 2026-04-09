@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { binarySearch } from '../../../base/common/arrays.js';
-import { errorHandler, ErrorNoTelemetry, PendingMigrationError } from '../../../base/common/errors.js';
+import { errorHandler, ErrorNoTelemetry, ErrorWithDiagProps, PendingMigrationError } from '../../../base/common/errors.js';
 import { DisposableStore, toDisposable } from '../../../base/common/lifecycle.js';
 import { safeStringify } from '../../../base/common/objects.js';
 import { FileOperationError } from '../../files/common/files.js';
@@ -119,7 +119,14 @@ export default abstract class BaseErrorTelemetry {
 			return;
 		}
 
-		this._enqueue({ msg, callstack });
+		const errorEvent: ErrorEvent = { msg, callstack };
+
+		// flatten diagnostic properties directly into the telemetry event
+		if (ErrorWithDiagProps.is(err)) {
+			Object.assign(errorEvent, err.diagProperties);
+		}
+
+		this._enqueue(errorEvent);
 	}
 
 	protected _enqueue(e: ErrorEvent): void {
