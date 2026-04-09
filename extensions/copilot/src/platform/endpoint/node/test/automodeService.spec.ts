@@ -710,6 +710,10 @@ describe('AutomodeService', () => {
 
 			await automodeService.resolveAutoModeEndpoint(imageRequest as ChatRequest, [gpt4oEndpoint, claudeEndpoint]);
 
+			expect(mockCAPIClientService.makeRequest).toHaveBeenCalledWith(
+				expect.anything(),
+				expect.objectContaining({ type: RequestType.ModelRouter })
+			);
 			// Reset mock call tracking
 			(mockCAPIClientService.makeRequest as ReturnType<typeof vi.fn>).mockClear();
 			mockRouterResponse(
