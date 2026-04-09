@@ -13,7 +13,7 @@
 	},
 	"include": [
 		"**/*",
-		"../../../src/vscode-api.d.ts",
+		"../../../src/extension/vscode-api.d.ts",
 		"../../../src/util/vs/*.d.ts"
 	],
 	"exclude": [

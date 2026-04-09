@@ -636,7 +636,7 @@ class ChatLibExtractor {
 	private async copyVSCodeProposedTypes(): Promise<void> {
 		console.log('Copying vscode*.d.ts files referenced by vscode-api.d.ts...');
 
-		const vscodeApiSrcPath = path.join(REPO_ROOT, 'src', 'vscode-api.d.ts');
+		const vscodeApiSrcPath = path.join(REPO_ROOT, 'src', 'extension', 'vscode-api.d.ts');
 		if (!fs.existsSync(vscodeApiSrcPath)) {
 			throw new Error(`vscode-api.d.ts not found at ${vscodeApiSrcPath}`);
 		}
