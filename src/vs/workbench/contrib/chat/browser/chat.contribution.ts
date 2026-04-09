@@ -773,11 +773,6 @@ configurationRegistry.registerConfiguration({
 				}
 			}
 		},
-		[ChatConfiguration.DefaultNewSessionMode]: {
-			type: 'string',
-			description: nls.localize('chat.newSession.defaultMode', "The default mode for new chat sessions. When empty, the chat view's default mode is used."),
-			default: '',
-		},
 		[AgentHostEnabledSettingId]: {
 			type: 'boolean',
 			description: nls.localize('chat.agentHost.enabled', "When enabled, some agents run in a separate agent host process."),
