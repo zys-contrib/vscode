@@ -22,7 +22,9 @@ function getElectronVersion(): string {
 	return target;
 }
 
-function getEntitlementsForFile(filePath: string): string {
+const provisioningProfilePath = path.join(baseDir, 'darwin', 'distribution.provisionprofile');
+
+function getEntitlementsForFile(filePath: string, tempDir: string): string {
 	if (filePath.includes(gpuHelperAppName)) {
 		return path.join(baseDir, 'azure-pipelines', 'darwin', 'helper-gpu-entitlements.plist');
 	} else if (filePath.includes(rendererHelperAppName)) {
@@ -30,7 +32,32 @@ function getEntitlementsForFile(filePath: string): string {
 	} else if (filePath.includes(pluginHelperAppName)) {
 		return path.join(baseDir, 'azure-pipelines', 'darwin', 'helper-plugin-entitlements.plist');
 	}
-	return path.join(baseDir, 'azure-pipelines', 'darwin', 'app-entitlements.plist');
+	const entitlementsPath = path.join(baseDir, 'azure-pipelines', 'darwin', 'app-entitlements.plist');
+	if (!fs.existsSync(provisioningProfilePath)) {
+		// Without a provisioning profile, keychain-access-groups entitlement
+		// will cause signing failures. Strip it from the entitlements plist.
+		return getStrippedEntitlements(entitlementsPath, tempDir);
+	}
+	return entitlementsPath;
+}
+
+let _strippedEntitlementsPath: string | undefined;
+
+/**
+ * Returns a path to a copy of the entitlements plist with the
+ * keychain-access-groups key removed.
+ */
+function getStrippedEntitlements(entitlementsPath: string, tempDir: string): string {
+	if (!_strippedEntitlementsPath) {
+		const content = fs.readFileSync(entitlementsPath, 'utf8');
+		const stripped = content.replace(
+			/\s*<key>keychain-access-groups<\/key>\s*<array>[\s\S]*?<\/array>/,
+			''
+		);
+		_strippedEntitlementsPath = path.join(tempDir, 'app-entitlements-stripped.plist');
+		fs.writeFileSync(_strippedEntitlementsPath, stripped);
+	}
+	return _strippedEntitlementsPath;
 }
 
 async function retrySignOnKeychainError<T>(fn: () => Promise<T>, maxRetries: number = 3): Promise<T> {
@@ -82,15 +109,18 @@ async function main(buildDir?: string): Promise<void> {
 		? path.resolve(appRoot, appName, 'Contents', 'Applications', `${product.embedded.nameShort}.app`, 'Contents', 'Info.plist')
 		: undefined;
 
+	const hasProvisioningProfile = fs.existsSync(provisioningProfilePath);
+
 	const appOpts: SignOptions = {
 		app: path.join(appRoot, appName),
 		platform: 'darwin',
 		optionsForFile: (filePath) => ({
-			entitlements: getEntitlementsForFile(filePath),
+			entitlements: getEntitlementsForFile(filePath, tempDir),
 			hardenedRuntime: true,
 		}),
 		preAutoEntitlements: false,
-		preEmbedProvisioningProfile: false,
+		preEmbedProvisioningProfile: hasProvisioningProfile,
+		provisioningProfile: hasProvisioningProfile ? provisioningProfilePath : undefined,
 		keychain: path.join(tempDir, 'buildagent.keychain'),
 		version: getElectronVersion(),
 		identity,
