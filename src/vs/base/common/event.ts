@@ -6,7 +6,7 @@
 import { CancelablePromise } from './async.js';
 import { CancellationToken } from './cancellation.js';
 import { diffSets } from './collections.js';
-import { ErrorWithTelemetry, onUnexpectedError } from './errors.js';
+import { onUnexpectedError } from './errors.js';
 import { createSingleCallFunction } from './functional.js';
 import { combinedDisposable, Disposable, DisposableMap, DisposableStore, IDisposable, toDisposable } from './lifecycle.js';
 import { LinkedList } from './linkedList.js';
@@ -1071,7 +1071,9 @@ class Stacktrace {
 }
 
 // error that is logged when going over the configured listener threshold
-export class ListenerLeakError extends ErrorWithTelemetry {
+export class ListenerLeakError extends Error {
+	readonly kind: string;
+	readonly listenerCount: number;
 	/**
 	 * The detailed message including listener count and most frequent stack.
 	 * Available locally for debugging but intentionally not used as the error
@@ -1079,27 +1081,26 @@ export class ListenerLeakError extends ErrorWithTelemetry {
 	 */
 	readonly details: string;
 	constructor(kind: 'dominated' | 'popular', details: string, stack: string, listenerCount: number) {
-		super(`potential listener LEAK detected, ${kind}`, { kind, listenerCount });
+		super(`potential listener LEAK detected, ${kind}`);
 		this.name = 'ListenerLeakError';
+		this.kind = kind;
+		this.listenerCount = listenerCount;
 		this.details = details;
 		this.stack = stack;
+	}
+
+	static is(err: unknown): err is ListenerLeakError {
+		return err instanceof ListenerLeakError
+			|| (err instanceof Error && typeof (err as any).kind === 'string' && typeof (err as any).listenerCount === 'number');
 	}
 }
 
 // SEVERE error that is logged when having gone way over the configured listener
 // threshold so that the emitter refuses to accept more listeners
-export class ListenerRefusalError extends ErrorWithTelemetry {
-	/**
-	 * The detailed message including listener count and most frequent stack.
-	 * Available locally for debugging but intentionally not used as the error
-	 * `message` so that all leak errors group under the same title in telemetry.
-	 */
-	readonly details: string;
+export class ListenerRefusalError extends ListenerLeakError {
 	constructor(kind: 'dominated' | 'popular', details: string, stack: string, listenerCount: number) {
-		super(`potential listener LEAK detected, ${kind} (REFUSED to add)`, { kind, listenerCount });
+		super(kind, details, stack, listenerCount);
 		this.name = 'ListenerRefusalError';
-		this.details = details;
-		this.stack = stack;
 	}
 }
 
