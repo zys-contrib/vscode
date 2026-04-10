@@ -39,6 +39,13 @@ export interface IChatWebSocketManager {
 	hasActiveConnection(conversationId: string): boolean;
 
 	/**
+	 * Returns the stateful marker (last completed response ID) for the given
+	 * conversation's active WebSocket connection, or undefined if there is
+	 * no active connection or no marker yet.
+	 */
+	getStatefulMarker(conversationId: string): string | undefined;
+
+	/**
 	 * Closes and removes the connection for a specific conversation.
 	 */
 	closeConnection(conversationId: string): void;
@@ -58,6 +65,7 @@ export class NullChatWebSocketManager implements IChatWebSocketManager {
 		throw new Error('WebSocket not available');
 	}
 	hasActiveConnection(_conversationId: string): boolean { return false; }
+	getStatefulMarker(_conversationId: string): string | undefined { return undefined; }
 	closeConnection(_conversationId: string): void { }
 	closeAll(): void { }
 }
@@ -66,6 +74,8 @@ export interface IChatWebSocketRequestOptions {
 	userInitiated: boolean;
 	turnId: string;
 	requestId: string;
+	countTokens: () => Promise<number>;
+	tokenCountMax: number;
 }
 
 export interface IChatWebSocketConnection extends IDisposable {
@@ -199,6 +209,11 @@ export class ChatWebSocketManager extends Disposable implements IChatWebSocketMa
 	hasActiveConnection(conversationId: string): boolean {
 		const connection = this._connections.get(conversationId);
 		return !!connection?.isOpen;
+	}
+
+	getStatefulMarker(conversationId: string): string | undefined {
+		const connection = this._connections.get(conversationId);
+		return connection?.isOpen ? connection.statefulMarker : undefined;
 	}
 
 	closeConnection(conversationId: string): void {
@@ -440,6 +455,7 @@ class ChatWebSocketConnection extends Disposable implements IChatWebSocketConnec
 					hadActiveRequest: this._hadActiveRequest,
 					requestId: this._activeRequest?.requestId,
 					gitHubRequestId: this.gitHubRequestId,
+					modelId: this._activeRequest?.modelId,
 					error: parseErrorMessage,
 					connectionDurationMs,
 					totalSentMessageCount: this._totalSentMessageCount,
@@ -471,6 +487,7 @@ class ChatWebSocketConnection extends Disposable implements IChatWebSocketConnec
 				hadActiveRequest: this._hadActiveRequest,
 				requestId: this._activeRequest?.requestId,
 				gitHubRequestId: this.gitHubRequestId,
+				modelId: this._activeRequest?.modelId,
 				closeCode: event.code,
 				closeReason: closeCodeDescription,
 				closeEventReason: event.reason,
@@ -499,6 +516,7 @@ class ChatWebSocketConnection extends Disposable implements IChatWebSocketConnec
 				hadActiveRequest: this._hadActiveRequest,
 				requestId: this._activeRequest?.requestId,
 				gitHubRequestId: this.gitHubRequestId,
+				modelId: this._activeRequest?.modelId,
 				error: errorMessage,
 				connectionDurationMs,
 				totalSentMessageCount: this._totalSentMessageCount,
@@ -551,7 +569,10 @@ class ChatWebSocketConnection extends Disposable implements IChatWebSocketConnec
 		const requestStartReceivedMessageCount = this._totalReceivedMessageCount;
 		const requestStartSentCharacters = this._totalSentCharacters;
 		const requestStartReceivedCharacters = this._totalReceivedCharacters;
-		const request = new ChatWebSocketActiveRequest(requestId, this._configurationService, this._logService);
+		const promptTokenCountPromise = options.countTokens();
+		let promptTokenCount = -1;
+		promptTokenCountPromise.then(count => { promptTokenCount = count; }, () => { promptTokenCount = -2; });
+		const request = new ChatWebSocketActiveRequest(requestId, body.model, this._configurationService, this._logService);
 		request.onDidSettle(({ outcome, closeCode, closeReason, serverErrorMessage, serverErrorCode }) => {
 			if (this._activeRequest === request) {
 				this._activeRequest = undefined;
@@ -570,10 +591,13 @@ class ChatWebSocketConnection extends Disposable implements IChatWebSocketConnec
 				hadActiveRequest,
 				requestId,
 				gitHubRequestId: this.gitHubRequestId,
+				modelId: body.model,
 				requestOutcome: outcome,
 				statefulMarkerMatched,
 				previousResponseIdUnset,
 				hasCompactionData,
+				promptTokenCount,
+				tokenCountMax: options.tokenCountMax,
 				connectionDurationMs,
 				requestDurationMs,
 				totalSentMessageCount: this._totalSentMessageCount,
@@ -622,9 +646,11 @@ class ChatWebSocketConnection extends Disposable implements IChatWebSocketConnec
 			hadActiveRequest,
 			requestId,
 			gitHubRequestId: this.gitHubRequestId,
+			modelId: body.model,
 			statefulMarkerMatched,
 			previousResponseIdUnset,
 			hasCompactionData,
+			tokenCountMax: options.tokenCountMax,
 			connectionDurationMs,
 			totalSentMessageCount: this._totalSentMessageCount,
 			totalReceivedMessageCount: this._totalReceivedMessageCount,
@@ -675,6 +701,7 @@ class ChatWebSocketActiveRequest implements IChatWebSocketRequestHandle {
 
 	constructor(
 		readonly requestId: string,
+		readonly modelId: string | undefined,
 		private readonly _configurationService: IConfigurationService,
 		private readonly _logService: ILogService,
 	) {
