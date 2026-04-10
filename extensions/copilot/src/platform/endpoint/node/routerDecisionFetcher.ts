@@ -38,6 +38,11 @@ export interface RoutingContextSignals {
 	prompt_char_count?: number;
 }
 
+/**
+ * Thrown when the router API returns a non-OK HTTP response.
+ * Carries the parsed `errorCode` from the response body (e.g. `no_vision_models`)
+ * so callers can classify the failure without string-matching the message.
+ */
 export class RouterDecisionError extends Error {
 	override readonly name = 'RouterDecisionError';
 	constructor(message: string, public readonly errorCode?: string) {
