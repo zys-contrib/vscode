@@ -303,16 +303,16 @@ export class ExpectedError extends Error {
  * telemetry event alongside the standard callstack/message fields.
  */
 export class ErrorWithTelemetry extends Error {
-	readonly diagProperties: Record<string, string | number | boolean | undefined>;
+	readonly diagProperties: Record<string, string | number | boolean | undefined> | undefined;
 
 	constructor(message: string, diagProperties?: Record<string, string | number | boolean | undefined>) {
 		super(message);
-		this.diagProperties = diagProperties ?? {};
+		this.diagProperties = diagProperties;
 	}
 
 	static is(err: unknown): err is ErrorWithTelemetry {
 		return err instanceof ErrorWithTelemetry
-			|| (err instanceof Error && typeof (err as ErrorWithTelemetry).diagProperties === 'object' && (err as ErrorWithTelemetry).diagProperties !== null);
+			|| (err instanceof Error && 'diagProperties' in err);
 	}
 }
 

@@ -144,7 +144,9 @@ export default abstract class BaseErrorTelemetry {
 
 		// flatten diagnostic properties and associate a typed logger if registered
 		if (ErrorWithTelemetry.is(err)) {
-			Object.assign(errorEvent, err.diagProperties);
+			if (err.diagProperties) {
+				Object.assign(errorEvent, err.diagProperties);
+			}
 			const diagLogger = BaseErrorTelemetry._diagLoggers.get(err.name);
 			if (diagLogger) {
 				this._diagLoggersByCallstack.set(callstack, diagLogger);
