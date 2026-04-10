@@ -312,7 +312,7 @@ export class ErrorWithTelemetry extends Error {
 
 	static is(err: unknown): err is ErrorWithTelemetry {
 		return err instanceof ErrorWithTelemetry
-			|| (err instanceof Error && 'diagProperties' in err);
+			|| (err instanceof Error && Object.prototype.hasOwnProperty.call(err, 'diagProperties'));
 	}
 }
 

@@ -86,7 +86,7 @@ export default abstract class BaseErrorTelemetry {
 	private _flushDelay: number;
 	private _flushHandle: Timeout | undefined = undefined;
 	private _buffer: ErrorEvent[] = [];
-	private _diagLoggersByCallstack = new Map<string, DiagLogger>();
+	private readonly _diagLoggersByEvent = new WeakMap<ErrorEvent, DiagLogger>();
 	protected readonly _disposables = new DisposableStore();
 
 	constructor(telemetryService: ITelemetryService, flushDelay = BaseErrorTelemetry.ERROR_FLUSH_TIMEOUT) {
@@ -145,11 +145,15 @@ export default abstract class BaseErrorTelemetry {
 		// flatten diagnostic properties and associate a typed logger if registered
 		if (ErrorWithTelemetry.is(err)) {
 			if (err.diagProperties) {
-				Object.assign(errorEvent, err.diagProperties);
+				for (const [key, value] of Object.entries(err.diagProperties)) {
+					if (value !== undefined && !(key in errorEvent)) {
+						(errorEvent as Record<string, unknown>)[key] = value;
+					}
+				}
 			}
 			const diagLogger = BaseErrorTelemetry._diagLoggers.get(err.name);
 			if (diagLogger) {
-				this._diagLoggersByCallstack.set(callstack, diagLogger);
+				this._diagLoggersByEvent.set(errorEvent, diagLogger);
 			}
 		}
 
@@ -179,7 +183,7 @@ export default abstract class BaseErrorTelemetry {
 
 	private _flushBuffer(): void {
 		for (const error of this._buffer) {
-			const diagLogger = this._diagLoggersByCallstack.get(error.callstack);
+			const diagLogger = this._diagLoggersByEvent.get(error);
 			if (diagLogger) {
 				// delegate to the registered GDPR-typed logger
 				diagLogger(this._telemetryService, error);
@@ -189,6 +193,5 @@ export default abstract class BaseErrorTelemetry {
 			}
 		}
 		this._buffer.length = 0;
-		this._diagLoggersByCallstack.clear();
 	}
 }
