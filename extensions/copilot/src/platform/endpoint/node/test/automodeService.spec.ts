@@ -810,6 +810,88 @@ describe('AutomodeService', () => {
 			);
 		});
 
+		it('should fall back to routerError when router returns non-JSON error body', async () => {
+			// When the router returns an HTML error page or other non-JSON body,
+			// errorCode should be undefined and fallbackReason should be 'routerError'
+			// — NOT the raw response body leaked into telemetry.
+			enableRouter();
+			const gpt4oEndpoint = createEndpoint('gpt-4o', 'OpenAI');
+
+			(mockCAPIClientService.makeRequest as ReturnType<typeof vi.fn>).mockImplementation((_body: any, opts: any) => {
+				if (opts?.type === RequestType.ModelRouter) {
+					return Promise.resolve({
+						ok: false,
+						status: 502,
+						statusText: 'Bad Gateway',
+						headers: createMockHeaders(),
+						text: vi.fn().mockResolvedValue('<html><body>Bad Gateway</body></html>')
+					});
+				}
+				return Promise.resolve(
+					makeMockTokenResponse({
+						available_models: ['gpt-4o'],
+						expires_at: Math.floor(Date.now() / 1000) + 3600,
+						session_token: 'test-token',
+					})
+				);
+			});
+
+			automodeService = createService();
+			const chatRequest: Partial<ChatRequest> = {
+				location: ChatLocation.Panel,
+				prompt: 'test prompt',
+				sessionId: 'session-html-error',
+			};
+
+			const result = await automodeService.resolveAutoModeEndpoint(chatRequest as ChatRequest, [gpt4oEndpoint]);
+			expect(result.model).toBe('gpt-4o');
+			// Should log generic 'routerError', NOT the HTML body
+			expect(mockLogService.error).toHaveBeenCalledWith(
+				expect.stringContaining('(routerError)'),
+				expect.anything()
+			);
+		});
+
+		it('should fall back to routerError when router returns JSON without error field', async () => {
+			// When the server returns valid JSON but without an 'error' field,
+			// errorCode should be undefined and fallbackReason should be 'routerError'.
+			enableRouter();
+			const gpt4oEndpoint = createEndpoint('gpt-4o', 'OpenAI');
+
+			(mockCAPIClientService.makeRequest as ReturnType<typeof vi.fn>).mockImplementation((_body: any, opts: any) => {
+				if (opts?.type === RequestType.ModelRouter) {
+					return Promise.resolve({
+						ok: false,
+						status: 400,
+						statusText: 'Bad Request',
+						headers: createMockHeaders(),
+						text: vi.fn().mockResolvedValue(JSON.stringify({ message: 'something went wrong' }))
+					});
+				}
+				return Promise.resolve(
+					makeMockTokenResponse({
+						available_models: ['gpt-4o'],
+						expires_at: Math.floor(Date.now() / 1000) + 3600,
+						session_token: 'test-token',
+					})
+				);
+			});
+
+			automodeService = createService();
+			const chatRequest: Partial<ChatRequest> = {
+				location: ChatLocation.Panel,
+				prompt: 'test prompt',
+				sessionId: 'session-json-no-error',
+			};
+
+			const result = await automodeService.resolveAutoModeEndpoint(chatRequest as ChatRequest, [gpt4oEndpoint]);
+			expect(result.model).toBe('gpt-4o');
+			expect(mockLogService.error).toHaveBeenCalledWith(
+				expect.stringContaining('(routerError)'),
+				expect.anything()
+			);
+		});
+
 		it('should be a no-op when invalidateRouterCache is called with unknown conversationId', async () => {
 			automodeService = createService();
 			// Should not throw
