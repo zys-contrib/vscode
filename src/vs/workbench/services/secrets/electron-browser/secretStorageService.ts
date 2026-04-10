@@ -15,7 +15,8 @@ import { ILogService } from '../../../../platform/log/common/log.js';
 import { INotificationService, IPromptChoice } from '../../../../platform/notification/common/notification.js';
 import { IOpenerService } from '../../../../platform/opener/common/opener.js';
 import { BaseSecretStorageService, ISecretStorageService } from '../../../../platform/secrets/common/secrets.js';
-import { IStorageService } from '../../../../platform/storage/common/storage.js';
+import { ISharedKeychainService } from '../../../../platform/secrets/common/sharedKeychainService.js';
+import { IStorageService, StorageScope, StorageTarget } from '../../../../platform/storage/common/storage.js';
 import { IJSONEditingService } from '../../configuration/common/jsonEditing.js';
 
 export class NativeSecretStorageService extends BaseSecretStorageService {
@@ -26,6 +27,7 @@ export class NativeSecretStorageService extends BaseSecretStorageService {
 		@IOpenerService private readonly _openerService: IOpenerService,
 		@IJSONEditingService private readonly _jsonEditingService: IJSONEditingService,
 		@INativeEnvironmentService private readonly _environmentService: INativeEnvironmentService,
+		@ISharedKeychainService private readonly _sharedKeychainService: ISharedKeychainService,
 		@IStorageService storageService: IStorageService,
 		@IEncryptionService encryptionService: IEncryptionService,
 		@ILogService logService: ILogService
@@ -38,6 +40,21 @@ export class NativeSecretStorageService extends BaseSecretStorageService {
 		);
 	}
 
+	override get(key: string): Promise<string | undefined> {
+		return this._sequencer.queue(key, async () => {
+			debugger;
+			if (this.type === 'persisted') {
+				// Try shared keychain first (no-op on non-macOS)
+				const value = await this._sharedKeychainService.get(key);
+				if (value !== undefined) {
+					return value;
+				}
+			}
+			// Fall back to old safeStorage+SQLite pipeline
+			return this._doGet(key);
+		});
+	}
+
 	override set(key: string, value: string): Promise<void> {
 		this._sequencer.queue(key, async () => {
 			await this.resolvedStorageService;
@@ -46,10 +63,42 @@ export class NativeSecretStorageService extends BaseSecretStorageService {
 				this._logService.trace('[NativeSecretStorageService] Notifying user that secrets are not being stored on disk.');
 				await this.notifyOfNoEncryptionOnce();
 			}
-
 		});
+		return this._sequencer.queue(key, async () => {
+			debugger;
+			if (this.type === 'persisted') {
+				// Write to shared keychain (no-op on non-macOS)
+				await this._sharedKeychainService.set(key, value);
+			}
+			// Also write to legacy pipeline
+			await this._doSet(key, value);
+		});
+	}
 
-		return super.set(key, value);
+	override delete(key: string): Promise<void> {
+		return this._sequencer.queue(key, async () => {
+			debugger;
+			if (this.type === 'persisted') {
+				// Delete from shared keychain (no-op on non-macOS)
+				await this._sharedKeychainService.delete(key);
+			}
+			// Delete from legacy pipeline
+			await this._doDelete(key);
+		});
+	}
+
+	override keys(): Promise<string[]> {
+		return this._sequencer.queue('__keys__', async () => {
+			debugger;
+			if (this.type === 'persisted') {
+				// Merge keys from both sources (shared returns [] on non-macOS)
+				const sharedKeys = await this._sharedKeychainService.keys();
+				const legacyKeys = await this._doGetKeys();
+				const merged = new Set([...sharedKeys, ...legacyKeys]);
+				return [...merged];
+			}
+			return this._doGetKeys();
+		});
 	}
 
 	private notifyOfNoEncryptionOnce = createSingleCallFunction(() => this.notifyOfNoEncryption());

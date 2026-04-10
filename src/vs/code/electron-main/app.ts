@@ -37,6 +37,8 @@ import { DiagnosticsMainService, IDiagnosticsMainService } from '../../platform/
 import { DialogMainService, IDialogMainService } from '../../platform/dialogs/electron-main/dialogMainService.js';
 import { IEncryptionMainService } from '../../platform/encryption/common/encryptionService.js';
 import { EncryptionMainService } from '../../platform/encryption/electron-main/encryptionMainService.js';
+import { ISharedKeychainMainService } from '../../platform/secrets/common/sharedKeychainService.js';
+import { SharedKeychainMainService } from '../../platform/secrets/electron-main/sharedKeychainMainService.js';
 import { NativeBrowserElementsMainService, INativeBrowserElementsMainService } from '../../platform/browserElements/electron-main/nativeBrowserElementsMainService.js';
 import { ipcBrowserViewChannelName } from '../../platform/browserView/common/browserView.js';
 import { ipcBrowserViewGroupChannelName } from '../../platform/browserView/common/browserViewGroup.js';
@@ -1087,6 +1089,9 @@ export class CodeApplication extends Disposable {
 		// Encryption
 		services.set(IEncryptionMainService, new SyncDescriptor(EncryptionMainService));
 
+		// Shared Keychain
+		services.set(ISharedKeychainMainService, new SyncDescriptor(SharedKeychainMainService));
+
 		// Browser Elements
 		services.set(INativeBrowserElementsMainService, new SyncDescriptor(NativeBrowserElementsMainService, undefined, false /* proxied to other processes */));
 
@@ -1251,6 +1256,10 @@ export class CodeApplication extends Disposable {
 		// Encryption
 		const encryptionChannel = ProxyChannel.fromService(accessor.get(IEncryptionMainService), disposables);
 		mainProcessElectronServer.registerChannel('encryption', encryptionChannel);
+
+		// Shared Keychain
+		const sharedKeychainChannel = ProxyChannel.fromService(accessor.get(ISharedKeychainMainService), disposables);
+		mainProcessElectronServer.registerChannel('sharedKeychain', sharedKeychainChannel);
 
 		// Browser Elements
 		const browserElementsChannel = ProxyChannel.fromService(accessor.get(INativeBrowserElementsMainService), disposables);
