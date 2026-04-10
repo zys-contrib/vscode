@@ -311,7 +311,8 @@ export class ErrorWithTelemetry extends Error {
 	}
 
 	static is(err: unknown): err is ErrorWithTelemetry {
-		return err instanceof ErrorWithTelemetry;
+		return err instanceof ErrorWithTelemetry
+			|| (err instanceof Error && typeof (err as ErrorWithTelemetry).diagProperties === 'object' && (err as ErrorWithTelemetry).diagProperties !== null);
 	}
 }
 
