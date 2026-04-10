@@ -5,7 +5,6 @@
 
 import { isCancellationError, isSigPipeError, onUnexpectedError, setUnexpectedErrorHandler } from '../../../base/common/errors.js';
 import BaseErrorTelemetry from '../common/errorTelemetry.js';
-import '../common/listenerLeakDiagTelemetry.js';
 
 export default class ErrorTelemetry extends BaseErrorTelemetry {
 	protected override installErrorListeners(): void {
