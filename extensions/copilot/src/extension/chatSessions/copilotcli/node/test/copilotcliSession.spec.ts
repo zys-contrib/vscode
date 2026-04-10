@@ -130,8 +130,9 @@ class MockSdkSession {
 
 	setAuthInfo(info: any) { this.authInfo = info; }
 	async getSelectedModel() { return this._selectedModel; }
-	async setSelectedModel(model: string) { this._selectedModel = model; }
+	async setSelectedModel(model: string, _reasoningEffort?: string) { this._selectedModel = model; }
 	async getEvents() { return []; }
+	getPlanPath(): string | null { return null; }
 }
 
 function createWorkspaceService(root: string): IWorkspaceService {
@@ -242,7 +243,7 @@ describe('CopilotCLISession', () => {
 		const session = await createSession();
 		const stream = new MockChatResponseStream();
 		session.attachStream(stream);
-		await session.handleRequest({ id: '', toolInvocationToken: undefined as never }, { prompt: 'Hi' }, [], 'modelB', authInfo, CancellationToken.None);
+		await session.handleRequest({ id: '', toolInvocationToken: undefined as never }, { prompt: 'Hi' }, [], { model: 'modelB' }, authInfo, CancellationToken.None);
 
 		expect(sdkSession._selectedModel).toBe('modelB');
 	});
@@ -265,7 +266,7 @@ describe('CopilotCLISession', () => {
 		const listener = disposables.add(session.onDidChangeStatus(s => statuses.push(s)));
 		const stream = new MockChatResponseStream();
 		session.attachStream(stream);
-		await session.handleRequest({ id: '', toolInvocationToken: undefined as never }, { prompt: 'Status OK' }, [], 'modelA', authInfo, CancellationToken.None);
+		await session.handleRequest({ id: '', toolInvocationToken: undefined as never }, { prompt: 'Status OK' }, [], { model: 'modelA' }, authInfo, CancellationToken.None);
 		listener.dispose?.();
 
 		expect(statuses).toEqual([ChatSessionStatus.InProgress, ChatSessionStatus.Completed]);

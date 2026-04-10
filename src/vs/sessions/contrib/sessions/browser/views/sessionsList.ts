@@ -29,7 +29,7 @@ import { IInstantiationService } from '../../../../../platform/instantiation/com
 import { IKeybindingService } from '../../../../../platform/keybinding/common/keybinding.js';
 import { ServiceCollection } from '../../../../../platform/instantiation/common/serviceCollection.js';
 import { WorkbenchObjectTree } from '../../../../../platform/list/browser/listService.js';
-import { IStyleOverride, defaultButtonStyles } from '../../../../../platform/theme/browser/defaultStyles.js';
+import { IStyleOverride, defaultButtonStyles, defaultFindWidgetStyles, defaultToggleStyles } from '../../../../../platform/theme/browser/defaultStyles.js';
 import { asCssVariable } from '../../../../../platform/theme/common/colorUtils.js';
 import { IStorageService, StorageScope, StorageTarget } from '../../../../../platform/storage/common/storage.js';
 import { CopilotCLISessionType, GITHUB_REMOTE_FILE_SCHEME, ISession, ISessionWorkspace, SessionStatus } from '../../../../services/sessions/common/session.js';
@@ -598,7 +598,9 @@ class SessionsAccessibilityProvider {
 		if (isSessionShowMore(element)) {
 			return localize('showMoreAria', "Show {0} more sessions", element.remainingCount);
 		}
-		return element.title.get();
+		const title = element.title.get();
+		const created = fromNow(element.createdAt, true);
+		return localize('sessionItemAria', "{0}, created {1}", title, created);
 	}
 }
 
@@ -610,6 +612,7 @@ export interface ISessionsListControlOptions {
 	readonly overrideStyles?: IStyleOverride<IListStyles>;
 	readonly grouping: () => SessionsGrouping;
 	readonly sorting: () => SessionsSorting;
+	readonly findWidgetContainer?: HTMLElement;
 	onSessionOpen(resource: URI, preserveFocus: boolean): void;
 }
 
@@ -621,6 +624,7 @@ export type ISessionsListOptions = ISessionsListControlOptions;
 export interface ISessionsList {
 	readonly element: HTMLElement;
 	readonly onDidUpdate: Event<void>;
+	readonly onDidChangeFindOpenState: Event<boolean>;
 	refresh(): void;
 	reveal(sessionResource: URI): boolean;
 	clearFocus(): void;
@@ -630,6 +634,7 @@ export interface ISessionsList {
 	focus(): void;
 	update(expandAll?: boolean): void;
 	openFind(): void;
+	closeFind(): void;
 	resetSectionCollapseState(): void;
 	pinSession(session: ISession): void;
 	unpinSession(session: ISession): void;
@@ -673,6 +678,9 @@ export class SessionsList extends Disposable implements ISessionsList {
 
 	private readonly _onDidUpdate = this._register(new Emitter<void>());
 	readonly onDidUpdate: Event<void> = this._onDidUpdate.event;
+
+	private readonly _onDidChangeFindOpenState = this._register(new Emitter<boolean>());
+	readonly onDidChangeFindOpenState: Event<boolean> = this._onDidChangeFindOpenState.event;
 
 	get element(): HTMLElement { return this.listContainer; }
 
@@ -749,6 +757,14 @@ export class SessionsList extends Disposable implements ISessionsList {
 				indent: 0,
 				findWidgetEnabled: true,
 				defaultFindMode: TreeFindMode.Filter,
+				findWidgetContainer: this.options.findWidgetContainer,
+				findWidgetStyles: {
+					...defaultFindWidgetStyles,
+					toggleStyles: {
+						...defaultToggleStyles,
+						inputActiveOptionBorder: 'transparent',
+					},
+				},
 				keyboardNavigationLabelProvider: {
 					getKeyboardNavigationLabel: (element: SessionListItem) => {
 						if (isSessionSection(element)) {
@@ -798,6 +814,7 @@ export class SessionsList extends Disposable implements ISessionsList {
 
 		this._register(this.tree.onDidChangeFindOpenState(open => {
 			this.findOpen = open;
+			this._onDidChangeFindOpenState.fire(open);
 			this.update();
 		}));
 
@@ -978,6 +995,10 @@ export class SessionsList extends Disposable implements ISessionsList {
 
 	openFind(): void {
 		this.tree.openFind();
+	}
+
+	closeFind(): void {
+		this.tree.closeFind();
 	}
 
 	// Context menu

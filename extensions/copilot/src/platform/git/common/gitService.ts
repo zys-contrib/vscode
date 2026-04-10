@@ -10,11 +10,13 @@ import { Event } from '../../../util/vs/base/common/event';
 import { IObservable } from '../../../util/vs/base/common/observableInternal';
 import { equalsIgnoreCase } from '../../../util/vs/base/common/strings';
 import { URI } from '../../../util/vs/base/common/uri';
-import { Branch, Change, Commit, CommitOptions, CommitShortStat, DiffChange, LogOptions, Ref, RefQuery, RepositoryAccessDetails, RepositoryKind, RepositoryState, Worktree } from '../vscode/git';
+import { Branch, Change, Commit, CommitOptions, CommitShortStat, DiffChange, LogOptions, Ref, RefQuery, RepositoryAccessDetails, RepositoryKind, Worktree } from '../vscode/git';
 
 export interface RepoContext {
 	readonly rootUri: URI;
 	readonly kind: RepositoryKind;
+	readonly headIncomingChanges: number | undefined;
+	readonly headOutgoingChanges: number | undefined;
 	readonly headBranchName: string | undefined;
 	readonly headCommitHash: string | undefined;
 	readonly upstreamBranchName: string | undefined;
@@ -54,7 +56,6 @@ export interface IGitService extends IDisposable {
 	initRepository(uri: URI): Promise<RepoContext | undefined>;
 	getRecentRepositories(): Iterable<RepositoryAccessDetails>;
 	getRepository(uri: URI, forceOpen?: boolean): Promise<RepoContext | undefined>;
-	getRepositoryState(uri: URI, forceOpen?: boolean): Promise<RepositoryState | undefined>;
 	getRepositoryFetchUrls(uri: URI): Promise<Pick<RepoContext, 'rootUri' | 'remoteFetchUrls'> | undefined>;
 	initialize(): Promise<void>;
 	add(uri: URI, paths: string[]): Promise<void>;
@@ -69,7 +70,7 @@ export interface IGitService extends IDisposable {
 	getMergeBase(uri: URI, ref1: string, ref2: string): Promise<string | undefined>;
 	restore(uri: URI, paths: string[], options?: { staged?: boolean; ref?: string }): Promise<void>;
 
-	createWorktree(uri: URI, options?: { path?: string; commitish?: string; branch?: string }): Promise<string | undefined>;
+	createWorktree(uri: URI, options?: { path?: string; commitish?: string; branch?: string; noTrack?: boolean }): Promise<string | undefined>;
 	deleteWorktree(uri: URI, path: string, options?: { force?: boolean }): Promise<void>;
 
 	migrateChanges(uri: URI, sourceRepositoryUri: URI, options?: { confirmation?: boolean; deleteFromSource?: boolean; untracked?: boolean }): Promise<void>;
