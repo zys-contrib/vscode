@@ -23,7 +23,7 @@ const MIGRATION_STORAGE_KEY = 'sharedKeychain.migrationDone';
 
 export class NativeSecretStorageService extends BaseSecretStorageService {
 
-	private _migrationPromise: Promise<void> | undefined;
+	private readonly _migrationPromise: Promise<void>;
 
 	constructor(
 		@INotificationService private readonly _notificationService: INotificationService,
@@ -42,18 +42,8 @@ export class NativeSecretStorageService extends BaseSecretStorageService {
 			encryptionService,
 			logService
 		);
-	}
 
-	/**
-	 * One-time migration: copies all secrets from the legacy safeStorage+SQLite
-	 * pipeline into the shared keychain. Idempotent — guarded by a storage flag
-	 * and keychain writes are upserts.
-	 */
-	private _ensureMigration(): Promise<void> {
-		if (!this._migrationPromise) {
-			this._migrationPromise = this._doMigration();
-		}
-		return this._migrationPromise;
+		this._migrationPromise = this._doMigration();
 	}
 
 	private async _doMigration(): Promise<void> {
@@ -88,7 +78,7 @@ export class NativeSecretStorageService extends BaseSecretStorageService {
 	override get(key: string): Promise<string | undefined> {
 		return this._sequencer.queue(key, async () => {
 			if (this.type !== 'in-memory' && CROSS_APP_SHARED_SECRET_KEYS.includes(key)) {
-				await this._ensureMigration();
+				await this._migrationPromise;
 				// Try shared keychain first (no-op on non-macOS)
 				const value = await this._sharedKeychainService.get(key);
 				if (value !== undefined) {
@@ -111,7 +101,7 @@ export class NativeSecretStorageService extends BaseSecretStorageService {
 		});
 		return this._sequencer.queue(key, async () => {
 			if (this.type !== 'in-memory' && CROSS_APP_SHARED_SECRET_KEYS.includes(key)) {
-				await this._ensureMigration();
+				await this._migrationPromise;
 				// Write to shared keychain (no-op on non-macOS)
 				await this._sharedKeychainService.set(key, value);
 			}
@@ -123,7 +113,7 @@ export class NativeSecretStorageService extends BaseSecretStorageService {
 	override delete(key: string): Promise<void> {
 		return this._sequencer.queue(key, async () => {
 			if (this.type !== 'in-memory' && CROSS_APP_SHARED_SECRET_KEYS.includes(key)) {
-				await this._ensureMigration();
+				await this._migrationPromise;
 				// Delete from shared keychain (no-op on non-macOS)
 				await this._sharedKeychainService.delete(key);
 			}
@@ -136,7 +126,7 @@ export class NativeSecretStorageService extends BaseSecretStorageService {
 		return this._sequencer.queue('__keys__', async () => {
 			const legacyKeys = await this._doGetKeys();
 			if (this.type !== 'in-memory') {
-				await this._ensureMigration();
+				await this._migrationPromise;
 				// Include any cross-app shared keys present in the shared keychain
 				for (const sharedKey of CROSS_APP_SHARED_SECRET_KEYS) {
 					const sharedValue = await this._sharedKeychainService.get(sharedKey);
