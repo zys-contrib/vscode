@@ -16,7 +16,7 @@ import { INotificationService, IPromptChoice } from '../../../../platform/notifi
 import { IOpenerService } from '../../../../platform/opener/common/opener.js';
 import { BaseSecretStorageService, ISecretStorageService } from '../../../../platform/secrets/common/secrets.js';
 import { ISharedKeychainService } from '../../../../platform/secrets/common/sharedKeychainService.js';
-import { IStorageService, StorageScope, StorageTarget } from '../../../../platform/storage/common/storage.js';
+import { IStorageService } from '../../../../platform/storage/common/storage.js';
 import { IJSONEditingService } from '../../configuration/common/jsonEditing.js';
 
 export class NativeSecretStorageService extends BaseSecretStorageService {
@@ -42,8 +42,7 @@ export class NativeSecretStorageService extends BaseSecretStorageService {
 
 	override get(key: string): Promise<string | undefined> {
 		return this._sequencer.queue(key, async () => {
-			debugger;
-			if (this.type === 'persisted') {
+			if (this.type !== 'in-memory') {
 				// Try shared keychain first (no-op on non-macOS)
 				const value = await this._sharedKeychainService.get(key);
 				if (value !== undefined) {
@@ -65,8 +64,7 @@ export class NativeSecretStorageService extends BaseSecretStorageService {
 			}
 		});
 		return this._sequencer.queue(key, async () => {
-			debugger;
-			if (this.type === 'persisted') {
+			if (this.type !== 'in-memory') {
 				// Write to shared keychain (no-op on non-macOS)
 				await this._sharedKeychainService.set(key, value);
 			}
@@ -77,8 +75,7 @@ export class NativeSecretStorageService extends BaseSecretStorageService {
 
 	override delete(key: string): Promise<void> {
 		return this._sequencer.queue(key, async () => {
-			debugger;
-			if (this.type === 'persisted') {
+			if (this.type !== 'in-memory') {
 				// Delete from shared keychain (no-op on non-macOS)
 				await this._sharedKeychainService.delete(key);
 			}
@@ -87,10 +84,9 @@ export class NativeSecretStorageService extends BaseSecretStorageService {
 		});
 	}
 
-	override keys(): Promise<string[]> {
+	override async keys(): Promise<string[]> {
 		return this._sequencer.queue('__keys__', async () => {
-			debugger;
-			if (this.type === 'persisted') {
+			if (this.type !== 'in-memory') {
 				// Merge keys from both sources (shared returns [] on non-macOS)
 				const sharedKeys = await this._sharedKeychainService.keys();
 				const legacyKeys = await this._doGetKeys();

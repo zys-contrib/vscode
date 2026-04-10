@@ -57,7 +57,6 @@ export class SharedKeychainMainService implements ISharedKeychainMainService {
 			this.logService.trace('[SharedKeychainMainService] set:', key);
 		} catch (err) {
 			this.logService.error('[SharedKeychainMainService] set failed:', key, err);
-			throw err;
 		}
 	}
 
