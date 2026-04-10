@@ -16,10 +16,14 @@ import { INotificationService, IPromptChoice } from '../../../../platform/notifi
 import { IOpenerService } from '../../../../platform/opener/common/opener.js';
 import { BaseSecretStorageService, ISecretStorageService } from '../../../../platform/secrets/common/secrets.js';
 import { ISharedKeychainService } from '../../../../platform/secrets/common/sharedKeychainService.js';
-import { IStorageService } from '../../../../platform/storage/common/storage.js';
+import { IStorageService, StorageScope, StorageTarget } from '../../../../platform/storage/common/storage.js';
 import { IJSONEditingService } from '../../configuration/common/jsonEditing.js';
 
+const MIGRATION_STORAGE_KEY = 'sharedKeychain.migrationDone';
+
 export class NativeSecretStorageService extends BaseSecretStorageService {
+
+	private _migrationPromise: Promise<void> | undefined;
 
 	constructor(
 		@INotificationService private readonly _notificationService: INotificationService,
@@ -40,9 +44,53 @@ export class NativeSecretStorageService extends BaseSecretStorageService {
 		);
 	}
 
+	/**
+	 * One-time migration: copies all secrets from the legacy safeStorage+SQLite
+	 * pipeline into the shared keychain. Idempotent — guarded by a storage flag
+	 * and keychain writes are upserts.
+	 */
+	private _ensureMigration(): Promise<void> {
+		if (!this._migrationPromise) {
+			this._migrationPromise = this._doMigration();
+		}
+		return this._migrationPromise;
+	}
+
+	private async _doMigration(): Promise<void> {
+		if (this.type === 'in-memory') {
+			return;
+		}
+
+		const storageService = await this.resolvedStorageService;
+		if (storageService.get(MIGRATION_STORAGE_KEY, StorageScope.APPLICATION) === '1') {
+			this._logService.trace('[NativeSecretStorageService] shared keychain migration already done');
+			return;
+		}
+
+		this._logService.trace('[NativeSecretStorageService] starting shared keychain migration');
+
+		const legacyKeys = await this._doGetKeys();
+		let migrated = 0;
+		for (const key of legacyKeys) {
+			try {
+				const value = await this._doGet(key);
+				if (value !== undefined) {
+					await this._sharedKeychainService.set(key, value);
+					migrated++;
+				}
+			} catch (err) {
+				this._logService.error('[NativeSecretStorageService] migration failed for key:', key, err);
+			}
+		}
+
+		storageService.store(MIGRATION_STORAGE_KEY, '1', StorageScope.APPLICATION, StorageTarget.MACHINE);
+		this._logService.trace(`[NativeSecretStorageService] shared keychain migration complete: ${migrated}/${legacyKeys.length} secrets migrated`);
+	}
+
 	override get(key: string): Promise<string | undefined> {
 		return this._sequencer.queue(key, async () => {
 			if (this.type !== 'in-memory') {
+				await this._ensureMigration();
 				// Try shared keychain first (no-op on non-macOS)
 				const value = await this._sharedKeychainService.get(key);
 				if (value !== undefined) {
@@ -65,6 +113,7 @@ export class NativeSecretStorageService extends BaseSecretStorageService {
 		});
 		return this._sequencer.queue(key, async () => {
 			if (this.type !== 'in-memory') {
+				await this._ensureMigration();
 				// Write to shared keychain (no-op on non-macOS)
 				await this._sharedKeychainService.set(key, value);
 			}
@@ -76,6 +125,7 @@ export class NativeSecretStorageService extends BaseSecretStorageService {
 	override delete(key: string): Promise<void> {
 		return this._sequencer.queue(key, async () => {
 			if (this.type !== 'in-memory') {
+				await this._ensureMigration();
 				// Delete from shared keychain (no-op on non-macOS)
 				await this._sharedKeychainService.delete(key);
 			}
@@ -87,6 +137,7 @@ export class NativeSecretStorageService extends BaseSecretStorageService {
 	override async keys(): Promise<string[]> {
 		return this._sequencer.queue('__keys__', async () => {
 			if (this.type !== 'in-memory') {
+				await this._ensureMigration();
 				// Merge keys from both sources (shared returns [] on non-macOS)
 				const sharedKeys = await this._sharedKeychainService.keys();
 				const legacyKeys = await this._doGetKeys();
