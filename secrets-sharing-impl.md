@@ -2,215 +2,207 @@
 
 **Spec**: `secrets-sharing-spec.md` (in this repo)
 **Issue**: https://github.com/microsoft/vscode/issues/308028
-**PR**: https://github.com/microsoft/vscode-macos-keychain/pull/1
+**VS Code PR**: https://github.com/microsoft/vscode/pull/308990
 **Date started**: 9 April 2026
+
+## Current status: Phase 1 (macOS) — feature-complete, testing in progress
+
+All Phase 1 steps from the spec are implemented. The end-to-end flow (Code writes secrets → Agents reads them) works locally.
 
 ## What's been done
 
-### Phase 1, Step 1: macOS native Node addon (`@vscode/macos-keychain`)
+### Step 1: macOS native Node addon (`@vscode/macos-keychain`)
 
-**Location**: `/Users/alex/src/vscode-macos-keychain/` (separate repo, https://github.com/microsoft/vscode-macos-keychain)
-**Branch**: `alexdima/keychain-addon`
-**Status**: Addon built, compiles cleanly, 11/11 tests passing. Draft PR open.
+**Repo**: https://github.com/microsoft/vscode-macos-keychain
+**PR #1** (merged): Initial addon with access group support
+**PR #2** (open): Auto-detect access group from entitlements
+**PR #3** (open): Fix build on non-macOS CI
 
-The addon wraps the macOS Security framework (`SecItemAdd`, `SecItemCopyMatching`, `SecItemUpdate`, `SecItemDelete`) with `kSecAttrAccessGroup` support for cross-app keychain sharing.
+The addon wraps the macOS Security framework (`SecItemAdd`, `SecItemCopyMatching`, `SecItemUpdate`, `SecItemDelete`).
 
-#### Files created
-
-```
-vscode-macos-keychain/
-  package.json          # @vscode/macos-keychain, deps: bindings + node-addon-api, os: ["darwin"]
-  package-lock.json
-  binding.gyp           # node-gyp config, links Security + CoreFoundation
-  index.js              # JS wrapper using `bindings` package (with platform guard)
-  index.d.ts            # TypeScript type definitions
-  src/
-    main.cc             # Node-API entry point (Napi:: C++ wrapper)
-    keychain.h           # Header: CFRef<T> RAII wrapper + function declarations
-    keychain.cc          # Core implementation: buildBaseQuery, set/get/delete/list
-  test/
-    test.js             # mocha test suite (11 tests)
-  azure-pipelines.yml   # Azure DevOps CI/CD + npm publishing pipeline
-  .github/workflows/ci.yml  # GitHub Actions CI (macOS, Node 22.x)
-  .npmignore            # Excludes CI, meta files from published package
-  .vscode/settings.json # Branch protection config
-  LICENSE               # MIT (from upstream repo template)
-  README.md             # Project docs with API, usage, entitlements, testing
-  CODE_OF_CONDUCT.md    # From upstream repo template
-  SECURITY.md           # From upstream repo template
-  SUPPORT.md            # From upstream repo template
-  .gitignore            # Minimal: /node_modules, /build (matches policy-watcher)
-```
-
-#### API
+#### API (after PR #2)
 
 ```typescript
-keychainSet(service: string, account: string, value: string, accessGroup: string): void
-keychainGet(service: string, account: string, accessGroup: string): string | undefined
-keychainDelete(service: string, account: string, accessGroup: string): boolean
-keychainList(service: string, accessGroup: string): string[]
+keychainSet(service: string, account: string, value: string): void
+keychainGet(service: string, account: string): string | undefined
+keychainDelete(service: string, account: string): boolean
+keychainList(service: string): string[]
 ```
 
-All string arguments reject embedded NUL bytes. This is intentional: the native CoreFoundation string conversion used by the addon treats NUL as a terminator, so allowing embedded NUL would let distinct logical keys alias the same Keychain item.
+The `accessGroup` parameter was removed from the public API. Instead, `keychainInit()` (called automatically at module load) reads the process's `keychain-access-groups` entitlement via `SecTaskCopyValueForEntitlement` and caches the first access group found. If no entitlement exists (unsigned/dev builds), items go to the app's default keychain.
+
+### Step 2: Entitlements
+
+Added `keychain-access-groups` to `build/azure-pipelines/darwin/app-entitlements.plist`:
+
+```xml
+<key>keychain-access-groups</key>
+<array>
+    <string>$(TeamIdentifierPrefix)com.microsoft.vscode.shared-secrets</string>
+</array>
+```
+
+Both Code.app and its embedded Agents.app use the same entitlements file (via `getEntitlementsForFile()` in `build/darwin/sign.ts`), so both get the shared access group.
+
+### Step 3: ISharedKeychainService
+
+Follows the standard Electron main process IPC service pattern (like `IEncryptionService`):
+
+| Layer | File | Role |
+|-------|------|------|
+| Common interface | `src/vs/platform/secrets/common/sharedKeychainService.ts` | `ISharedKeychainService` + `ISharedKeychainMainService` decorators and interfaces |
+| Main process impl | `src/vs/platform/secrets/electron-main/sharedKeychainMainService.ts` | `SharedKeychainMainService` — wraps native addon, no-op on non-macOS |
+| Main process registration | `src/vs/code/electron-main/app.ts` | `services.set(ISharedKeychainMainService, ...)` + `ProxyChannel.fromService(...)` + `registerChannel('sharedKeychain', ...)` |
+| Renderer proxy | `src/vs/workbench/services/secrets/electron-browser/sharedKeychainService.ts` | `registerMainProcessRemoteService(ISharedKeychainService, 'sharedKeychain')` |
+
+**Design decisions**:
+- Service is registered on all platforms; the main process implementation is a no-op on non-macOS (`enabled = isMacintosh && !!productService.darwinSharedKeychainServiceName`)
+- `set()` is best-effort (logs error, does not throw) — callers also write to the legacy pipeline for rollback safety, so shared keychain failures should not break secret persistence
+- `get()`/`delete()`/`keys()` are also best-effort (return `undefined`/`false`/`[]` on error)
+
+### Step 4: NativeSecretStorageService changes
+
+`src/vs/workbench/services/secrets/electron-browser/secretStorageService.ts`:
+
+**Base class refactoring**: `BaseSecretStorageService` now exposes protected `_doGet`/`_doSet`/`_doDelete`/`_doGetKeys` methods that perform the actual safeStorage+SQLite operations without going through the sequencer. This allows subclasses to call them from within their own sequencer-queued tasks without deadlocking (since `SequencerByKey` would deadlock if the same key is queued from within a queued task).
+
+**NativeSecretStorageService overrides** (all guarded by `this.type !== 'in-memory'`):
+- `get()`: tries shared keychain first, falls back to `_doGet()` (legacy pipeline)
+- `set()`: writes to shared keychain, then `_doSet()` (dual-write for rollback safety)
+- `delete()`: deletes from shared keychain, then `_doDelete()`
+- `keys()`: merges results from shared keychain and `_doGetKeys()`
+
+### Step 5: Migration
+
+One-time, lazy migration runs on the first secret operation:
+
+1. `_ensureMigration()` is called at the start of every `get`/`set`/`delete`/`keys` (when `type !== 'in-memory'`)
+2. Reads all `secret://`-prefixed keys from SQLite via `_doGetKeys()`
+3. Decrypts each with safeStorage via `_doGet()`
+4. Writes plaintext to shared keychain via `_sharedKeychainService.set()`
+5. Stores `sharedKeychain.migrationDone = '1'` in `StorageScope.APPLICATION`
+6. Subsequent calls skip migration (cached promise + storage flag)
+
+**Properties**:
+- Idempotent: keychain writes are upserts, storage flag prevents re-runs across sessions
+- Best-effort per key: individual failures don't block the rest
+- Safe with multiple windows: concurrent migrations do redundant but harmless work (all write the same values)
+- Skipped for in-memory mode
+
+### Step 6: Agents app wiring
+
+`src/vs/sessions/sessions.desktop.main.ts` imports both:
+- `../workbench/services/secrets/electron-browser/secretStorageService.js` (NativeSecretStorageService)
+- `../workbench/services/secrets/electron-browser/sharedKeychainService.js` (IPC proxy)
+
+The Agents app reads from the shared keychain via the same `NativeSecretStorageService` overrides. No separate migration needed — it reads whatever Code wrote.
+
+### Product configuration
+
+**`darwinSharedKeychainServiceName`** — the `kSecAttrService` value that groups keychain items. Per-flavor to isolate secrets between Stable/Insiders/Exploration:
+
+| Flavor | Value |
+|--------|-------|
+| Code OSS | `com.visualstudio.code.oss.shared-secrets` (set in `product.json`) |
+| Code Stable | Set in internal product.json (e.g. `com.microsoft.vscode.shared-secrets`) |
+| Code Insiders | Set in internal product.json (e.g. `com.microsoft.vscode-insiders.shared-secrets`) |
+
+This field is at the **top level** of product.json, NOT in the `embedded` section — so both Code and its embedded Agents app within the same flavor get the same value. The `embedded` overlay (in `build/gulpfile.vscode.ts`) only copies fields listed in `IEmbeddedProductConfiguration`.
+
+**`darwinKeychainAccessGroup`** — removed from product.json. The native addon auto-detects it from the process's entitlements at module load time. This avoids keeping the team ID prefix in sync between the entitlements plist and product.json.
+
+### Other files changed
+
+| File | Change |
+|------|--------|
+| `package.json` | Added `@vscode/macos-keychain` to `optionalDependencies` (macOS-only) |
+| `build/.moduleignore` | Added entries for `@vscode/macos-keychain` (keep only `.node` binary) |
+| `src/typings/macos-keychain.d.ts` | Type declarations for cross-platform compilation |
+| `src/vs/base/common/product.ts` | Added `darwinSharedKeychainServiceName` to `IProductConfiguration` |
+| `src/vs/workbench/workbench.desktop.main.ts` | Import shared keychain service registration |
+| `src/vs/sessions/sessions.desktop.main.ts` | Import shared keychain service registration |
 
 ## Decisions and rationale
 
 ### 1. Template: `@vscode/policy-watcher` (not `native-keymap`)
 
-We surveyed ALL native Node addons used by VS Code:
+Used `@vscode/policy-watcher` as the template for the native addon because it uses modern `node-addon-api` (C++ NAPI wrapper), `bindings` package for loading, and has macOS-specific native code.
 
-| Package | macOS native? | API style | Loader |
-|---------|:---:|---|---|
-| `native-keymap` (`node-native-keymap`) | Yes (.mm) | Raw `napi_*` C API | Manual `require('./build/Release/...')` |
-| `@vscode/policy-watcher` | Yes (C++) | `node-addon-api` (C++ NAPI wrapper) | `bindings` package |
-| `@vscode/spdlog` | Yes (cross-platform C++) | `node-addon-api` | `bindings` |
-| `@vscode/windows-mutex` | No (Windows) | `node-addon-api` | `bindings` |
-| `@vscode/deviceid` | No (Windows) | Raw NAPI | Manual |
-| `@vscode/windows-process-tree` | No (Windows) | — | — |
-| `node-pty` | Yes | — | Too complex for reference |
+### 2. Access group auto-detection (PR #2)
 
-**Decision**: Use `@vscode/policy-watcher` as the primary template because:
-- It uses the modern `node-addon-api` C++ wrapper (cleaner than raw `napi_*`)
-- It has macOS-specific native code in `src/macos/`
-- It uses the `bindings` package for loading (standard pattern)
-- It's a Microsoft project with the same license/header conventions
-- `native-keymap` is older: raw C NAPI, manual `require('./build/Release/...')` loading, Objective-C++ `.mm` files
+Initially the `accessGroup` was a JS parameter passed through to the native code. This required keeping the team ID prefix (e.g. `UBF8T346G9.com.microsoft.vscode.shared-secrets`) in product.json, which was error-prone and would diverge from the entitlements plist.
 
-### 2. `node-addon-api` version: `^8.2.0` (not `7.1.0`)
+**Solution**: The native addon calls `SecTaskCopyValueForEntitlement` at module init to read the `keychain-access-groups` entitlement from its own process. This makes the access group an implementation detail — JS never needs to know the team ID prefix.
 
-VS Code's `package.json` pins `node-addon-api` at `7.1.0`, but `@vscode/policy-watcher` (the newest addon) uses `^8.2.0`. We followed the newer addon's lead. This may need alignment when the addon is added to VS Code's dependencies.
+### 3. IPC service pattern (not direct import)
 
-### 3. `Napi::Boolean` must be fully qualified
+The native addon runs in the **main process** (via `SharedKeychainMainService`), exposed to renderer windows via `ProxyChannel`/`registerMainProcessRemoteService`. This follows the established pattern for native services (like `IEncryptionService`). An earlier attempt to load the addon directly in the `electron-browser` layer failed layering checks — the `electron-browser` tsconfig doesn't include `node/` files.
 
-**Problem discovered during build**: `return Boolean::New(env, deleted)` caused a compilation error:
+### 4. Dual-write for rollback safety
 
+`set()` writes to both the shared keychain AND the legacy safeStorage+SQLite pipeline. This means if we discover a critical issue with the shared keychain, we can remove the new code path and all secrets are still in the old storage. The legacy pipeline can be removed in a future release once the shared keychain is proven stable.
+
+### 5. Best-effort shared keychain operations
+
+All `SharedKeychainMainService` methods catch errors and return safe defaults (`undefined`/`false`/`[]`). This prevents shared keychain failures (e.g. missing entitlements in dev builds, addon load failures on non-macOS CI) from breaking existing secret functionality.
+
+### 6. `CFRef<T>` RAII wrapper for CoreFoundation objects
+
+CoreFoundation objects must be `CFRelease`d. The addon uses a `CFRef<T>` template class for RAII. When setting into CF dictionaries, uses `.get()` (not `.release()`) so the RAII wrapper's destructor balances the create while `CFDictionarySetValue` retains its own +1 reference. An earlier version using `.release()` caused refcount leaks.
+
+### 7. Security hardening in native addon
+
+- **Secret zeroing**: `secureClear()` uses a `volatile char*` to zero `std::string` buffers
+- **Build flags**: `-D_FORTIFY_SOURCE=2`, `-Wformat`, `-Wformat-security`, `-fstack-protector-strong`
+- **Error sanitization**: account/service names omitted from error messages
+- **Input bounds**: values capped at 100 KB, strings at 1 KB
+- **NUL byte rejection**: all string arguments validated
+
+### 8. Platform guard in SharedKeychainMainService
+
+The service checks `isMacintosh && !!productService.darwinSharedKeychainServiceName` at construction time. If either is false, all methods are no-ops. This means:
+- On Windows/Linux: no keychain operations attempted
+- On macOS without `darwinSharedKeychainServiceName` in product.json: no keychain operations (but this shouldn't happen in practice since Code OSS sets it)
+
+### 9. `type !== 'in-memory'` guard in NativeSecretStorageService
+
+Shared keychain operations are skipped when `this.type === 'in-memory'` (encryption unavailable). The type can be `'unknown'` during initialization before encryption availability is determined — shared keychain operations proceed for both `'persisted'` and `'unknown'` states.
+
+## Testing strategy
+
+### Unit tests
+- Run existing `BaseSecretStorageService` tests to verify the `_doGet`/`_doSet`/`_doDelete`/`_doGetKeys` refactoring didn't break anything:
+  ```bash
+  ./scripts/test.sh --run src/vs/platform/secrets/test/common/secrets.test.ts
+  ```
+
+### Compilation check
+```bash
+npm run compile-check-ts-native
 ```
-error: reference to 'Boolean' is ambiguous
-```
 
-macOS `MacTypes.h` defines `typedef unsigned char Boolean;` which conflicts with `Napi::Boolean`. The file has `using namespace Napi;` so both are in scope.
+### Manual E2E flow
+1. Launch Code OSS: `./scripts/code.sh`
+2. Sign in to GitHub/Microsoft
+3. Verify Keychain Access shows entries under `com.visualstudio.code.oss.shared-secrets`
+4. Launch Agents: `./scripts/code.sh --agents --user-data-dir=$HOME/.vscode-oss-sessions-dev --extensions-dir=$HOME/.vscode-oss-sessions-dev/extensions`
+5. Verify the Agents app is signed in without re-authentication
 
-**Fix**: Use `Napi::Boolean::New(env, deleted)` instead of `Boolean::New(env, deleted)`. This only affects `Boolean` — `String`, `Array`, `Value`, etc. don't have conflicts with macOS system headers.
+### Edge cases
+- Cold start with no prior secrets (no migration needed)
+- Restart after migration (flag set, migration skips)
+- Delete a secret in Code → verify it's gone from both keychain and SQLite
+- Multiple windows restoring simultaneously (benign concurrent migration)
 
-### 4. `kSecUseDataProtectionKeychain` availability warning
+## Open questions (from spec)
 
-**Problem discovered during build**: The compiler warns:
+1. ~~**Naming convention for keychain items**~~ → Resolved: `darwinSharedKeychainServiceName` in product.json, per-flavor
+2. **Entitlement signing**: Does adding `keychain-access-groups` to `app-entitlements.plist` require CI/CD signing process changes? Needs verification with the build team.
+3. **Notification/sync**: When Code writes a new secret, should the Agents app be notified in real-time? Currently read-on-demand (lazy).
+4. **Scope**: Currently shares ALL secrets. May want to filter to auth-related only in the future.
 
-```
-'kSecUseDataProtectionKeychain' is only available on macOS 10.15 or newer [-Wunguarded-availability-new]
-```
+## Phase 2 (Windows) and Phase 3 (Linux) — future work
 
-This is because node-gyp defaults `MACOSX_DEPLOYMENT_TARGET` to `10.7`, and `kSecUseDataProtectionKeychain` was introduced in 10.15.
-
-**Attempted fixes**:
-1. `"MACOSX_DEPLOYMENT_TARGET": "10.15"` in xcode_settings — **did not work** because node-gyp uses `make` on macOS (not Xcode), so xcode_settings for deployment target are ignored by the makefile generator.
-2. `"CLANG_WARN_UNGUARDED_AVAILABILITY": "NO"` in xcode_settings — **did not work** for the same reason.
-3. `"-Wno-unguarded-availability-new"` in `WARNING_CFLAGS` (xcode_settings) — **worked**. The `WARNING_CFLAGS` xcode_setting DOES get passed through to the compiler via the makefile.
-
-**Final fix**: Added `-Wno-unguarded-availability-new` to both `cflags` (for GCC/Clang direct builds) and `WARNING_CFLAGS` (for xcode_settings pass-through). Also kept `MACOSX_DEPLOYMENT_TARGET: "10.15"` for documentation purposes even though node-gyp overrides it.
-
-VS Code already requires macOS 10.15+, so the availability guard is unnecessary.
-
-### 5. Access group is optional (empty string = skip)
-
-**Problem discovered during testing**: All keychain operations fail with `-34018` (`errSecMissingEntitlement`) when `kSecUseDataProtectionKeychain = true` is set but the app isn't signed with the `keychain-access-groups` entitlement. This means you **cannot test the addon locally** with a real access group using plain `node`.
-
-**Solution**: When `accessGroup` is an **empty string**, `buildBaseQuery()` skips both `kSecAttrAccessGroup` and `kSecUseDataProtectionKeychain`. Items go to the app's default keychain, which works without entitlements. This enables local development and CI testing.
-
-When `accessGroup` is non-empty (production), both attributes are set, requiring proper entitlements. This is the intended code path inside signed VS Code/Agents builds.
-
-### 6. Set is upsert (add-then-update pattern)
-
-`keychainSet` first calls `SecItemAdd`. If that returns `errSecDuplicateItem`, it falls back to building a new search query + `SecItemUpdate`. This two-step pattern is the standard approach for macOS Keychain — there is no "upsert" API.
-
-Note: The update path builds a **new** search query (without `kSecValueData`) and a separate attributes dict (with only `kSecValueData`). This is required by `SecItemUpdate` — it does not accept `kSecValueData` in the query dictionary.
-
-### 7. `CFRef<T>` RAII wrapper for CoreFoundation objects
-
-CoreFoundation objects must be `CFRelease`d. Rather than tracking releases manually (error-prone, especially with early returns and exceptions), we use a `CFRef<T>` template class that calls `CFRelease` in its destructor. It supports move semantics. When setting `CFRef`-managed objects into CF dictionaries, we use `.get()` so the RAII wrapper's destructor balances the create, while `CFDictionarySetValue` (with `kCFTypeDictionaryValueCallBacks`) retains its own +1 reference.
-
-**Note**: An earlier version used `.release()` to transfer ownership into dictionaries, which caused a refcount leak — `CFDictionarySetValue` retains the value, but `.release()` also gave up RAII ownership, leaving a dangling +1. Fixed by switching to `.get()`.
-
-### 8. Error messages include human-readable text and OSStatus code (no account names)
-
-All error paths use `SecCopyErrorMessageString` to get a human-readable description and also include the numeric OSStatus code. Example: `"Keychain set failed: A required entitlement isn't present. (-34018)"`. Account and service names are intentionally **omitted** from error messages to prevent them from leaking into telemetry or log files.
-
-### 9. Secrets stored as plaintext in Keychain (not encrypted separately)
-
-Per the spec: macOS Keychain `kSecClassGenericPassword` does NOT have the blob size limitations that Windows CredMan has. The keychain itself IS the secure storage — no need for an additional encryption layer (unlike the current safeStorage + SQLite approach). Values are stored as `kSecValueData` (`CFData` from UTF-8 bytes) directly.
-
-### 10. Test cleanup uses beforeEach/afterEach with try-catch
-
-Tests clean up keychain items in both `beforeEach` and `afterEach` to ensure idempotency even if a previous test run crashed. The `try-catch` handles the case where items don't exist.
-
-### 11. Platform guard in index.js + `"os": ["darwin"]` in package.json
-
-Added `if (process.platform !== 'darwin') throw ...` at the top of `index.js` for a clear error message at import time. Also added `"os": ["darwin"]` to `package.json` so `npm install` fails fast on non-macOS. The existing VS Code addons don't use either pattern, but this module is macOS-only by design so both are appropriate.
-
-### 12. Null check for updateAttrs dictionary
-
-Added a null check after `CFDictionaryCreateMutable` for the `updateAttrs` dict in the update path of `keychainSet`, consistent with the existing check in `buildBaseQuery`.
-
-### 13. Security hardening (from security audit)
-
-A dedicated security audit identified and fixed the following:
-
-- **CF ownership fix**: Fixed CoreFoundation reference counting in `buildBaseQuery` — changed `.release()` to `.get()` for values set into dictionaries, since `CFDictionarySetValue` retains. The original `.release()` left a dangling +1 refcount on every keychain call.
-- **Secret zeroing**: A `secureClear()` utility uses a `volatile char*` pointer to zero `std::string` buffers containing secrets immediately after use, preventing the compiler from optimizing away the zeroing. Applied to the `value` parameter in `keychainSet` and the return value in `keychainGet`.
-- **Build hardening flags**: Added `-D_FORTIFY_SOURCE=2` (runtime buffer overflow checks) and `-Wformat -Wformat-security` (format string vulnerability warnings) alongside the existing `-fstack-protector-strong`.
-- **Error message sanitization**: Removed account/service names from error messages to avoid leaking them into telemetry or log files. The caller already knows these values.
-- **Input length bounds**: Values are capped at 100 KB, and service/account/accessGroup strings at 1 KB. Apple does not document hard keychain item size limits, but the Data Protection keychain (SQLite-backed) is known to work reliably up to ~100 KB. These bounds provide predictable error messages instead of opaque OS-level failures.
-- **NUL byte rejection**: All string arguments are validated to reject embedded NUL bytes, which could cause silent truncation when passed to CoreFoundation `CFStringCreateWithCString`.
-
-### 14. CI/CD and project meta files
-
-`azure-pipelines.yml` follows the `@vscode/policy-watcher` pattern: uses `microsoft/vscode-engineering` pipeline templates for npm package build/test/publish. Only tests on macOS (unlike cross-platform addons). GitHub Actions CI (`.github/workflows/ci.yml`) runs on `macos-latest` with Node 22.x. `.npmignore` excludes CI files, meta docs, and build artifacts from the published package.
-
-### 15. Git rebase gotcha: `--ours`/`--theirs` are swapped
-
-During `git rebase origin/main`, conflict resolution with `git checkout --ours README.md` took the **upstream** version, not ours. This is because rebase replays our commits onto the upstream, making the upstream `HEAD` the "ours" and our commit the "theirs". The README was silently lost and discovered later. Lesson: during rebase conflicts, use `--theirs` to keep your own changes.
-
-## Things NOT done yet (from the spec's Phase 1 plan)
-
-### Step 2: Entitlements
-Add `keychain-access-groups` entitlement to both Code and Agents app builds:
-- Location: `build/darwin/` entitlements files
-- Value: `$(TeamIdentifierPrefix)com.microsoft.vscode.shared-secrets`
-- Both Code.app and the nested Agents .app need the same group
-
-### Step 3: `ISharedSecretStorageService` in VS Code
-New service that:
-- On write: stores in shared keychain via addon + optionally keeps old pipeline in sync
-- On read: reads from shared keychain, falls back to old safeStorage+SQLite
-- On delete: deletes from both
-- Files involved: `src/vs/platform/secrets/`, `src/vs/workbench/services/secrets/`
-
-### Step 4: Migration logic
-One-time migration in Code on startup:
-- Read all `secret://`-prefixed keys from SQLite (IStorageService)
-- Decrypt each with existing safeStorage (IEncryptionService)
-- Write plaintext to shared keychain via addon
-- Must be idempotent/re-entrant
-- Store migration-complete flag
-
-### Step 5: Wire up the Agents app
-The Agents app (`src/vs/sessions/sessions.desktop.main.ts`) should use the shared keychain for secrets. It reads from the shared keychain directly — no migration needed from the Agents side.
-
-### Step 6: Testing with real auth tokens
-Test with large Microsoft account refresh tokens (the ones that exceed Windows CredMan's ~2.5KB limit). macOS Keychain should handle them fine but needs verification.
-
-## Open questions (from spec, still open)
-
-1. **Naming convention for keychain items**: What `kSecAttrService` value? Spec suggests `"com.microsoft.vscode.shared-secrets"` — needs to be stable across versions.
-2. **Entitlement signing**: Does adding `keychain-access-groups` require CI/CD signing process changes?
-3. **Notification/sync**: Should Code notify Agents in real-time when secrets change? Or read-on-demand?
-4. **Scope**: Share ALL secrets or only auth-related ones?
-
-## Environment notes
-
-- Built and tested on macOS (Darwin 25.4.0, arm64)
-- Node.js v22.22.1
-- node-gyp v11.2.0 (bundled with npm)
-- `node-addon-api` v8.3.1 (resolved from `^8.2.0`)
-- Compilation uses `make` (not Xcode), which affects how xcode_settings are applied
-- GPG commit signing fails inside the VS Code agent sandbox (can't access `~/.gnupg` or gpg-agent) — must use unsandboxed execution for `git commit -S` and `git push`
+Not started. See spec for approach:
+- **Windows**: Cross-read Code's SQLite + same DPAPI key (user-scoped, not app-scoped). Must avoid CredMan for secret values (2.5KB size limit).
+- **Linux**: Similar to Windows — keyring services are user-scoped.
