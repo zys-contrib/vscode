@@ -6,7 +6,7 @@
 import { CancelablePromise } from './async.js';
 import { CancellationToken } from './cancellation.js';
 import { diffSets } from './collections.js';
-import { ErrorWithDiagProps, onUnexpectedError } from './errors.js';
+import { ErrorWithTelemetry, onUnexpectedError } from './errors.js';
 import { createSingleCallFunction } from './functional.js';
 import { combinedDisposable, Disposable, DisposableMap, DisposableStore, IDisposable, toDisposable } from './lifecycle.js';
 import { LinkedList } from './linkedList.js';
@@ -1071,7 +1071,7 @@ class Stacktrace {
 }
 
 // error that is logged when going over the configured listener threshold
-export class ListenerLeakError extends ErrorWithDiagProps {
+export class ListenerLeakError extends ErrorWithTelemetry {
 	/**
 	 * The detailed message including listener count and most frequent stack.
 	 * Available locally for debugging but intentionally not used as the error
@@ -1088,7 +1088,7 @@ export class ListenerLeakError extends ErrorWithDiagProps {
 
 // SEVERE error that is logged when having gone way over the configured listener
 // threshold so that the emitter refuses to accept more listeners
-export class ListenerRefusalError extends ErrorWithDiagProps {
+export class ListenerRefusalError extends ErrorWithTelemetry {
 	/**
 	 * The detailed message including listener count and most frequent stack.
 	 * Available locally for debugging but intentionally not used as the error

@@ -4,13 +4,13 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { binarySearch } from '../../../base/common/arrays.js';
-import { errorHandler, ErrorNoTelemetry, ErrorWithDiagProps, PendingMigrationError } from '../../../base/common/errors.js';
-import { DisposableStore, toDisposable } from '../../../base/common/lifecycle.js';
+import { errorHandler, ErrorNoTelemetry, ErrorWithTelemetry, PendingMigrationError } from '../../../base/common/errors.js';
+import { DisposableStore, IDisposable, toDisposable } from '../../../base/common/lifecycle.js';
 import { safeStringify } from '../../../base/common/objects.js';
 import { FileOperationError } from '../../files/common/files.js';
 import { ITelemetryService } from './telemetry.js';
 
-type ErrorEventFragment = {
+export type ErrorEventFragment = {
 	owner: 'lramos15, sbatten';
 	comment: 'Whenever an error in VS Code is thrown.';
 	callstack: { classification: 'CallstackOrException'; purpose: 'PerformanceAndHealth'; comment: 'The callstack of the error.' };
@@ -22,6 +22,14 @@ type ErrorEventFragment = {
 	uncaught_error_msg?: { classification: 'CallstackOrException'; purpose: 'PerformanceAndHealth'; comment: 'If the error is uncaught this is just msg but for uncaught errors.' };
 	count?: { classification: 'CallstackOrException'; purpose: 'PerformanceAndHealth'; comment: 'How many times this error has been thrown' };
 };
+
+/**
+ * A function that logs an error event with proper GDPR-typed classification.
+ * Registered via {@link BaseErrorTelemetry.registerDiagLogger} so that
+ * {@link ErrorWithTelemetry} subclasses can provide their own typed
+ * `publicLogError2` call site for the telemetry extractor to discover.
+ */
+export type DiagLogger = (service: ITelemetryService, event: ErrorEvent) => void;
 export interface ErrorEvent {
 	callstack: string;
 	msg?: string;
@@ -62,10 +70,23 @@ export default abstract class BaseErrorTelemetry {
 
 	public static ERROR_FLUSH_TIMEOUT: number = 5 * 1000;
 
+	/**
+	 * Registry of GDPR-typed loggers keyed by {@link Error.name}.
+	 * Each logger provides a statically-typed `publicLogError2` call site
+	 * so that the telemetry extractor can discover the classification.
+	 */
+	private static readonly _diagLoggers = new Map<string, DiagLogger>();
+
+	static registerDiagLogger(errorName: string, logger: DiagLogger): IDisposable {
+		BaseErrorTelemetry._diagLoggers.set(errorName, logger);
+		return toDisposable(() => BaseErrorTelemetry._diagLoggers.delete(errorName));
+	}
+
 	private _telemetryService: ITelemetryService;
 	private _flushDelay: number;
 	private _flushHandle: Timeout | undefined = undefined;
 	private _buffer: ErrorEvent[] = [];
+	private _diagLoggersByCallstack = new Map<string, DiagLogger>();
 	protected readonly _disposables = new DisposableStore();
 
 	constructor(telemetryService: ITelemetryService, flushDelay = BaseErrorTelemetry.ERROR_FLUSH_TIMEOUT) {
@@ -121,9 +142,13 @@ export default abstract class BaseErrorTelemetry {
 
 		const errorEvent: ErrorEvent = { msg, callstack };
 
-		// flatten diagnostic properties directly into the telemetry event
-		if (ErrorWithDiagProps.is(err)) {
+		// flatten diagnostic properties and associate a typed logger if registered
+		if (ErrorWithTelemetry.is(err)) {
 			Object.assign(errorEvent, err.diagProperties);
+			const diagLogger = BaseErrorTelemetry._diagLoggers.get(err.name);
+			if (diagLogger) {
+				this._diagLoggersByCallstack.set(callstack, diagLogger);
+			}
 		}
 
 		this._enqueue(errorEvent);
@@ -152,9 +177,16 @@ export default abstract class BaseErrorTelemetry {
 
 	private _flushBuffer(): void {
 		for (const error of this._buffer) {
-			type UnhandledErrorClassification = {} & ErrorEventFragment;
-			this._telemetryService.publicLogError2<ErrorEvent, UnhandledErrorClassification>('UnhandledError', error);
+			const diagLogger = this._diagLoggersByCallstack.get(error.callstack);
+			if (diagLogger) {
+				// delegate to the registered GDPR-typed logger
+				diagLogger(this._telemetryService, error);
+			} else {
+				type UnhandledErrorClassification = {} & ErrorEventFragment;
+				this._telemetryService.publicLogError2<ErrorEvent, UnhandledErrorClassification>('UnhandledError', error);
+			}
 		}
 		this._buffer.length = 0;
+		this._diagLoggersByCallstack.clear();
 	}
 }

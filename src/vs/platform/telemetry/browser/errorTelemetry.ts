@@ -8,6 +8,9 @@ import { ErrorNoTelemetry } from '../../../base/common/errors.js';
 import { toDisposable } from '../../../base/common/lifecycle.js';
 import BaseErrorTelemetry, { ErrorEvent } from '../common/errorTelemetry.js';
 
+// register GDPR-typed diag loggers for listener leak errors
+import '../common/listenerLeakDiagTelemetry.js';
+
 export default class ErrorTelemetry extends BaseErrorTelemetry {
 	protected override installErrorListeners(): void {
 		let oldOnError: OnErrorEventHandler;

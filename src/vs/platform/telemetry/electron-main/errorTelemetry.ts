@@ -5,6 +5,7 @@
 
 import { isSigPipeError, onUnexpectedError, setUnexpectedErrorHandler } from '../../../base/common/errors.js';
 import BaseErrorTelemetry from '../common/errorTelemetry.js';
+import '../common/listenerLeakDiagTelemetry.js';
 import { ITelemetryService } from '../common/telemetry.js';
 import { ILogService } from '../../../platform/log/common/log.js';
 

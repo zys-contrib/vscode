@@ -302,7 +302,7 @@ export class ExpectedError extends Error {
  * {@link diagProperties} so that the telemetry layer can flatten them into the
  * telemetry event alongside the standard callstack/message fields.
  */
-export class ErrorWithDiagProps extends Error {
+export class ErrorWithTelemetry extends Error {
 	readonly diagProperties: Record<string, string | number | boolean | undefined>;
 
 	constructor(message: string, diagProperties?: Record<string, string | number | boolean | undefined>) {
@@ -310,8 +310,8 @@ export class ErrorWithDiagProps extends Error {
 		this.diagProperties = diagProperties ?? {};
 	}
 
-	static is(err: unknown): err is ErrorWithDiagProps {
-		return err instanceof ErrorWithDiagProps;
+	static is(err: unknown): err is ErrorWithTelemetry {
+		return err instanceof ErrorWithTelemetry;
 	}
 }
 
