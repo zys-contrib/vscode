@@ -27,6 +27,14 @@ export interface ISecretStorageService extends ISecretStorageProvider {
 	readonly onDidChangeSecret: Event<string>;
 }
 
+/**
+ * Secret keys that are shared between Code and the Agents app
+ * via the macOS shared keychain.
+ */
+export const CROSS_APP_SHARED_SECRET_KEYS: readonly string[] = [
+	'{"extensionId":"vscode.github-authentication","key":"github.auth"}',
+];
+
 export class BaseSecretStorageService extends Disposable implements ISecretStorageService {
 	declare readonly _serviceBrand: undefined;
 

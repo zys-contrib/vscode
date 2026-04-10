@@ -14,7 +14,7 @@ import { InstantiationType, registerSingleton } from '../../../../platform/insta
 import { ILogService } from '../../../../platform/log/common/log.js';
 import { INotificationService, IPromptChoice } from '../../../../platform/notification/common/notification.js';
 import { IOpenerService } from '../../../../platform/opener/common/opener.js';
-import { BaseSecretStorageService, ISecretStorageService } from '../../../../platform/secrets/common/secrets.js';
+import { BaseSecretStorageService, CROSS_APP_SHARED_SECRET_KEYS, ISecretStorageService } from '../../../../platform/secrets/common/secrets.js';
 import { ISharedKeychainService } from '../../../../platform/secrets/common/sharedKeychainService.js';
 import { IStorageService, StorageScope, StorageTarget } from '../../../../platform/storage/common/storage.js';
 import { IJSONEditingService } from '../../configuration/common/jsonEditing.js';
@@ -69,27 +69,25 @@ export class NativeSecretStorageService extends BaseSecretStorageService {
 
 		this._logService.trace('[NativeSecretStorageService] starting shared keychain migration');
 
-		const legacyKeys = await this._doGetKeys();
-		let migrated = 0;
-		for (const key of legacyKeys) {
+		for (const sharedKey of CROSS_APP_SHARED_SECRET_KEYS) {
 			try {
-				const value = await this._doGet(key);
+				const value = await this._doGet(sharedKey);
 				if (value !== undefined) {
-					await this._sharedKeychainService.set(key, value);
-					migrated++;
+					await this._sharedKeychainService.set(sharedKey, value);
+					this._logService.trace('[NativeSecretStorageService] shared keychain migration: migrated', sharedKey);
 				}
 			} catch (err) {
-				this._logService.error('[NativeSecretStorageService] migration failed for key:', key, err);
+				this._logService.error('[NativeSecretStorageService] migration failed for:', sharedKey, err);
 			}
 		}
 
 		storageService.store(MIGRATION_STORAGE_KEY, '1', StorageScope.APPLICATION, StorageTarget.MACHINE);
-		this._logService.trace(`[NativeSecretStorageService] shared keychain migration complete: ${migrated}/${legacyKeys.length} secrets migrated`);
+		this._logService.trace('[NativeSecretStorageService] shared keychain migration complete');
 	}
 
 	override get(key: string): Promise<string | undefined> {
 		return this._sequencer.queue(key, async () => {
-			if (this.type !== 'in-memory') {
+			if (this.type !== 'in-memory' && CROSS_APP_SHARED_SECRET_KEYS.includes(key)) {
 				await this._ensureMigration();
 				// Try shared keychain first (no-op on non-macOS)
 				const value = await this._sharedKeychainService.get(key);
@@ -112,7 +110,7 @@ export class NativeSecretStorageService extends BaseSecretStorageService {
 			}
 		});
 		return this._sequencer.queue(key, async () => {
-			if (this.type !== 'in-memory') {
+			if (this.type !== 'in-memory' && CROSS_APP_SHARED_SECRET_KEYS.includes(key)) {
 				await this._ensureMigration();
 				// Write to shared keychain (no-op on non-macOS)
 				await this._sharedKeychainService.set(key, value);
@@ -124,7 +122,7 @@ export class NativeSecretStorageService extends BaseSecretStorageService {
 
 	override delete(key: string): Promise<void> {
 		return this._sequencer.queue(key, async () => {
-			if (this.type !== 'in-memory') {
+			if (this.type !== 'in-memory' && CROSS_APP_SHARED_SECRET_KEYS.includes(key)) {
 				await this._ensureMigration();
 				// Delete from shared keychain (no-op on non-macOS)
 				await this._sharedKeychainService.delete(key);
@@ -136,15 +134,18 @@ export class NativeSecretStorageService extends BaseSecretStorageService {
 
 	override async keys(): Promise<string[]> {
 		return this._sequencer.queue('__keys__', async () => {
+			const legacyKeys = await this._doGetKeys();
 			if (this.type !== 'in-memory') {
 				await this._ensureMigration();
-				// Merge keys from both sources (shared returns [] on non-macOS)
-				const sharedKeys = await this._sharedKeychainService.keys();
-				const legacyKeys = await this._doGetKeys();
-				const merged = new Set([...sharedKeys, ...legacyKeys]);
-				return [...merged];
+				// Include any cross-app shared keys present in the shared keychain
+				for (const sharedKey of CROSS_APP_SHARED_SECRET_KEYS) {
+					const sharedValue = await this._sharedKeychainService.get(sharedKey);
+					if (sharedValue !== undefined && !legacyKeys.includes(sharedKey)) {
+						legacyKeys.push(sharedKey);
+					}
+				}
 			}
-			return this._doGetKeys();
+			return legacyKeys;
 		});
 	}
 
