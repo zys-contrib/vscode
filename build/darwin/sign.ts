@@ -24,6 +24,10 @@ function getElectronVersion(): string {
 
 const provisioningProfilePath = path.join(baseDir, 'darwin', 'distribution.provisionprofile');
 
+function hasProvisioningProfile(): boolean {
+	return fs.existsSync(provisioningProfilePath);
+}
+
 function getEntitlementsForFile(filePath: string, tempDir: string): string {
 	if (filePath.includes(gpuHelperAppName)) {
 		return path.join(baseDir, 'azure-pipelines', 'darwin', 'helper-gpu-entitlements.plist');
@@ -33,7 +37,7 @@ function getEntitlementsForFile(filePath: string, tempDir: string): string {
 		return path.join(baseDir, 'azure-pipelines', 'darwin', 'helper-plugin-entitlements.plist');
 	}
 	const entitlementsPath = path.join(baseDir, 'azure-pipelines', 'darwin', 'app-entitlements.plist');
-	if (!fs.existsSync(provisioningProfilePath)) {
+	if (!hasProvisioningProfile()) {
 		// Without a provisioning profile, keychain-access-groups entitlement
 		// will cause signing failures. Strip it from the entitlements plist.
 		return getStrippedEntitlements(entitlementsPath, tempDir);
@@ -109,7 +113,7 @@ async function main(buildDir?: string): Promise<void> {
 		? path.resolve(appRoot, appName, 'Contents', 'Applications', `${product.embedded.nameShort}.app`, 'Contents', 'Info.plist')
 		: undefined;
 
-	const hasProvisioningProfile = fs.existsSync(provisioningProfilePath);
+	const resolvedProvisioningProfile = hasProvisioningProfile() ? provisioningProfilePath : undefined;
 
 	const appOpts: SignOptions = {
 		app: path.join(appRoot, appName),
@@ -119,8 +123,8 @@ async function main(buildDir?: string): Promise<void> {
 			hardenedRuntime: true,
 		}),
 		preAutoEntitlements: false,
-		preEmbedProvisioningProfile: hasProvisioningProfile,
-		provisioningProfile: hasProvisioningProfile ? provisioningProfilePath : undefined,
+		preEmbedProvisioningProfile: !!resolvedProvisioningProfile,
+		provisioningProfile: resolvedProvisioningProfile,
 		keychain: path.join(tempDir, 'buildagent.keychain'),
 		version: getElectronVersion(),
 		identity,
@@ -205,6 +209,12 @@ async function main(buildDir?: string): Promise<void> {
 	}
 
 	await retrySignOnKeychainError(() => sign(appOpts));
+
+	// Dump entitlements from the signed binary for diagnostic purposes
+	const mainBinary = path.join(appRoot, appName, 'Contents', 'MacOS', product.nameShort);
+	console.log(`Dumping entitlements from signed binary: ${mainBinary}`);
+	const entitlementsDump = await spawn('codesign', ['--display', '--entitlements', '-', '--xml', mainBinary]);
+	console.log(`Signed entitlements:\n${entitlementsDump}`);
 }
 
 if (import.meta.main) {
