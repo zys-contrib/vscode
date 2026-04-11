@@ -86,6 +86,7 @@ import { IUpdateService } from '../../platform/update/common/update.js';
 import { UpdateChannel } from '../../platform/update/common/updateIpc.js';
 import { AbstractUpdateService } from '../../platform/update/electron-main/abstractUpdateService.js';
 import { CrossAppUpdateCoordinator } from '../../platform/update/electron-main/crossAppUpdateIpc.js';
+import { CrossAppSecretSharing } from '../../platform/secrets/electron-main/crossAppSecretSharing.js';
 import { DarwinUpdateService } from '../../platform/update/electron-main/updateService.darwin.js';
 import { LinuxUpdateService } from '../../platform/update/electron-main/updateService.linux.js';
 import { SnapUpdateService } from '../../platform/update/electron-main/updateService.snap.js';
@@ -1254,6 +1255,35 @@ export class CodeApplication extends Disposable {
 		}
 		const updateChannel = new UpdateChannel(effectiveUpdateService);
 		mainProcessElectronServer.registerChannel('update', updateChannel);
+
+		// Cross-app secret sharing (macOS only, demand-driven)
+		if (isMacintosh) {
+			const secretSharing = this._register(new CrossAppSecretSharing(
+				accessor.get(IStorageMainService),
+				accessor.get(IEncryptionMainService),
+				accessor.get(IStateService),
+				this.logService,
+			));
+			if ((process as INodeProcess).isEmbeddedApp) {
+				// Agents app: initiate migration if needed
+				secretSharing.initializeAsAgentsApp();
+			} else if (this.environmentMainService.args['share-secrets-with-agents-app']) {
+				// Code.app launched fresh with --share-secrets-with-agents-app:
+				// respond to the agents app's request, then quit if no other reason to stay
+				const hasOtherArgs = this.environmentMainService.args._.length > 0 || this.environmentMainService.args['folder-uri'] || this.environmentMainService.args['file-uri'];
+				secretSharing.initializeAsHostApp(hasOtherArgs ? undefined : () => {
+					this.logService.info('[CrossAppSecretSharing] Host app was launched for migration only, quitting');
+					this.lifecycleMainService.quit();
+				});
+			} else {
+				// Code.app already running: listen for --share-secrets-with-agents-app
+				// forwarded from a second instance via the launch service
+				const launchMainService = accessor.get(ILaunchMainService);
+				launchMainService.onShareSecretsRequested(() => {
+					secretSharing.initializeAsHostApp();
+				});
+			}
+		}
 
 		// Metered Connection
 		const meteredConnectionChannel = new MeteredConnectionChannel(accessor.get(IMeteredConnectionService) as MeteredConnectionMainService);

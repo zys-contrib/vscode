@@ -35,11 +35,19 @@ export interface ILaunchMainService {
 	start(args: NativeParsedArgs, userEnv: IProcessEnvironment): Promise<void>;
 
 	getMainProcessId(): Promise<number>;
+
+	/**
+	 * Register a callback to be invoked when a second instance sends
+	 * `--share-secrets-with-agents-app`. Used for cross-app secret migration.
+	 */
+	onShareSecretsRequested(callback: () => void): void;
 }
 
 export class LaunchMainService implements ILaunchMainService {
 
 	declare readonly _serviceBrand: undefined;
+
+	private _onShareSecretsRequested: (() => void) | undefined;
 
 	constructor(
 		@ILogService private readonly logService: ILogService,
@@ -49,8 +57,20 @@ export class LaunchMainService implements ILaunchMainService {
 		@IProductService private readonly productService: IProductService,
 	) { }
 
+	onShareSecretsRequested(callback: () => void): void {
+		this._onShareSecretsRequested = callback;
+	}
+
 	async start(args: NativeParsedArgs, userEnv: IProcessEnvironment): Promise<void> {
 		this.logService.trace('Received data from other instance: ', args, userEnv);
+
+		// Handle --share-secrets-with-agents-app from a second instance:
+		// trigger the secret sharing handshake without opening any window.
+		if (args['share-secrets-with-agents-app']) {
+			this.logService.info('Received --share-secrets-with-agents-app from second instance');
+			this._onShareSecretsRequested?.();
+			return;
+		}
 
 		// macOS: Electron > 7.x changed its behaviour to not
 		// bring the application to the foreground when a window
