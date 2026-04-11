@@ -129,7 +129,7 @@ export class CrossAppSecretSharing extends Disposable {
 	 *   (or immediately if there's nothing to do). Use this to quit Code.app
 	 *   when it was launched solely for secret sharing.
 	 */
-	initializeAsHostApp(onComplete?: () => void): void {
+	async initializeAsHostApp(onComplete?: () => void): Promise<void> {
 		if (!isMacintosh || this.isEmbeddedApp) {
 			onComplete?.();
 			return;
@@ -140,6 +140,11 @@ export class CrossAppSecretSharing extends Disposable {
 			onComplete?.();
 			return;
 		}
+
+		// Wait for application storage to be fully initialized before
+		// checking for secrets — storage may still be in-memory at this
+		// point during early startup.
+		await this.applicationStorage.whenInit;
 
 		if (!this.hasAnySharedSecrets()) {
 			this.logService.trace('[CrossAppSecretSharing] No shared secrets to share, skipping');
