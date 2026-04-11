@@ -47,6 +47,7 @@ export const unicodeFilter = Object.freeze<string[]>([
 	'!**/*.tiff',
 
 	'!build/win32/**',
+	'!build/darwin/**/*.provisionprofile',
 	'!extensions/markdown-language-features/notebook-out/*.js',
 	'!extensions/markdown-math/notebook-out/**',
 	'!extensions/mermaid-chat-features/chat-webview-out/**',
