@@ -21,7 +21,7 @@ import { AgentSubscriptionManager, type IAgentSubscription } from '../common/sta
 import { agentHostAuthority, fromAgentHostUri, toAgentHostUri } from '../common/agentHostUri.js';
 import type { IClientNotificationMap, ICommandMap } from '../common/state/protocol/messages.js';
 import type { IActionEnvelope, INotification, ISessionAction, ITerminalAction } from '../common/state/sessionActions.js';
-import { ISessionSummary, ROOT_STATE_URI, StateComponents, type IRootState, type ISessionState } from '../common/state/sessionState.js';
+import { ISessionSummary, ROOT_STATE_URI, StateComponents, type IRootState } from '../common/state/sessionState.js';
 import { PROTOCOL_VERSION } from '../common/state/sessionCapabilities.js';
 import { isJsonRpcNotification, isJsonRpcRequest, isJsonRpcResponse, type IJsonRpcResponse, type IProtocolMessage, type IStateSnapshot } from '../common/state/sessionProtocol.js';
 import { isClientTransport, type IProtocolTransport } from '../common/state/sessionTransport.js';
@@ -182,31 +182,14 @@ export class RemoteAgentHostProtocolClient extends Disposable implements IAgentC
 	async createSession(config?: IAgentCreateSessionConfig): Promise<URI> {
 		const provider = config?.provider ?? 'copilot';
 		const session = AgentSession.uri(provider, generateUuid());
-		const fork = this._toProtocolFork(config?.fork);
 		await this._sendRequest('createSession', {
 			session: session.toString(),
 			provider,
 			model: config?.model,
 			workingDirectory: config?.workingDirectory ? fromAgentHostUri(config.workingDirectory).toString() : undefined,
-			fork,
 			config: config?.config,
 		});
 		return session;
-	}
-
-	private _toProtocolFork(fork: IAgentCreateSessionConfig['fork']): { readonly session: string; readonly turnId: string } | undefined {
-		if (!fork) {
-			return undefined;
-		}
-		const sourceState = this.getSubscriptionUnmanaged<ISessionState>(StateComponents.Session, fork.session)?.value;
-		if (!sourceState || sourceState instanceof Error) {
-			throw new Error(`Cannot fork: protocol state for ${fork.session.toString()} is not available`);
-		}
-		const turnId = sourceState.turns[fork.turnIndex]?.id;
-		if (!turnId) {
-			throw new Error(`Cannot fork: turn index ${fork.turnIndex} not found in protocol state for ${fork.session.toString()}`);
-		}
-		return { session: fork.session.toString(), turnId };
 	}
 
 	async resolveSessionConfig(params: IAgentResolveSessionConfigParams): Promise<IResolveSessionConfigResult> {
