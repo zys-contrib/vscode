@@ -21,6 +21,7 @@ import { AGENT_HOST_SCHEME, agentHostAuthority, toAgentHostUri } from '../../../
 import { AgentSession, type IAgentConnection, type IAgentSessionMetadata } from '../../../../platform/agentHost/common/agentService.js';
 import { RemoteAgentHostConnectionStatus } from '../../../../platform/agentHost/common/remoteAgentHostService.js';
 import { ActionType, isSessionAction } from '../../../../platform/agentHost/common/state/sessionActions.js';
+import type { IResolveSessionConfigResult, ISessionConfigValueItem } from '../../../../platform/agentHost/common/state/protocol/commands.js';
 import { IFileDialogService } from '../../../../platform/dialogs/common/dialogs.js';
 import { INotificationService } from '../../../../platform/notification/common/notification.js';
 import { ChatViewPaneTarget, IChatWidgetService } from '../../../../workbench/contrib/chat/browser/chat.js';
@@ -31,6 +32,8 @@ import { ILanguageModelsService } from '../../../../workbench/contrib/chat/commo
 import { agentHostSessionWorkspaceKey, buildAgentHostSessionWorkspace } from '../../../common/agentHostSessionWorkspace.js';
 import { ISessionChangeEvent, ISendRequestOptions, ISessionsProvider } from '../../../services/sessions/common/sessionsProvider.js';
 import { ISession, IChat, IGitHubInfo, ISessionWorkspace, ISessionWorkspaceBrowseAction, SessionStatus, CopilotCLISessionType, ISessionType } from '../../../services/sessions/common/session.js';
+
+const DEFAULT_AGENT_PROVIDER = 'copilot';
 
 function toLocalProjectUri(uri: URI, connectionAuthority: string): URI {
 	return uri.scheme === Schemas.file ? toAgentHostUri(uri, connectionAuthority) : uri;
@@ -123,7 +126,7 @@ class RemoteSessionAdapter implements IChatData {
 		private readonly _providerLabel: string,
 	) {
 		const rawId = AgentSession.id(metadata.session);
-		this.agentProvider = AgentSession.provider(metadata.session) ?? 'copilot';
+		this.agentProvider = AgentSession.provider(metadata.session) ?? DEFAULT_AGENT_PROVIDER;
 		this.resource = URI.from({ scheme: resourceScheme, path: `/${rawId}` });
 		this.id = `${providerId}:${this.resource.toString()}`;
 		this.providerId = providerId;
@@ -197,6 +200,8 @@ export class RemoteAgentHostSessionsProvider extends Disposable implements ISess
 
 	private readonly _onDidReplaceSession = this._register(new Emitter<{ readonly from: ISession; readonly to: ISession }>());
 	readonly onDidReplaceSession: Event<{ readonly from: ISession; readonly to: ISession }> = this._onDidReplaceSession.event;
+	private readonly _onDidChangeSessionConfig = this._register(new Emitter<string>());
+	readonly onDidChangeSessionConfig = this._onDidChangeSessionConfig.event;
 
 	readonly browseActions: readonly ISessionWorkspaceBrowseAction[];
 
@@ -215,6 +220,10 @@ export class RemoteAgentHostSessionsProvider extends Disposable implements ISess
 	private _selectedModelId: string | undefined;
 	/** Settable status for the current new session, kept to avoid unsafe cast from IObservable. */
 	private _currentNewSessionStatus: ISettableObservable<SessionStatus> | undefined;
+	private readonly _newSessionWorkspaces = new Map<string, URI>();
+	private readonly _newSessionConfigs = new Map<string, IResolveSessionConfigResult>();
+	private readonly _newSessionAgentProviders = new Map<string, string>();
+	private readonly _newSessionConfigRequests = new Map<string, number>();
 
 	private _connection: IAgentConnection | undefined;
 	private _defaultDirectory: string | undefined;
@@ -385,10 +394,14 @@ export class RemoteAgentHostSessionsProvider extends Disposable implements ISess
 		}
 
 		// Reset draft state from any prior unsent session
+		if (this._currentNewSession) {
+			this._clearNewSessionConfig(this._currentNewSession.id);
+		}
 		this._currentNewSession = undefined;
 		this._selectedModelId = undefined;
 
-		const resource = URI.from({ scheme: this._sessionTypeForProvider('copilot'), path: `/untitled-${generateUuid()}` });
+		const agentProvider = this._getDefaultAgentProvider();
+		const resource = URI.from({ scheme: this._sessionTypeForProvider(agentProvider), path: `/untitled-${generateUuid()}` });
 		const status = observableValue<SessionStatus>(this, SessionStatus.Untitled);
 		const session: IChatData = {
 			id: `${this.id}:${resource.toString()}`,
@@ -413,7 +426,48 @@ export class RemoteAgentHostSessionsProvider extends Disposable implements ISess
 		};
 		this._currentNewSession = session;
 		this._currentNewSessionStatus = status;
+		this._newSessionWorkspaces.set(session.id, workspaceUri);
+		this._newSessionAgentProviders.set(session.id, agentProvider);
+		this._resolveSessionConfig(session.id, agentProvider, workspaceUri, undefined);
 		return this._chatToSession(session);
+	}
+
+	getSessionConfig(sessionId: string): IResolveSessionConfigResult | undefined {
+		return this._newSessionConfigs.get(sessionId);
+	}
+
+	async setSessionConfigValue(sessionId: string, property: string, value: string): Promise<void> {
+		const workingDirectory = this._newSessionWorkspaces.get(sessionId);
+		if (!workingDirectory) {
+			return;
+		}
+		const current = this._newSessionConfigs.get(sessionId)?.values ?? {};
+		this._newSessionConfigs.set(sessionId, { ready: false, schema: { type: 'object', properties: {} }, values: { ...current, [property]: value } });
+		this._onDidChangeSessionConfig.fire(sessionId);
+		await this._resolveSessionConfig(sessionId, this._getAgentProviderForSession(sessionId), workingDirectory, { ...current, [property]: value });
+	}
+
+	async getSessionConfigCompletions(sessionId: string, property: string, query?: string): Promise<readonly ISessionConfigValueItem[]> {
+		const workingDirectory = this._newSessionWorkspaces.get(sessionId);
+		if (!workingDirectory || !this._connection) {
+			return [];
+		}
+		const result = await this._connection.sessionConfigCompletions({
+			provider: this._getAgentProviderForSession(sessionId),
+			workingDirectory,
+			config: this._newSessionConfigs.get(sessionId)?.values,
+			property,
+			query,
+		});
+		return result.items;
+	}
+
+	getCreateSessionConfig(sessionId: string): Record<string, string> | undefined {
+		return this._newSessionConfigs.get(sessionId)?.values;
+	}
+
+	clearSessionConfig(sessionId: string): void {
+		this._clearNewSessionConfig(sessionId);
 	}
 
 	setSessionType(_sessionId: string, _type: ISessionType): ISession {
@@ -503,7 +557,7 @@ export class RemoteAgentHostSessionsProvider extends Disposable implements ISess
 
 		const { query, attachedContext } = options;
 
-		const contribution = this._chatSessionsService.getChatSessionContribution(this._sessionTypeForProvider('copilot'));
+		const contribution = this._chatSessionsService.getChatSessionContribution(this._sessionTypeForProvider(this._getAgentProviderForSession(chatId)));
 
 		const sendOptions: IChatSendRequestOptions = {
 			location: ChatAgentLocation.Chat,
@@ -518,6 +572,7 @@ export class RemoteAgentHostSessionsProvider extends Disposable implements ISess
 			},
 			agentIdSilent: contribution?.type,
 			attachedContext,
+			agentHostSessionConfig: this.getCreateSessionConfig(chatId),
 		};
 
 		// Open chat widget
@@ -569,6 +624,7 @@ export class RemoteAgentHostSessionsProvider extends Disposable implements ISess
 			const committedSession = await this._waitForNewSession(existingKeys);
 			if (committedSession) {
 				this._currentNewSession = undefined;
+				this._clearNewSessionConfig(chatId);
 				this._onDidReplaceSession.fire({ from: newSession, to: committedSession });
 				return committedSession;
 			}
@@ -580,7 +636,60 @@ export class RemoteAgentHostSessionsProvider extends Disposable implements ISess
 
 		// Fallback: keep the temp session visible
 		this._currentNewSession = undefined;
+		this._clearNewSessionConfig(chatId);
 		return newSession;
+	}
+
+	private async _resolveSessionConfig(sessionId: string, agentProvider: string, workingDirectory: URI, config: Record<string, string> | undefined): Promise<void> {
+		if (!this._connection) {
+			return;
+		}
+		const request = (this._newSessionConfigRequests.get(sessionId) ?? 0) + 1;
+		this._newSessionConfigRequests.set(sessionId, request);
+		try {
+			const result = await this._connection.resolveSessionConfig({
+				provider: agentProvider,
+				workingDirectory,
+				config,
+			});
+			if (this._newSessionConfigRequests.get(sessionId) !== request) {
+				return;
+			}
+			this._newSessionConfigs.set(sessionId, result);
+		} catch {
+			if (this._newSessionConfigRequests.get(sessionId) !== request) {
+				return;
+			}
+			this._newSessionConfigs.set(sessionId, this._createSessionConfigUnavailableResult());
+		}
+		this._onDidChangeSessionConfig.fire(sessionId);
+	}
+
+	private _createSessionConfigUnavailableResult(): IResolveSessionConfigResult {
+		return {
+			ready: false,
+			schema: {
+				type: 'object',
+				properties: {
+					unavailable: {
+						type: 'string',
+						title: localize('sessionConfigUnavailable', "Configuration"),
+						description: localize('sessionConfigUnavailableDescription', "Session configuration is unavailable. Select the workspace again to retry."),
+						enum: ['unavailable'],
+						enumLabels: [localize('sessionConfigUnavailableValue', "Unavailable")],
+						readOnly: true,
+					},
+				},
+			},
+			values: { unavailable: 'unavailable' },
+		};
+	}
+
+	private _clearNewSessionConfig(sessionId: string): void {
+		this._newSessionWorkspaces.delete(sessionId);
+		this._newSessionConfigs.delete(sessionId);
+		this._newSessionAgentProviders.delete(sessionId);
+		this._newSessionConfigRequests.delete(sessionId);
 	}
 
 	// -- Private: Session Cache --
@@ -608,7 +717,7 @@ export class RemoteAgentHostSessionsProvider extends Disposable implements ISess
 
 			for (const meta of sessions) {
 				const rawId = AgentSession.id(meta.session);
-				const provider = AgentSession.provider(meta.session) ?? 'copilot';
+				const provider = AgentSession.provider(meta.session) ?? DEFAULT_AGENT_PROVIDER;
 				currentKeys.add(rawId);
 
 				const existing = this._sessionCache.get(rawId);
@@ -681,7 +790,7 @@ export class RemoteAgentHostSessionsProvider extends Disposable implements ISess
 			return;
 		}
 
-		const provider = AgentSession.provider(sessionUri) ?? 'copilot';
+		const provider = AgentSession.provider(sessionUri) ?? DEFAULT_AGENT_PROVIDER;
 		const workingDir = typeof summary.workingDirectory === 'string'
 			? toAgentHostUri(URI.parse(summary.workingDirectory), this._connectionAuthority)
 			: undefined;
@@ -748,6 +857,17 @@ export class RemoteAgentHostSessionsProvider extends Disposable implements ISess
 
 	private _sessionTypeForProvider(provider: string): string {
 		return `remote-${this._connectionAuthority}-${provider}`;
+	}
+
+	private _getDefaultAgentProvider(): string {
+		const rootState = this._connection?.rootState?.value;
+		return rootState && !(rootState instanceof Error)
+			? rootState.agents[0]?.provider ?? DEFAULT_AGENT_PROVIDER
+			: DEFAULT_AGENT_PROVIDER;
+	}
+
+	private _getAgentProviderForSession(sessionId: string): string {
+		return this._newSessionAgentProviders.get(sessionId) ?? DEFAULT_AGENT_PROVIDER;
 	}
 
 	// -- Private: Browse --

@@ -417,7 +417,7 @@ export class AgentHostSessionHandler extends Disposable implements IChatSessionC
 			async (request: IChatAgentRequest, progress: (parts: IChatProgress[]) => void, token: CancellationToken) => {
 				// todo@connor4312, I think IChatSession.requestHandler is actually
 				// dead code and I don't believe this is ever called.
-				const backendSession = resolvedSession ?? await this._createAndSubscribe(sessionResource, request.userSelectedModelId);
+				const backendSession = resolvedSession ?? await this._createAndSubscribe(sessionResource, request.userSelectedModelId, undefined, request.agentHostSessionConfig);
 				if (!resolvedSession) {
 					resolvedSession = backendSession;
 					this._sessionToBackend.set(sessionResource, backendSession);
@@ -1796,7 +1796,7 @@ export class AgentHostSessionHandler extends Disposable implements IChatSessionC
 	}
 
 	/** Creates a new backend session and subscribes to its state. */
-	private async _createAndSubscribe(sessionResource: URI, modelId?: string, fork?: { session: URI; turnIndex: number }): Promise<URI> {
+	private async _createAndSubscribe(sessionResource: URI, modelId?: string, fork?: { session: URI; turnIndex: number }, sessionConfig?: Record<string, string>): Promise<URI> {
 		const rawModelId = this._extractRawModelId(modelId);
 		const resourceKey = sessionResource.path.substring(1);
 		const workingDirectory = this._config.resolveWorkingDirectory?.(resourceKey)
@@ -1824,6 +1824,7 @@ export class AgentHostSessionHandler extends Disposable implements IChatSessionC
 				provider: this._config.provider,
 				workingDirectory,
 				fork,
+				config: sessionConfig,
 			});
 		} catch (err) {
 			// If authentication is required (e.g. token expired), try interactive auth and retry once
@@ -1836,6 +1837,7 @@ export class AgentHostSessionHandler extends Disposable implements IChatSessionC
 						provider: this._config.provider,
 						workingDirectory,
 						fork,
+						config: sessionConfig,
 					});
 				} else {
 					throw new Error(localize('agentHost.authRequired', "Authentication is required to start a session. Please sign in and try again."));

@@ -335,7 +335,7 @@ function createContribution(disposables: DisposableStore) {
 	return { contribution, listController, sessionHandler, agentHostService, chatAgentService };
 }
 
-function makeRequest(overrides: Partial<{ message: string; sessionResource: URI; variables: IChatAgentRequest['variables']; userSelectedModelId: string }> = {}): IChatAgentRequest {
+function makeRequest(overrides: Partial<{ message: string; sessionResource: URI; variables: IChatAgentRequest['variables']; userSelectedModelId: string; agentHostSessionConfig: Record<string, string> }> = {}): IChatAgentRequest {
 	return upcastPartial<IChatAgentRequest>({
 		sessionResource: overrides.sessionResource ?? URI.from({ scheme: 'untitled', path: '/chat-1' }),
 		requestId: 'req-1',
@@ -344,6 +344,7 @@ function makeRequest(overrides: Partial<{ message: string; sessionResource: URI;
 		variables: overrides.variables ?? { variables: [] },
 		location: ChatAgentLocation.Chat,
 		userSelectedModelId: overrides.userSelectedModelId,
+		agentHostSessionConfig: overrides.agentHostSessionConfig,
 	});
 }
 
@@ -369,6 +370,7 @@ async function startTurn(
 		sessionResource: URI;
 		variables: IChatAgentRequest['variables'];
 		userSelectedModelId: string;
+		agentHostSessionConfig: Record<string, string>;
 		cancellationToken: CancellationToken;
 	}>,
 ) {
@@ -389,6 +391,7 @@ async function startTurn(
 			sessionResource,
 			variables: overrides?.variables,
 			userSelectedModelId: overrides?.userSelectedModelId,
+			agentHostSessionConfig: overrides?.agentHostSessionConfig,
 		}),
 		(parts) => collected.push(parts),
 		[],
@@ -1603,6 +1606,27 @@ suite('AgentHostChatContribution', () => {
 
 			assert.strictEqual(agentHostService.createSessionCalls.length, 1);
 			assert.strictEqual(agentHostService.createSessionCalls[0].workingDirectory?.toString(), URI.file('/custom/working/dir').toString());
+		}));
+
+		test('handler forwards request session config to createSession', () => runWithFakedTimers({ useFakeTimers: true }, async () => {
+			const { instantiationService, agentHostService } = createTestServices(disposables);
+
+			const handler = disposables.add(instantiationService.createInstance(AgentHostSessionHandler, {
+				provider: 'copilot' as const,
+				agentId: 'config-test',
+				sessionType: 'config-test',
+				fullName: 'Test',
+				description: 'test',
+				connection: agentHostService,
+				connectionAuthority: 'local',
+			}));
+
+			const config = { target: 'worktree', isolation: 'new' };
+			const { turnPromise, session, turnId, fire } = await startTurn(handler, agentHostService, disposables, { agentHostSessionConfig: config });
+			fire({ type: 'session/turnComplete', session, turnId } as ISessionAction);
+			await turnPromise;
+
+			assert.deepStrictEqual(agentHostService.createSessionCalls[0].config, config);
 		}));
 
 		test('handler passes vscode-agent-host URI as-is to createSession', () => runWithFakedTimers({ useFakeTimers: true }, async () => {

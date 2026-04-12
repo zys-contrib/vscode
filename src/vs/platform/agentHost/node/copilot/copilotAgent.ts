@@ -4,6 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { CopilotClient } from '@github/copilot-sdk';
+import * as fs from 'fs/promises';
 import { rgPath } from '@vscode/ripgrep';
 import { Limiter, SequencerByKey } from '../../../../base/common/async.js';
 import { Emitter } from '../../../../base/common/event.js';
@@ -16,8 +17,10 @@ import { IParsedPlugin, parsePlugin } from '../../../agentPlugins/common/pluginP
 import { IFileService } from '../../../files/common/files.js';
 import { IInstantiationService } from '../../../instantiation/common/instantiation.js';
 import { ILogService } from '../../../log/common/log.js';
+import { localize } from '../../../../nls.js';
 import { IAgentPluginManager, ISyncedCustomization } from '../../common/agentPluginManager.js';
-import { AgentSession, IAgent, IAgentAttachment, IAgentCreateSessionConfig, IAgentCreateSessionResult, IAgentDescriptor, IAgentMessageEvent, IAgentModelInfo, IAgentProgressEvent, IAgentSessionMetadata, IAgentSessionProjectInfo, IAgentSubagentStartedEvent, IAgentToolCompleteEvent, IAgentToolStartEvent } from '../../common/agentService.js';
+import { AgentSession, IAgent, IAgentAttachment, IAgentCreateSessionConfig, IAgentCreateSessionResult, IAgentDescriptor, IAgentMessageEvent, IAgentModelInfo, IAgentProgressEvent, IAgentResolveSessionConfigParams, IAgentSessionConfigCompletionsParams, IAgentSessionMetadata, IAgentSessionProjectInfo, IAgentSubagentStartedEvent, IAgentToolCompleteEvent, IAgentToolStartEvent } from '../../common/agentService.js';
+import type { IResolveSessionConfigResult, ISessionConfigCompletionsResult } from '../../common/state/protocol/commands.js';
 import { ISessionDataService } from '../../common/sessionDataService.js';
 import { CustomizationStatus, ICustomizationRef, SessionInputResponseKind, type ISessionInputAnswer, type IPendingMessage, type PolicyState } from '../../common/state/sessionState.js';
 import { CopilotAgentSession, SessionWrapperFactory } from './copilotAgentSession.js';
@@ -25,15 +28,22 @@ import { parsedPluginsEqual, toSdkCustomAgents, toSdkHooks, toSdkMcpServers, toS
 import { CopilotSessionWrapper } from './copilotSessionWrapper.js';
 import { forkCopilotSessionOnDisk, getCopilotDataDir, truncateCopilotSessionOnDisk } from './copilotAgentForking.js';
 import { IProtectedResourceMetadata } from '../../common/state/protocol/state.js';
+import { IAgentHostGitService } from '../agentHostGitService.js';
 import { IAgentHostTerminalManager } from '../agentHostTerminalManager.js';
 import { ICopilotSessionContext, projectFromCopilotContext } from './copilotGitProject.js';
 import { createShellTools, ShellManager } from './copilotShellTools.js';
+
+interface ICreatedWorktree {
+	readonly repositoryRoot: URI;
+	readonly worktree: URI;
+}
 
 /**
  * Agent provider backed by the Copilot SDK {@link CopilotClient}.
  */
 export class CopilotAgent extends Disposable implements IAgent {
 	readonly id = 'copilot' as const;
+	private static readonly _BRANCH_COMPLETION_LIMIT = 25;
 
 	private readonly _onDidSessionProgress = this._register(new Emitter<IAgentProgressEvent>());
 	readonly onDidSessionProgress = this._onDidSessionProgress.event;
@@ -42,7 +52,9 @@ export class CopilotAgent extends Disposable implements IAgent {
 	private _clientStarting: Promise<CopilotClient> | undefined;
 	private _githubToken: string | undefined;
 	private readonly _sessions = this._register(new DisposableMap<string, CopilotAgentSession>());
+	private readonly _createdWorktrees = new Map<string, ICreatedWorktree>();
 	private readonly _sessionSequencer = new SequencerByKey<string>();
+	private _shutdownPromise: Promise<void> | undefined;
 	private readonly _plugins: PluginController;
 
 	constructor(
@@ -50,6 +62,7 @@ export class CopilotAgent extends Disposable implements IAgent {
 		@IInstantiationService private readonly _instantiationService: IInstantiationService,
 		@IFileService private readonly _fileService: IFileService,
 		@ISessionDataService private readonly _sessionDataService: ISessionDataService,
+		@IAgentHostGitService private readonly _gitService: IAgentHostGitService,
 		@IAgentHostTerminalManager private readonly _terminalManager: IAgentHostTerminalManager,
 	) {
 		super();
@@ -232,7 +245,7 @@ export class CopilotAgent extends Disposable implements IAgent {
 				const agentSession = await this._resumeSession(newSessionId);
 				const session = agentSession.sessionUri;
 				this._logService.info(`[Copilot] Forked session created: ${session.toString()}`);
-				const project = await projectFromCopilotContext({ cwd: config.workingDirectory?.fsPath });
+				const project = await projectFromCopilotContext({ cwd: config.workingDirectory?.fsPath }, this._gitService);
 				this._storeSessionMetadata(session, undefined, config.workingDirectory, project, true);
 				return { session, ...(project ? { project } : {}) };
 			});
@@ -242,29 +255,93 @@ export class CopilotAgent extends Disposable implements IAgent {
 		const sessionUri = AgentSession.uri(this.id, sessionId);
 		const shellManager = this._instantiationService.createInstance(ShellManager, sessionUri);
 		const sessionConfig = this._buildSessionConfig(parsedPlugins, shellManager);
+		const workingDirectory = await this._resolveSessionWorkingDirectory(config, sessionId);
 
 		const factory: SessionWrapperFactory = async callbacks => {
 			const raw = await client.createSession({
 				model: config?.model,
 				sessionId,
 				streaming: true,
-				workingDirectory: config?.workingDirectory?.fsPath,
+				workingDirectory: workingDirectory?.fsPath,
 				...await sessionConfig(callbacks),
 			});
 			return new CopilotSessionWrapper(raw);
 		};
 
-		const agentSession = this._createAgentSession(factory, config?.workingDirectory, sessionId, shellManager);
-		this._plugins.setAppliedPlugins(agentSession, parsedPlugins);
-		await agentSession.initializeSession();
-
+		let agentSession: CopilotAgentSession;
+		try {
+			agentSession = this._createAgentSession(factory, workingDirectory, sessionId, shellManager);
+			this._plugins.setAppliedPlugins(agentSession, parsedPlugins);
+			await agentSession.initializeSession();
+		} catch (error) {
+			await this._removeCreatedWorktree(sessionId);
+			throw error;
+		}
 		const session = agentSession.sessionUri;
 		this._logService.info(`[Copilot] Session created: ${session.toString()}`);
-		const project = await projectFromCopilotContext({ cwd: config?.workingDirectory?.fsPath });
+		const project = await projectFromCopilotContext({ cwd: workingDirectory?.fsPath }, this._gitService);
 		// Persist model, working directory, and project so we can recreate the
 		// session if the SDK loses it and avoid rediscovering git metadata.
-		this._storeSessionMetadata(agentSession.sessionUri, config?.model, config?.workingDirectory, project, true);
+		this._storeSessionMetadata(agentSession.sessionUri, config?.model, workingDirectory, project, true);
 		return { session, ...(project ? { project } : {}) };
+	}
+
+	async resolveSessionConfig(params: IAgentResolveSessionConfigParams): Promise<IResolveSessionConfigResult> {
+		const gitInfo = params.workingDirectory ? await this._getGitInfo(params.workingDirectory) : undefined;
+		const targetValue = params.config?.target === 'folder' || params.config?.target === 'worktree'
+			? params.config.target
+			: gitInfo ? 'worktree' : 'folder';
+
+		const values: Record<string, string> = { target: targetValue };
+		if (gitInfo) {
+			values.branch = typeof params.config?.branch === 'string' && targetValue === 'worktree'
+				? params.config.branch
+				: gitInfo.currentBranch;
+		}
+
+		const properties: IResolveSessionConfigResult['schema']['properties'] = {
+			target: {
+				type: 'string',
+				title: localize('agentHost.sessionConfig.target', "Target"),
+				description: localize('agentHost.sessionConfig.targetDescription', "Where the agent should make changes"),
+				enum: gitInfo ? ['folder', 'worktree'] : ['folder'],
+				enumLabels: gitInfo ? [localize('agentHost.sessionConfig.target.folder', "Folder"), localize('agentHost.sessionConfig.target.worktree', "Worktree")] : [localize('agentHost.sessionConfig.target.folder', "Folder")],
+				enumDescriptions: gitInfo ? [localize('agentHost.sessionConfig.target.folderDescription', "Work directly in the folder"), localize('agentHost.sessionConfig.target.worktreeDescription', "Create a Git worktree for isolation")] : [localize('agentHost.sessionConfig.target.folderDescription', "Work directly in the folder")],
+				enumIcons: gitInfo ? ['folder', 'worktree'] : ['folder'],
+				default: gitInfo ? 'worktree' : 'folder',
+				readOnly: !gitInfo,
+			},
+		};
+
+		if (gitInfo) {
+			const branchReadOnly = targetValue === 'folder';
+			properties.branch = {
+				type: 'string',
+				title: localize('agentHost.sessionConfig.branch', "Branch"),
+				description: localize('agentHost.sessionConfig.branchDescription', "Base branch to work from"),
+				enum: branchReadOnly ? [gitInfo.currentBranch] : gitInfo.recentBranches,
+				enumLabels: branchReadOnly ? [gitInfo.currentBranch] : gitInfo.recentBranches,
+				enumIcons: branchReadOnly ? ['git-branch'] : gitInfo.recentBranches.map(() => 'git-branch'),
+				default: gitInfo.currentBranch,
+				enumDynamic: !branchReadOnly,
+				readOnly: branchReadOnly,
+			};
+		}
+
+		return {
+			ready: Object.values(values).every(value => value !== ''),
+			schema: { type: 'object', properties },
+			values,
+		};
+	}
+
+	async sessionConfigCompletions(params: IAgentSessionConfigCompletionsParams): Promise<ISessionConfigCompletionsResult> {
+		if (params.property !== 'branch' || !params.workingDirectory) {
+			return { items: [] };
+		}
+
+		const branches = await this._getBranches(params.workingDirectory, params.query);
+		return { items: branches.map(branch => ({ value: branch, label: branch, icon: 'git-branch' })) };
 	}
 
 	async setClientCustomizations(clientId: string, customizations: ICustomizationRef[], progress?: (results: ISyncedCustomization[]) => void): Promise<ISyncedCustomization[]> {
@@ -323,7 +400,7 @@ export class CopilotAgent extends Disposable implements IAgent {
 	async disposeSession(session: URI): Promise<void> {
 		const sessionId = AgentSession.id(session);
 		await this._sessionSequencer.queue(sessionId, async () => {
-			this._sessions.deleteAndDispose(sessionId);
+			await this._destroyAndDisposeSession(sessionId);
 		});
 	}
 
@@ -383,10 +460,16 @@ export class CopilotAgent extends Disposable implements IAgent {
 	}
 
 	async shutdown(): Promise<void> {
-		this._logService.info('[Copilot] Shutting down...');
-		this._sessions.clearAndDisposeAll();
-		await this._client?.stop();
-		this._client = undefined;
+		this._shutdownPromise ??= (async () => {
+			this._logService.info('[Copilot] Shutting down...');
+			const sessionIds = new Set([...this._sessions.keys(), ...this._createdWorktrees.keys()]);
+			for (const sessionId of sessionIds) {
+				await this._sessionSequencer.queue(sessionId, () => this._destroyAndDisposeSession(sessionId));
+			}
+			await this._client?.stop();
+			this._client = undefined;
+		})();
+		return this._shutdownPromise;
 	}
 
 	respondToPermissionRequest(requestId: string, approved: boolean): void {
@@ -434,6 +517,19 @@ export class CopilotAgent extends Disposable implements IAgent {
 
 		this._sessions.set(sessionId, agentSession);
 		return agentSession;
+	}
+
+	private async _destroyAndDisposeSession(sessionId: string): Promise<void> {
+		const entry = this._sessions.get(sessionId);
+		if (entry) {
+			try {
+				await entry.destroySession();
+			} catch (error) {
+				this._logService.warn(`[Copilot:${sessionId}] Failed to destroy session before cleanup: ${error instanceof Error ? error.message : String(error)}`);
+			}
+		}
+		this._sessions.deleteAndDispose(sessionId);
+		await this._removeCreatedWorktree(sessionId);
 	}
 
 	/**
@@ -504,6 +600,55 @@ export class CopilotAgent extends Disposable implements IAgent {
 		await agentSession.initializeSession();
 
 		return agentSession;
+	}
+
+	private async _getGitInfo(workingDirectory: URI): Promise<{ currentBranch: string; recentBranches: string[] } | undefined> {
+		if (!await this._gitService.isInsideWorkTree(workingDirectory)) {
+			return undefined;
+		}
+
+		const currentBranch = await this._gitService.getCurrentBranch(workingDirectory) ?? 'HEAD';
+		const recentBranches = await this._getBranches(workingDirectory);
+		return { currentBranch, recentBranches: this._prependUnique(currentBranch, recentBranches) };
+	}
+
+	private async _getBranches(workingDirectory: URI, query?: string): Promise<string[]> {
+		return this._gitService.getBranches(workingDirectory, { query, limit: CopilotAgent._BRANCH_COMPLETION_LIMIT });
+	}
+
+	private _prependUnique(value: string, values: readonly string[]): string[] {
+		return [value, ...values.filter(candidate => candidate !== value)];
+	}
+
+	private async _resolveSessionWorkingDirectory(config: IAgentCreateSessionConfig | undefined, sessionId: string): Promise<URI | undefined> {
+		if (config?.config?.target !== 'worktree' || !config.workingDirectory || typeof config.config.branch !== 'string') {
+			return config?.workingDirectory;
+		}
+
+		const repositoryRoot = await this._gitService.getRepositoryRoot(config.workingDirectory);
+		if (!repositoryRoot) {
+			return config.workingDirectory;
+		}
+
+		const worktreesRoot = URI.joinPath(repositoryRoot, '..', '.copilot-worktrees');
+		const worktree = URI.joinPath(worktreesRoot, sessionId);
+		await fs.mkdir(worktreesRoot.fsPath, { recursive: true });
+		await this._gitService.addWorktree(repositoryRoot, worktree, `copilot/${sessionId}`, config.config.branch);
+		this._createdWorktrees.set(sessionId, { repositoryRoot, worktree });
+		return worktree;
+	}
+
+	private async _removeCreatedWorktree(sessionId: string): Promise<void> {
+		const worktree = this._createdWorktrees.get(sessionId);
+		if (!worktree) {
+			return;
+		}
+		try {
+			await this._gitService.removeWorktree(worktree.repositoryRoot, worktree.worktree);
+			this._createdWorktrees.delete(sessionId);
+		} catch (error) {
+			this._logService.warn(`[Copilot:${sessionId}] Failed to remove worktree '${worktree.worktree.fsPath}': ${error instanceof Error ? error.message : String(error)}`);
+		}
 	}
 
 	// ---- session metadata persistence --------------------------------------
@@ -588,7 +733,7 @@ export class CopilotAgent extends Disposable implements IAgent {
 
 		let project = projectByContext.get(key);
 		if (!project) {
-			project = limiter.queue(() => projectFromCopilotContext(context));
+			project = limiter.queue(() => projectFromCopilotContext(context, this._gitService));
 			projectByContext.set(key, project);
 		}
 		return project;
@@ -608,8 +753,7 @@ export class CopilotAgent extends Disposable implements IAgent {
 	}
 
 	override dispose(): void {
-		this._client?.stop().catch(() => { /* best-effort */ });
-		super.dispose();
+		this.shutdown().catch(() => { /* best-effort */ }).finally(() => super.dispose());
 	}
 }
 
