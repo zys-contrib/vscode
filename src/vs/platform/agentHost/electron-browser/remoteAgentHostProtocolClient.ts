@@ -199,7 +199,10 @@ export class RemoteAgentHostProtocolClient extends Disposable implements IAgentC
 			return undefined;
 		}
 		const sourceState = this.getSubscriptionUnmanaged<ISessionState>(StateComponents.Session, fork.session)?.value;
-		const turnId = sourceState?.turns[fork.turnIndex]?.id;
+		if (!sourceState || sourceState instanceof Error) {
+			throw new Error(`Cannot fork: protocol state for ${fork.session.toString()} is not available`);
+		}
+		const turnId = sourceState.turns[fork.turnIndex]?.id;
 		if (!turnId) {
 			throw new Error(`Cannot fork: turn index ${fork.turnIndex} not found in protocol state for ${fork.session.toString()}`);
 		}
