@@ -14,7 +14,7 @@ import { autorun, IObservable, observableValue } from '../../../../../../base/co
 import { isEqual } from '../../../../../../base/common/resources.js';
 import { URI } from '../../../../../../base/common/uri.js';
 import { localize } from '../../../../../../nls.js';
-import { AgentProvider, AgentSession, IAgentAttachment, type IAgentConnection } from '../../../../../../platform/agentHost/common/agentService.js';
+import { AgentHostSessionConfigBranchNameHintKey, AgentProvider, AgentSession, IAgentAttachment, type IAgentConnection } from '../../../../../../platform/agentHost/common/agentService.js';
 import { IAgentSubscription } from '../../../../../../platform/agentHost/common/state/agentSubscription.js';
 import { ISessionTruncatedAction } from '../../../../../../platform/agentHost/common/state/protocol/actions.js';
 import { ICustomizationRef, TerminalClaimKind, type IProtectedResourceMetadata } from '../../../../../../platform/agentHost/common/state/protocol/state.js';
@@ -257,6 +257,19 @@ export interface IAgentHostSessionHandlerConfig {
 	 * client set. When the value changes, active sessions are updated.
 	 */
 	readonly customizations?: IObservable<ICustomizationRef[]>;
+}
+
+export function getAgentHostBranchNameHint(message: string): string | undefined {
+	const words = message
+		.toLowerCase()
+		.normalize('NFKD')
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-+|-+$/g, '')
+		.split('-')
+		.filter(word => word.length > 0)
+		.slice(0, 8);
+	const hint = words.join('-').slice(0, 48).replace(/-+$/g, '');
+	return hint.length > 0 ? hint : undefined;
 }
 
 export class AgentHostSessionHandler extends Disposable implements IChatSessionContentProvider {
@@ -519,7 +532,7 @@ export class AgentHostSessionHandler extends Disposable implements IChatSessionC
 		// Resolve or create backend session
 		let resolvedSession = this._sessionToBackend.get(request.sessionResource);
 		if (!resolvedSession) {
-			resolvedSession = await this._createAndSubscribe(request.sessionResource, request.userSelectedModelId);
+			resolvedSession = await this._createAndSubscribe(request.sessionResource, request.userSelectedModelId, undefined, request.agentHostSessionConfig, getAgentHostBranchNameHint(request.message));
 			this._sessionToBackend.set(request.sessionResource, resolvedSession);
 		}
 
@@ -1799,8 +1812,9 @@ export class AgentHostSessionHandler extends Disposable implements IChatSessionC
 	}
 
 	/** Creates a new backend session and subscribes to its state. */
-	private async _createAndSubscribe(sessionResource: URI, modelId?: string, fork?: { session: URI; turnIndex: number }, sessionConfig?: Record<string, string>): Promise<URI> {
+	private async _createAndSubscribe(sessionResource: URI, modelId?: string, fork?: { session: URI; turnIndex: number }, sessionConfig?: Record<string, string>, branchNameHint?: string): Promise<URI> {
 		const rawModelId = this._extractRawModelId(modelId);
+		const config = branchNameHint ? { ...sessionConfig, [AgentHostSessionConfigBranchNameHintKey]: branchNameHint } : sessionConfig;
 		const workingDirectory = this._config.resolveWorkingDirectory?.(sessionResource)
 			?? this._workingDirectoryResolver.resolve(sessionResource)
 			?? this._workspaceContextService.getWorkspace().folders[0]?.uri;
@@ -1827,7 +1841,7 @@ export class AgentHostSessionHandler extends Disposable implements IChatSessionC
 				provider: this._config.provider,
 				workingDirectory,
 				fork,
-				config: sessionConfig,
+				config,
 			});
 		} catch (err) {
 			// If authentication is required (e.g. token expired), try interactive auth and retry once
@@ -1840,7 +1854,7 @@ export class AgentHostSessionHandler extends Disposable implements IChatSessionC
 						provider: this._config.provider,
 						workingDirectory,
 						fork,
-						config: sessionConfig,
+						config,
 					});
 				} else {
 					throw new Error(localize('agentHost.authRequired', "Authentication is required to start a session. Please sign in and try again."));

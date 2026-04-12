@@ -224,7 +224,7 @@ suite('AgentService (node dispatcher)', () => {
 		test('createSession stores live session config', async () => {
 			service.registerProvider(copilotAgent);
 
-			const config = { target: 'worktree', branch: 'feature/config' };
+			const config = { isolation: 'worktree', branch: 'feature/config' };
 			const session = await service.createSession({ provider: 'copilot', config });
 
 			assert.deepStrictEqual(service.stateManager.getSessionState(session.toString())?.config?.values, config);

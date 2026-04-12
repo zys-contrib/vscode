@@ -104,6 +104,8 @@ export interface IAgentCreateSessionConfig {
 	readonly fork?: { readonly session: URI; readonly turnIndex: number };
 }
 
+export const AgentHostSessionConfigBranchNameHintKey = 'branchNameHint';
+
 export interface IAgentResolveSessionConfigParams {
 	readonly provider?: AgentProvider;
 	readonly workingDirectory?: URI;

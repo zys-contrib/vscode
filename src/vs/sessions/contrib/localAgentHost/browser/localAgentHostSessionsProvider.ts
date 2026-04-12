@@ -680,29 +680,9 @@ export class LocalAgentHostSessionsProvider extends Disposable implements ISessi
 			if (this._newSessionConfigRequests.get(sessionId) !== request) {
 				return;
 			}
-			this._newSessionConfigs.set(sessionId, this._createSessionConfigUnavailableResult());
+			this._newSessionConfigs.delete(sessionId);
 		}
 		this._onDidChangeSessionConfig.fire(sessionId);
-	}
-
-	private _createSessionConfigUnavailableResult(): IResolveSessionConfigResult {
-		return {
-			ready: false,
-			schema: {
-				type: 'object',
-				properties: {
-					unavailable: {
-						type: 'string',
-						title: localize('sessionConfigUnavailable', "Configuration"),
-						description: localize('sessionConfigUnavailableDescription', "Session configuration is unavailable. Select the workspace again to retry."),
-						enum: ['unavailable'],
-						enumLabels: [localize('sessionConfigUnavailableValue', "Unavailable")],
-						readOnly: true,
-					},
-				},
-			},
-			values: { unavailable: 'unavailable' },
-		};
 	}
 
 	private _clearNewSessionConfig(sessionId: string): void {

@@ -19,6 +19,7 @@ import { IActionViewItemService } from '../../../../platform/actions/browser/act
 import { Action2, registerAction2 } from '../../../../platform/actions/common/actions.js';
 import { ContextKeyExpr } from '../../../../platform/contextkey/common/contextkey.js';
 import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
+import { AgentHostSessionConfigBranchNameHintKey } from '../../../../platform/agentHost/common/agentService.js';
 import type { ISessionConfigPropertySchema, ISessionConfigValueItem } from '../../../../platform/agentHost/common/state/protocol/commands.js';
 import { IQuickInputService, type IQuickPickItem } from '../../../../platform/quickinput/common/quickInput.js';
 import { IWorkbenchContribution, registerWorkbenchContribution2, WorkbenchPhase } from '../../../../workbench/common/contributions.js';
@@ -142,6 +143,9 @@ class AgentHostSessionConfigPicker extends Disposable {
 		}
 
 		for (const [property, schema] of Object.entries(resolvedConfig.schema.properties)) {
+			if (property === AgentHostSessionConfigBranchNameHintKey) {
+				continue;
+			}
 			const value = resolvedConfig.values[property] ?? schema.default;
 			const slot = dom.append(this._container, dom.$('.sessions-chat-picker-slot'));
 			const trigger = renderPickerTrigger(slot, !!schema.readOnly, this._renderDisposables, () => this._showPicker(provider, session.sessionId, property, schema, trigger));

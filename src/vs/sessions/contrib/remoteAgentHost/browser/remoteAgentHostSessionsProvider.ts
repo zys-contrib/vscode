@@ -433,7 +433,7 @@ export class RemoteAgentHostSessionsProvider extends Disposable implements ISess
 		return {
 			label: `${folderName} [${this.label}]`,
 			icon: Codicon.remote,
-			repositories: [{ uri, workingDirectory: undefined, detail: this.label, baseBranchName: undefined, baseBranchProtected: undefined }],
+			repositories: [{ uri, workingDirectory: undefined, detail: undefined, baseBranchName: undefined, baseBranchProtected: undefined }],
 			requiresWorkspaceTrust: true,
 		};
 	}
@@ -836,29 +836,9 @@ export class RemoteAgentHostSessionsProvider extends Disposable implements ISess
 			if (this._newSessionConfigRequests.get(sessionId) !== request) {
 				return;
 			}
-			this._newSessionConfigs.set(sessionId, this._createSessionConfigUnavailableResult());
+			this._newSessionConfigs.delete(sessionId);
 		}
 		this._onDidChangeSessionConfig.fire(sessionId);
-	}
-
-	private _createSessionConfigUnavailableResult(): IResolveSessionConfigResult {
-		return {
-			ready: false,
-			schema: {
-				type: 'object',
-				properties: {
-					unavailable: {
-						type: 'string',
-						title: localize('sessionConfigUnavailable', "Configuration"),
-						description: localize('sessionConfigUnavailableDescription', "Session configuration is unavailable. Select the workspace again to retry."),
-						enum: ['unavailable'],
-						enumLabels: [localize('sessionConfigUnavailableValue', "Unavailable")],
-						readOnly: true,
-					},
-				},
-			},
-			values: { unavailable: 'unavailable' },
-		};
 	}
 
 	private _clearNewSessionConfig(sessionId: string): void {

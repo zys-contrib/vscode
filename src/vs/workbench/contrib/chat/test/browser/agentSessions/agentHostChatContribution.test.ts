@@ -15,7 +15,7 @@ import { runWithFakedTimers } from '../../../../../../base/test/common/timeTrave
 import { timeout } from '../../../../../../base/common/async.js';
 import { ILogService, NullLogService } from '../../../../../../platform/log/common/log.js';
 import { IConfigurationService } from '../../../../../../platform/configuration/common/configuration.js';
-import { IAgentCreateSessionConfig, IAgentHostService, IAgentSessionMetadata, AgentSession } from '../../../../../../platform/agentHost/common/agentService.js';
+import { AgentHostSessionConfigBranchNameHintKey, IAgentCreateSessionConfig, IAgentHostService, IAgentSessionMetadata, AgentSession } from '../../../../../../platform/agentHost/common/agentService.js';
 import { isSessionAction, type IActionEnvelope, type INotification, type ISessionAction, type ITerminalAction, type IToolCallConfirmedAction, type ITurnStartedAction } from '../../../../../../platform/agentHost/common/state/sessionActions.js';
 import type { IStateSnapshot } from '../../../../../../platform/agentHost/common/state/sessionProtocol.js';
 import type { ICustomizationRef } from '../../../../../../platform/agentHost/common/state/protocol/state.js';
@@ -34,7 +34,7 @@ import { IProductService } from '../../../../../../platform/product/common/produ
 import { TestInstantiationService } from '../../../../../../platform/instantiation/test/common/instantiationServiceMock.js';
 import { IOutputService } from '../../../../../services/output/common/output.js';
 import { IWorkspaceContextService } from '../../../../../../platform/workspace/common/workspace.js';
-import { AgentHostContribution, AgentHostSessionListController, AgentHostSessionHandler } from '../../../browser/agentSessions/agentHost/agentHostChatContribution.js';
+import { AgentHostContribution, AgentHostSessionListController, AgentHostSessionHandler, getAgentHostBranchNameHint } from '../../../browser/agentSessions/agentHost/agentHostChatContribution.js';
 import { AgentHostLanguageModelProvider } from '../../../browser/agentSessions/agentHost/agentHostLanguageModelProvider.js';
 import { IFileService } from '../../../../../../platform/files/common/files.js';
 import { TestFileService } from '../../../../../test/common/workbenchTestServices.js';
@@ -427,6 +427,60 @@ async function startTurn(
 	}
 
 	return { turnPromise, collected, chatSession, session, turnId, fire };
+}
+
+async function startDynamicAgentTurn(
+	chatAgentService: MockChatAgentService,
+	agentHostService: MockAgentHostService,
+	agentId: string,
+	overrides?: Partial<{
+		message: string;
+		sessionResource: URI;
+		variables: IChatAgentRequest['variables'];
+		userSelectedModelId: string;
+		agentHostSessionConfig: Record<string, string>;
+		cancellationToken: CancellationToken;
+	}>,
+) {
+	const registered = chatAgentService.registeredAgents.get(agentId);
+	assert.ok(registered);
+	const sessionResource = overrides?.sessionResource ?? URI.from({ scheme: agentId, path: '/untitled-turntest' });
+	const collected: IChatProgress[][] = [];
+	const seq = { v: 1 };
+
+	agentHostService.dispatchedActions.length = 0;
+	const turnPromise = registered.impl.invoke(
+		makeRequest({
+			message: overrides?.message ?? 'Hello',
+			sessionResource,
+			variables: overrides?.variables,
+			userSelectedModelId: overrides?.userSelectedModelId,
+			agentHostSessionConfig: overrides?.agentHostSessionConfig,
+		}),
+		parts => collected.push(parts),
+		[],
+		overrides?.cancellationToken ?? CancellationToken.None,
+	);
+
+	await timeout(10);
+
+	const turnDispatches = agentHostService.dispatchedActions.filter(d => d.action.type === 'session/turnStarted');
+	const lastDispatch = turnDispatches[turnDispatches.length - 1] ?? agentHostService.dispatchedActions[agentHostService.dispatchedActions.length - 1];
+	const session = (lastDispatch?.action as ITurnStartedAction)?.session;
+	const turnId = (lastDispatch?.action as ITurnStartedAction)?.turnId;
+	const fire = (action: ISessionAction) => {
+		agentHostService.fireAction({ action, serverSeq: seq.v++, origin: undefined });
+	};
+
+	if (lastDispatch) {
+		agentHostService.fireAction({
+			action: lastDispatch.action,
+			serverSeq: seq.v++,
+			origin: { clientId: agentHostService.clientId, clientSeq: lastDispatch.clientSeq },
+		});
+	}
+
+	return { turnPromise, collected, session, turnId, fire };
 }
 
 suite('AgentHostChatContribution', () => {
@@ -1614,9 +1668,9 @@ suite('AgentHostChatContribution', () => {
 		}));
 
 		test('handler forwards request session config to createSession', () => runWithFakedTimers({ useFakeTimers: true }, async () => {
-			const { instantiationService, agentHostService } = createTestServices(disposables);
+			const { instantiationService, agentHostService, chatAgentService } = createTestServices(disposables);
 
-			const handler = disposables.add(instantiationService.createInstance(AgentHostSessionHandler, {
+			disposables.add(instantiationService.createInstance(AgentHostSessionHandler, {
 				provider: 'copilot' as const,
 				agentId: 'config-test',
 				sessionType: 'config-test',
@@ -1626,13 +1680,26 @@ suite('AgentHostChatContribution', () => {
 				connectionAuthority: 'local',
 			}));
 
-			const config = { target: 'worktree', isolation: 'new' };
-			const { turnPromise, session, turnId, fire } = await startTurn(handler, agentHostService, disposables, { agentHostSessionConfig: config });
+			const config = { isolation: 'worktree', branch: 'feature/config' };
+			const { turnPromise, session, turnId, fire } = await startDynamicAgentTurn(chatAgentService, agentHostService, 'config-test', { message: 'Add Agent Host session configuration flow', agentHostSessionConfig: config });
 			fire({ type: 'session/turnComplete', session, turnId } as ISessionAction);
 			await turnPromise;
 
-			assert.deepStrictEqual(agentHostService.createSessionCalls[0].config, config);
+			assert.strictEqual(agentHostService.createSessionCalls.length, 1);
+			assert.deepStrictEqual(agentHostService.createSessionCalls[0].config, { ...config, [AgentHostSessionConfigBranchNameHintKey]: 'add-agent-host-session-configuration-flow' });
 		}));
+
+		test('handler derives deterministic branch name hints from first request text', () => {
+			assert.deepStrictEqual([
+				getAgentHostBranchNameHint('Add Agent Host session configuration flow'),
+				getAgentHostBranchNameHint('  Fix: worktree picker + branch config!  '),
+				getAgentHostBranchNameHint('---'),
+			], [
+				'add-agent-host-session-configuration-flow',
+				'fix-worktree-picker-branch-config',
+				undefined,
+			]);
+		});
 
 		test('handler uses registered working directory resolver', () => runWithFakedTimers({ useFakeTimers: true }, async () => {
 			const resolvedWorkingDirectory = URI.file('/resolved/working/dir');

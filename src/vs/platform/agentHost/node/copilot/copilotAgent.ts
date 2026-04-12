@@ -10,7 +10,7 @@ import { Limiter, SequencerByKey } from '../../../../base/common/async.js';
 import { Emitter } from '../../../../base/common/event.js';
 import { Disposable, DisposableMap } from '../../../../base/common/lifecycle.js';
 import { FileAccess } from '../../../../base/common/network.js';
-import { delimiter, dirname } from '../../../../base/common/path.js';
+import { basename, delimiter, dirname } from '../../../../base/common/path.js';
 import { URI } from '../../../../base/common/uri.js';
 import { generateUuid } from '../../../../base/common/uuid.js';
 import { IParsedPlugin, parsePlugin } from '../../../agentPlugins/common/pluginParsers.js';
@@ -19,7 +19,7 @@ import { IInstantiationService } from '../../../instantiation/common/instantiati
 import { ILogService } from '../../../log/common/log.js';
 import { localize } from '../../../../nls.js';
 import { IAgentPluginManager, ISyncedCustomization } from '../../common/agentPluginManager.js';
-import { AgentSession, IAgent, IAgentAttachment, IAgentCreateSessionConfig, IAgentCreateSessionResult, IAgentDescriptor, IAgentMessageEvent, IAgentModelInfo, IAgentProgressEvent, IAgentResolveSessionConfigParams, IAgentSessionConfigCompletionsParams, IAgentSessionMetadata, IAgentSessionProjectInfo, IAgentSubagentStartedEvent, IAgentToolCompleteEvent, IAgentToolStartEvent } from '../../common/agentService.js';
+import { AgentHostSessionConfigBranchNameHintKey, AgentSession, IAgent, IAgentAttachment, IAgentCreateSessionConfig, IAgentCreateSessionResult, IAgentDescriptor, IAgentMessageEvent, IAgentModelInfo, IAgentProgressEvent, IAgentResolveSessionConfigParams, IAgentSessionConfigCompletionsParams, IAgentSessionMetadata, IAgentSessionProjectInfo, IAgentSubagentStartedEvent, IAgentToolCompleteEvent, IAgentToolStartEvent } from '../../common/agentService.js';
 import type { IResolveSessionConfigResult, ISessionConfigCompletionsResult } from '../../common/state/protocol/commands.js';
 import { ISessionDataService } from '../../common/sessionDataService.js';
 import { CustomizationStatus, ICustomizationRef, SessionInputResponseKind, type ISessionInputAnswer, type IPendingMessage, type PolicyState } from '../../common/state/sessionState.js';
@@ -36,6 +36,18 @@ import { createShellTools, ShellManager } from './copilotShellTools.js';
 interface ICreatedWorktree {
 	readonly repositoryRoot: URI;
 	readonly worktree: URI;
+}
+
+export function getCopilotWorktreesRoot(repositoryRoot: URI): URI {
+	return URI.joinPath(repositoryRoot, '..', `${basename(repositoryRoot.fsPath)}.worktrees`);
+}
+
+export function getCopilotWorktreeName(branchName: string): string {
+	return branchName.replace(/\//g, '-');
+}
+
+export function getCopilotWorktreeBranchName(sessionId: string, branchNameHint: string | undefined): string {
+	return `agents/${branchNameHint ? `${branchNameHint}-${sessionId.substring(0, 8)}` : sessionId}`;
 }
 
 /**
@@ -288,25 +300,25 @@ export class CopilotAgent extends Disposable implements IAgent {
 
 	async resolveSessionConfig(params: IAgentResolveSessionConfigParams): Promise<IResolveSessionConfigResult> {
 		const gitInfo = params.workingDirectory ? await this._getGitInfo(params.workingDirectory) : undefined;
-		const targetValue = params.config?.target === 'folder' || params.config?.target === 'worktree'
-			? params.config.target
+		const isolationValue = params.config?.isolation === 'folder' || params.config?.isolation === 'worktree'
+			? params.config.isolation
 			: gitInfo ? 'worktree' : 'folder';
 
-		const values: Record<string, string> = { target: targetValue };
+		const values: Record<string, string> = { isolation: isolationValue };
 		if (gitInfo) {
-			values.branch = typeof params.config?.branch === 'string' && targetValue === 'worktree'
+			values.branch = typeof params.config?.branch === 'string' && isolationValue === 'worktree'
 				? params.config.branch
 				: gitInfo.currentBranch;
 		}
 
 		const properties: IResolveSessionConfigResult['schema']['properties'] = {
-			target: {
+			isolation: {
 				type: 'string',
-				title: localize('agentHost.sessionConfig.target', "Target"),
-				description: localize('agentHost.sessionConfig.targetDescription', "Where the agent should make changes"),
+				title: localize('agentHost.sessionConfig.isolation', "Isolation"),
+				description: localize('agentHost.sessionConfig.isolationDescription', "Where the agent should make changes"),
 				enum: gitInfo ? ['folder', 'worktree'] : ['folder'],
-				enumLabels: gitInfo ? [localize('agentHost.sessionConfig.target.folder', "Folder"), localize('agentHost.sessionConfig.target.worktree', "Worktree")] : [localize('agentHost.sessionConfig.target.folder', "Folder")],
-				enumDescriptions: gitInfo ? [localize('agentHost.sessionConfig.target.folderDescription', "Work directly in the folder"), localize('agentHost.sessionConfig.target.worktreeDescription', "Create a Git worktree for isolation")] : [localize('agentHost.sessionConfig.target.folderDescription', "Work directly in the folder")],
+				enumLabels: gitInfo ? [localize('agentHost.sessionConfig.isolation.folder', "Folder"), localize('agentHost.sessionConfig.isolation.worktree', "Worktree")] : [localize('agentHost.sessionConfig.isolation.folder', "Folder")],
+				enumDescriptions: gitInfo ? [localize('agentHost.sessionConfig.isolation.folderDescription', "Work directly in the folder"), localize('agentHost.sessionConfig.isolation.worktreeDescription', "Create a Git worktree for isolation")] : [localize('agentHost.sessionConfig.isolation.folderDescription', "Work directly in the folder")],
 				enumIcons: gitInfo ? ['folder', 'worktree'] : ['folder'],
 				default: gitInfo ? 'worktree' : 'folder',
 				readOnly: !gitInfo,
@@ -314,14 +326,14 @@ export class CopilotAgent extends Disposable implements IAgent {
 		};
 
 		if (gitInfo) {
-			const branchReadOnly = targetValue === 'folder';
+			const branchReadOnly = isolationValue === 'folder';
 			properties.branch = {
 				type: 'string',
 				title: localize('agentHost.sessionConfig.branch', "Branch"),
 				description: localize('agentHost.sessionConfig.branchDescription', "Base branch to work from"),
-				enum: branchReadOnly ? [gitInfo.currentBranch] : gitInfo.recentBranches,
-				enumLabels: branchReadOnly ? [gitInfo.currentBranch] : gitInfo.recentBranches,
-				enumIcons: branchReadOnly ? ['git-branch'] : gitInfo.recentBranches.map(() => 'git-branch'),
+				enum: [gitInfo.currentBranch],
+				enumLabels: [gitInfo.currentBranch],
+				enumIcons: ['git-branch'],
 				default: gitInfo.currentBranch,
 				enumDynamic: !branchReadOnly,
 				readOnly: branchReadOnly,
@@ -608,26 +620,21 @@ export class CopilotAgent extends Disposable implements IAgent {
 		return agentSession;
 	}
 
-	private async _getGitInfo(workingDirectory: URI): Promise<{ currentBranch: string; recentBranches: string[] } | undefined> {
+	private async _getGitInfo(workingDirectory: URI): Promise<{ currentBranch: string } | undefined> {
 		if (!await this._gitService.isInsideWorkTree(workingDirectory)) {
 			return undefined;
 		}
 
 		const currentBranch = await this._gitService.getCurrentBranch(workingDirectory) ?? 'HEAD';
-		const recentBranches = await this._getBranches(workingDirectory);
-		return { currentBranch, recentBranches: this._prependUnique(currentBranch, recentBranches) };
+		return { currentBranch };
 	}
 
 	private async _getBranches(workingDirectory: URI, query?: string): Promise<string[]> {
 		return this._gitService.getBranches(workingDirectory, { query, limit: CopilotAgent._BRANCH_COMPLETION_LIMIT });
 	}
 
-	private _prependUnique(value: string, values: readonly string[]): string[] {
-		return [value, ...values.filter(candidate => candidate !== value)];
-	}
-
 	private async _resolveSessionWorkingDirectory(config: IAgentCreateSessionConfig | undefined, sessionId: string): Promise<URI | undefined> {
-		if (config?.config?.target !== 'worktree' || !config.workingDirectory || typeof config.config.branch !== 'string') {
+		if (config?.config?.isolation !== 'worktree' || !config.workingDirectory || typeof config.config.branch !== 'string') {
 			return config?.workingDirectory;
 		}
 
@@ -636,10 +643,12 @@ export class CopilotAgent extends Disposable implements IAgent {
 			return config.workingDirectory;
 		}
 
-		const worktreesRoot = URI.joinPath(repositoryRoot, '..', '.copilot-worktrees');
-		const worktree = URI.joinPath(worktreesRoot, sessionId);
+		const worktreesRoot = getCopilotWorktreesRoot(repositoryRoot);
+		const branchNameHint = config.config[AgentHostSessionConfigBranchNameHintKey];
+		const branchName = getCopilotWorktreeBranchName(sessionId, branchNameHint);
+		const worktree = URI.joinPath(worktreesRoot, getCopilotWorktreeName(branchName));
 		await fs.mkdir(worktreesRoot.fsPath, { recursive: true });
-		await this._gitService.addWorktree(repositoryRoot, worktree, `copilot/${sessionId}`, config.config.branch);
+		await this._gitService.addWorktree(repositoryRoot, worktree, branchName, config.config.branch);
 		this._createdWorktrees.set(sessionId, { repositoryRoot, worktree });
 		return worktree;
 	}

@@ -226,16 +226,16 @@ export class ScriptedMockAgent implements IAgent {
 	}
 
 	async resolveSessionConfig(params: IAgentResolveSessionConfigParams): Promise<IResolveSessionConfigResult> {
-		const target = params.config?.target === 'folder' || params.config?.target === 'worktree' ? params.config.target : 'worktree';
-		const branch = target === 'worktree' && typeof params.config?.branch === 'string' ? params.config.branch : 'main';
+		const isolation = params.config?.isolation === 'folder' || params.config?.isolation === 'worktree' ? params.config.isolation : 'worktree';
+		const branch = isolation === 'worktree' && typeof params.config?.branch === 'string' ? params.config.branch : 'main';
 		return {
 			ready: true,
 			schema: {
 				type: 'object',
 				properties: {
-					target: {
+					isolation: {
 						type: 'string',
-						title: 'Target',
+						title: 'Isolation',
 						description: 'Where the mock agent should make changes',
 						enum: ['folder', 'worktree'],
 						enumLabels: ['Folder', 'Worktree'],
@@ -245,16 +245,16 @@ export class ScriptedMockAgent implements IAgent {
 						type: 'string',
 						title: 'Branch',
 						description: 'Base branch to work from',
-						enum: target === 'folder' ? ['main'] : ['main', 'feature/config', 'release'],
-						enumLabels: target === 'folder' ? ['main'] : ['main', 'feature/config', 'release'],
-						enumIcons: target === 'folder' ? ['git-branch'] : ['git-branch', 'git-branch', 'git-branch'],
+						enum: ['main'],
+						enumLabels: ['main'],
+						enumIcons: ['git-branch'],
 						default: 'main',
-						enumDynamic: target === 'worktree',
-						readOnly: target === 'folder',
+						enumDynamic: isolation === 'worktree',
+						readOnly: isolation === 'folder',
 					},
 				},
 			},
-			values: { target, branch },
+			values: { isolation, branch },
 		};
 	}
 

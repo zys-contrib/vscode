@@ -21,8 +21,8 @@ import { SessionStatus as ProtocolSessionStatus } from '../../../../../platform/
 import { ActionType, type IActionEnvelope, type INotification } from '../../../../../platform/agentHost/common/state/sessionActions.js';
 import { IFileDialogService } from '../../../../../platform/dialogs/common/dialogs.js';
 import { TestInstantiationService } from '../../../../../platform/instantiation/test/common/instantiationServiceMock.js';
-import { IChatWidgetService } from '../../../../../workbench/contrib/chat/browser/chat.js';
-import { IChatService, type ChatSendResult } from '../../../../../workbench/contrib/chat/common/chatService/chatService.js';
+import { IChatWidget, IChatWidgetService } from '../../../../../workbench/contrib/chat/browser/chat.js';
+import { IChatService, type ChatSendResult, type IChatSendRequestOptions } from '../../../../../workbench/contrib/chat/common/chatService/chatService.js';
 import { IChatSessionsService } from '../../../../../workbench/contrib/chat/common/chatSessionsService.js';
 import { ILanguageModelsService } from '../../../../../workbench/contrib/chat/common/languageModels.js';
 import { ISessionChangeEvent } from '../../../../services/sessions/common/sessionsProvider.js';
@@ -47,6 +47,7 @@ class MockAgentHostService extends mock<IAgentHostService>() {
 	private readonly _sessions = new Map<string, IAgentSessionMetadata>();
 	public disposedSessions: URI[] = [];
 	public dispatchedActions: { action: ISessionAction | ITerminalAction; clientId: string; clientSeq: number }[] = [];
+	public failResolveSessionConfig = false;
 
 	private _nextSeq = 0;
 
@@ -78,7 +79,10 @@ class MockAgentHostService extends mock<IAgentHostService>() {
 
 	override async resolveSessionConfig(): Promise<IResolveSessionConfigResult> {
 		await Promise.resolve();
-		return { ready: true, schema: { type: 'object', properties: {} }, values: { target: 'worktree' } };
+		if (this.failResolveSessionConfig) {
+			throw new Error('resolveSessionConfig unavailable');
+		}
+		return { ready: true, schema: { type: 'object', properties: {} }, values: { isolation: 'worktree' } };
 	}
 
 	dispatchAction(action: ISessionAction | ITerminalAction, clientId: string, clientSeq: number): void {
@@ -137,7 +141,7 @@ function createSession(id: string, opts?: { provider?: string; summary?: string;
 
 function createProvider(disposables: DisposableStore, agentHostService: MockAgentHostService, contributions = [
 	{ type: 'agent-host-copilot', name: 'copilot', displayName: 'Copilot', description: 'test', icon: undefined },
-]): LocalAgentHostSessionsProvider {
+], options?: { sendRequest?: (resource: URI, message: string, options?: IChatSendRequestOptions) => Promise<ChatSendResult>; openSession?: boolean }): LocalAgentHostSessionsProvider {
 	const instantiationService = disposables.add(new TestInstantiationService());
 
 	instantiationService.stub(IAgentHostService, agentHostService);
@@ -149,10 +153,10 @@ function createProvider(disposables: DisposableStore, agentHostService: MockAgen
 	});
 	instantiationService.stub(IChatService, {
 		acquireOrLoadSession: async () => undefined,
-		sendRequest: async (): Promise<ChatSendResult> => ({ kind: 'sent' as const, data: {} as ChatSendResult extends { kind: 'sent'; data: infer D } ? D : never }),
+		sendRequest: options?.sendRequest ?? (async (): Promise<ChatSendResult> => ({ kind: 'sent' as const, data: {} as ChatSendResult extends { kind: 'sent'; data: infer D } ? D : never })),
 	});
 	instantiationService.stub(IChatWidgetService, {
-		openSession: async () => undefined,
+		openSession: async () => options?.openSession ? new class extends mock<IChatWidget>() { }() : undefined,
 	});
 	instantiationService.stub(ILanguageModelsService, {
 		lookupLanguageModel: () => undefined,
@@ -414,6 +418,22 @@ suite('LocalAgentHostSessionsProvider', () => {
 		assert.strictEqual(session.workspace.get()?.label, 'my-project');
 		assert.strictEqual(session.sessionType, provider.sessionTypes[0].id);
 		assert.deepStrictEqual(provider.getSessionConfig(session.sessionId), { ready: false, schema: { type: 'object', properties: {} }, values: {} });
+	});
+
+	test('createNewSession clears session config when resolving config is unavailable', async () => {
+		agentHost.failResolveSessionConfig = true;
+		const provider = createProvider(disposables, agentHost);
+		const workspace = {
+			label: 'my-project',
+			icon: { id: 'folder' },
+			repositories: [{ uri: URI.parse('file:///home/user/project'), workingDirectory: undefined, detail: undefined, baseBranchName: undefined, baseBranchProtected: undefined }],
+			requiresWorkspaceTrust: true,
+		};
+
+		const session = provider.createNewSession(workspace);
+		await timeout(0);
+
+		assert.strictEqual(provider.getSessionConfig(session.sessionId), undefined);
 	});
 
 	test('setSessionType rebuilds the pending new session with the selected local agent type', () => {
@@ -738,5 +758,31 @@ suite('LocalAgentHostSessionsProvider', () => {
 			() => provider.sendAndCreateChat('nonexistent', { query: 'test' }),
 			/not found or not a new session/,
 		);
+	});
+
+	test('sendAndCreateChat forwards resolved session config to chat service', async () => {
+		const sendOptions: IChatSendRequestOptions[] = [];
+		const provider = createProvider(disposables, agentHost, undefined, {
+			openSession: true,
+			sendRequest: async (_resource, _message, options): Promise<ChatSendResult> => {
+				if (options) {
+					sendOptions.push(options);
+				}
+				agentHost.addSession(createSession('created-from-send', { summary: 'Created From Send' }));
+				return { kind: 'sent' as const, data: {} as ChatSendResult extends { kind: 'sent'; data: infer D } ? D : never };
+			},
+		});
+		const workspace = {
+			label: 'project',
+			icon: { id: 'folder' },
+			repositories: [{ uri: URI.file('/home/user/project'), workingDirectory: undefined, detail: undefined, baseBranchName: undefined, baseBranchProtected: undefined }],
+			requiresWorkspaceTrust: false,
+		};
+		const session = provider.createNewSession(workspace);
+		await timeout(0);
+
+		await provider.sendAndCreateChat(session.sessionId, { query: 'hello' });
+
+		assert.deepStrictEqual(sendOptions.map(options => options.agentHostSessionConfig), [{ isolation: 'worktree' }]);
 	});
 });

@@ -55,21 +55,22 @@ suite('Protocol WebSocket - Session Config', function () {
 
 		assert.deepStrictEqual({ ready: initial.ready, values: initial.values }, {
 			ready: true,
-			values: { target: 'worktree', branch: 'main' },
+			values: { isolation: 'worktree', branch: 'main' },
 		});
-		assert.deepStrictEqual(Object.keys(initial.schema.properties), ['target', 'branch']);
+		assert.deepStrictEqual(Object.keys(initial.schema.properties), ['isolation', 'branch']);
+		assert.deepStrictEqual(initial.schema.properties.branch.enum, ['main']);
 		assert.strictEqual(initial.schema.properties.branch.enumDynamic, true);
 		assert.strictEqual(initial.schema.properties.branch.readOnly, false);
 
 		const folder = await client.call<IResolveSessionConfigResult>('resolveSessionConfig', {
 			provider: 'mock',
 			workingDirectory,
-			config: { target: 'folder', branch: 'feature/config' },
+			config: { isolation: 'folder', branch: 'feature/config' },
 		});
 
 		assert.deepStrictEqual({ ready: folder.ready, values: folder.values }, {
 			ready: true,
-			values: { target: 'folder', branch: 'main' },
+			values: { isolation: 'folder', branch: 'main' },
 		});
 		assert.strictEqual(folder.schema.properties.branch.enumDynamic, false);
 		assert.strictEqual(folder.schema.properties.branch.readOnly, true);
@@ -81,7 +82,7 @@ suite('Protocol WebSocket - Session Config', function () {
 		const result = await client.call<ISessionConfigCompletionsResult>('sessionConfigCompletions', {
 			provider: 'mock',
 			workingDirectory: URI.file('/mock/workspace').toString(),
-			config: { target: 'worktree' },
+			config: { isolation: 'worktree' },
 			property: 'branch',
 			query: 'feat',
 		});
@@ -94,7 +95,7 @@ suite('Protocol WebSocket - Session Config', function () {
 	test('createSession stores config schema and values on session state', async function () {
 		this.timeout(10_000);
 
-		const config = { target: 'worktree', branch: 'feature/config' };
+		const config = { isolation: 'worktree', branch: 'feature/config' };
 		await client.call('createSession', {
 			session: nextSessionUri(),
 			provider: 'mock',
@@ -111,7 +112,7 @@ suite('Protocol WebSocket - Session Config', function () {
 		const snapshot = await client.call<ISubscribeResult>('subscribe', { resource: notification.summary.resource });
 		const state = snapshot.snapshot.state as ISessionState;
 		assert.deepStrictEqual(state.config?.values, config);
-		assert.deepStrictEqual(Object.keys(state.config?.schema.properties ?? {}), ['target', 'branch']);
+		assert.deepStrictEqual(Object.keys(state.config?.schema.properties ?? {}), ['isolation', 'branch']);
 	});
 
 	test('session/configChanged merges config values into session state', async function () {
@@ -120,7 +121,7 @@ suite('Protocol WebSocket - Session Config', function () {
 		await client.call('createSession', {
 			session: nextSessionUri(),
 			provider: 'mock',
-			config: { target: 'folder', branch: 'main' },
+			config: { isolation: 'folder', branch: 'main' },
 		});
 
 		const notif = await client.waitForNotification(n =>
@@ -144,6 +145,6 @@ suite('Protocol WebSocket - Session Config', function () {
 
 		const snapshot = await client.call<ISubscribeResult>('subscribe', { resource: session });
 		const state = snapshot.snapshot.state as ISessionState;
-		assert.deepStrictEqual(state.config?.values, { target: 'folder', branch: 'release' });
+		assert.deepStrictEqual(state.config?.values, { isolation: 'folder', branch: 'release' });
 	});
 });
