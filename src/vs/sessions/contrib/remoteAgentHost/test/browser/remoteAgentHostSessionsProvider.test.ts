@@ -439,6 +439,27 @@ suite('RemoteAgentHostSessionsProvider', () => {
 		});
 	});
 
+	test('clearConnection clears pending new session config', () => {
+		const provider = createProvider(disposables, connection);
+		const workspace = {
+			label: 'my-project',
+			icon: { id: 'remote' },
+			repositories: [{ uri: URI.parse('vscode-agent-host://auth/home/user/project'), workingDirectory: undefined, detail: undefined, baseBranchName: undefined, baseBranchProtected: undefined }],
+			requiresWorkspaceTrust: false,
+		};
+
+		const session = provider.createNewSession(workspace);
+		provider.clearConnection();
+
+		assert.deepStrictEqual({
+			resolved: provider.getSessionByResource(session.resource),
+			config: provider.getSessionConfig(session.sessionId),
+		}, {
+			resolved: undefined,
+			config: undefined,
+		});
+	});
+
 	test('createNewSession throws when no repository URI', () => {
 		const provider = createProvider(disposables, connection);
 		const workspace = { label: 'empty', icon: { id: 'remote' }, repositories: [], requiresWorkspaceTrust: false };

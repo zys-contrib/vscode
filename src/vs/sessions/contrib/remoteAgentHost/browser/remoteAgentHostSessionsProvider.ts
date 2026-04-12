@@ -395,6 +395,12 @@ export class RemoteAgentHostSessionsProvider extends Disposable implements ISess
 		this._onDidDisconnect.fire();
 		this._connection = undefined;
 		this._defaultDirectory = undefined;
+		if (this._currentNewSession) {
+			this._clearNewSessionConfig(this._currentNewSession.id);
+			this._currentNewSession = undefined;
+		}
+		this._currentNewSessionStatus = undefined;
+		this._selectedModelId = undefined;
 
 		if (this._sessionTypes.length > 0) {
 			this._sessionTypes = [];

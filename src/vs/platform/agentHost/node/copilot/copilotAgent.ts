@@ -651,9 +651,10 @@ export class CopilotAgent extends Disposable implements IAgent {
 		}
 		try {
 			await this._gitService.removeWorktree(worktree.repositoryRoot, worktree.worktree);
-			this._createdWorktrees.delete(sessionId);
 		} catch (error) {
 			this._logService.warn(`[Copilot:${sessionId}] Failed to remove worktree '${worktree.worktree.fsPath}': ${error instanceof Error ? error.message : String(error)}`);
+		} finally {
+			this._createdWorktrees.delete(sessionId);
 		}
 	}
 
