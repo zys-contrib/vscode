@@ -14,6 +14,7 @@ import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../../base/tes
 import { AgentSession, IAgentHostService, type IAgentSessionMetadata } from '../../../../../platform/agentHost/common/agentService.js';
 import type { IAgentSubscription } from '../../../../../platform/agentHost/common/state/agentSubscription.js';
 import type { ISessionAction, ITerminalAction } from '../../../../../platform/agentHost/common/state/protocol/action-origin.generated.js';
+import type { IResolveSessionConfigResult } from '../../../../../platform/agentHost/common/state/protocol/commands.js';
 import { NotificationType } from '../../../../../platform/agentHost/common/state/protocol/notifications.js';
 import type { IAgentInfo, IRootState } from '../../../../../platform/agentHost/common/state/protocol/state.js';
 import { SessionStatus as ProtocolSessionStatus } from '../../../../../platform/agentHost/common/state/sessionState.js';
@@ -73,6 +74,11 @@ class MockAgentHostService extends mock<IAgentHostService>() {
 		this.disposedSessions.push(session);
 		const rawId = AgentSession.id(session);
 		this._sessions.delete(rawId);
+	}
+
+	override async resolveSessionConfig(): Promise<IResolveSessionConfigResult> {
+		await Promise.resolve();
+		return { ready: true, schema: { type: 'object', properties: {} }, values: { target: 'worktree' } };
 	}
 
 	dispatchAction(action: ISessionAction | ITerminalAction, clientId: string, clientSeq: number): void {
@@ -407,6 +413,7 @@ suite('LocalAgentHostSessionsProvider', () => {
 		assert.ok(session.workspace.get());
 		assert.strictEqual(session.workspace.get()?.label, 'my-project');
 		assert.strictEqual(session.sessionType, provider.sessionTypes[0].id);
+		assert.deepStrictEqual(provider.getSessionConfig(session.sessionId), { ready: false, schema: { type: 'object', properties: {} }, values: {} });
 	});
 
 	test('setSessionType rebuilds the pending new session with the selected local agent type', () => {

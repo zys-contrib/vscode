@@ -447,6 +447,8 @@ export class LocalAgentHostSessionsProvider extends Disposable implements ISessi
 		const agentProvider = this._agentProviderFromSessionType(sessionType.id);
 		this._newSessionWorkspaces.set(session.sessionId, workspaceUri);
 		this._newSessionAgentProviders.set(session.sessionId, agentProvider);
+		this._newSessionConfigs.set(session.sessionId, { ready: false, schema: { type: 'object', properties: {} }, values: {} });
+		this._onDidChangeSessionConfig.fire(session.sessionId);
 		this._resolveSessionConfig(session.sessionId, agentProvider, workspaceUri, undefined);
 		return session;
 	}

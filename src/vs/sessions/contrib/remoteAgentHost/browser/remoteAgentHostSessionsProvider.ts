@@ -561,6 +561,8 @@ export class RemoteAgentHostSessionsProvider extends Disposable implements ISess
 		const agentProvider = this._agentProviderFromSessionType(sessionType.id);
 		this._newSessionWorkspaces.set(data.id, workspaceUri);
 		this._newSessionAgentProviders.set(data.id, agentProvider);
+		this._newSessionConfigs.set(data.id, { ready: false, schema: { type: 'object', properties: {} }, values: {} });
+		this._onDidChangeSessionConfig.fire(data.id);
 		this._resolveSessionConfig(data.id, agentProvider, workspaceUri, undefined);
 		return { data, status };
 	}

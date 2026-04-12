@@ -13,6 +13,7 @@ import { runWithFakedTimers } from '../../../../../base/test/common/timeTravelSc
 import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../../base/test/common/utils.js';
 import { AgentSession, type IAgentConnection, type IAgentSessionMetadata } from '../../../../../platform/agentHost/common/agentService.js';
 import type { ISessionAction, ITerminalAction } from '../../../../../platform/agentHost/common/state/protocol/action-origin.generated.js';
+import type { IResolveSessionConfigResult } from '../../../../../platform/agentHost/common/state/protocol/commands.js';
 import { NotificationType } from '../../../../../platform/agentHost/common/state/protocol/notifications.js';
 import type { IAgentInfo, IRootState } from '../../../../../platform/agentHost/common/state/protocol/state.js';
 import { ActionType, type IActionEnvelope, type INotification } from '../../../../../platform/agentHost/common/state/sessionActions.js';
@@ -76,6 +77,11 @@ class MockAgentConnection extends mock<IAgentConnection>() {
 		this.disposedSessions.push(session);
 		const rawId = AgentSession.id(session);
 		this._sessions.delete(rawId);
+	}
+
+	override async resolveSessionConfig(): Promise<IResolveSessionConfigResult> {
+		await Promise.resolve();
+		return { ready: true, schema: { type: 'object', properties: {} }, values: { target: 'worktree' } };
 	}
 
 	dispatchAction(action: ISessionAction | ITerminalAction, clientId: string, clientSeq: number): void {
@@ -407,6 +413,7 @@ suite('RemoteAgentHostSessionsProvider', () => {
 		assert.strictEqual(session.workspace.get()?.label, 'my-project');
 		// sessionType should be the logical type, not the resource scheme
 		assert.strictEqual(session.sessionType, provider.sessionTypes[0].id);
+		assert.deepStrictEqual(provider.getSessionConfig(session.sessionId), { ready: false, schema: { type: 'object', properties: {} }, values: {} });
 	});
 
 	test('getSessionByResource resolves current new session without listing it', () => {
