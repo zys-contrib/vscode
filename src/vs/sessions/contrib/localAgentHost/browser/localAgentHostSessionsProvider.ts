@@ -16,13 +16,16 @@ import { URI } from '../../../../base/common/uri.js';
 import { generateUuid } from '../../../../base/common/uuid.js';
 import { localize } from '../../../../nls.js';
 import { AgentSession, IAgentHostService, type IAgentSessionMetadata } from '../../../../platform/agentHost/common/agentService.js';
+import type { IRootState } from '../../../../platform/agentHost/common/state/protocol/state.js';
 import { ActionType, isSessionAction } from '../../../../platform/agentHost/common/state/sessionActions.js';
+import type { IResolveSessionConfigResult, ISessionConfigValueItem } from '../../../../platform/agentHost/common/state/protocol/commands.js';
 import { IFileDialogService } from '../../../../platform/dialogs/common/dialogs.js';
 import { ChatViewPaneTarget, IChatWidgetService } from '../../../../workbench/contrib/chat/browser/chat.js';
 import { IChatSendRequestOptions, IChatService } from '../../../../workbench/contrib/chat/common/chatService/chatService.js';
 import { IChatSessionFileChange, IChatSessionsService } from '../../../../workbench/contrib/chat/common/chatSessionsService.js';
 import { ChatAgentLocation, ChatModeKind } from '../../../../workbench/contrib/chat/common/constants.js';
 import { ILanguageModelsService } from '../../../../workbench/contrib/chat/common/languageModels.js';
+import { agentHostSessionWorkspaceKey, buildAgentHostSessionWorkspace } from '../../../common/agentHostSessionWorkspace.js';
 import { ISendRequestOptions, ISessionChangeEvent, ISessionsProvider } from '../../../services/sessions/common/sessionsProvider.js';
 import { IChat, ISession, ISessionWorkspace, ISessionWorkspaceBrowseAction, SessionStatus, type IGitHubInfo, ISessionType } from '../../../services/sessions/common/session.js';
 
@@ -30,6 +33,27 @@ const LOCAL_PROVIDER_ID = 'local-agent-host';
 
 /** Default provider when session metadata does not carry one. */
 const DEFAULT_AGENT_PROVIDER = 'copilot';
+
+/** Known auto-approve config values. */
+const AUTO_APPROVE_ENUM = ['default', 'autoApprove', 'autopilot'];
+
+/**
+ * Builds a minimal session-mutable config schema from changed values.
+ * Used when a restored session receives a ConfigChanged action before
+ * the full schema has been hydrated.
+ */
+function buildMutableConfigSchema(config: Record<string, string>): Record<string, { type: 'string'; title: string; sessionMutable: true; enum: string[] }> {
+	const properties: Record<string, { type: 'string'; title: string; sessionMutable: true; enum: string[] }> = {};
+	for (const key of Object.keys(config)) {
+		properties[key] = {
+			type: 'string',
+			title: key,
+			sessionMutable: true,
+			enum: key === 'autoApprove' ? AUTO_APPROVE_ENUM : [config[key]],
+		};
+	}
+	return properties;
+}
 
 /**
  * Derives the session type / URI scheme from an agent provider name.
@@ -39,13 +63,6 @@ const DEFAULT_AGENT_PROVIDER = 'copilot';
 function sessionTypeForProvider(provider: string): string {
 	return `agent-host-${provider}`;
 }
-
-/** Session type for the local agent host. ID matches the targetChatSessionType on language models. */
-const LocalAgentHostSessionType: ISessionType = {
-	id: sessionTypeForProvider(DEFAULT_AGENT_PROVIDER),
-	label: localize('localAgentHost', "Local Agent Host"),
-	icon: Codicon.vm,
-};
 
 /**
  * Adapts agent host session metadata into an {@link ISession} for the
@@ -96,9 +113,7 @@ class LocalSessionAdapter implements ISession {
 		this.updatedAt = observableValue('updatedAt', new Date(metadata.modifiedTime));
 		this.lastTurnEnd = observableValue('lastTurnEnd', metadata.modifiedTime ? new Date(metadata.modifiedTime) : undefined);
 		this.description = observableValue('description', new MarkdownString().appendText(localize('localAgentHostDescription', "Local")));
-		this.workspace = observableValue('workspace', metadata.workingDirectory
-			? LocalAgentHostSessionsProvider.buildWorkspace(metadata.workingDirectory)
-			: undefined);
+		this.workspace = observableValue('workspace', LocalAgentHostSessionsProvider.buildWorkspace(metadata.project, metadata.workingDirectory));
 
 		if (metadata.isRead === false) {
 			this.isRead.set(false, undefined);
@@ -146,6 +161,12 @@ class LocalSessionAdapter implements ISession {
 			didChange = true;
 		}
 
+		const workspace = LocalAgentHostSessionsProvider.buildWorkspace(metadata.project, metadata.workingDirectory);
+		if (agentHostSessionWorkspaceKey(workspace) !== agentHostSessionWorkspaceKey(this.workspace.get())) {
+			this.workspace.set(workspace, undefined);
+			didChange = true;
+		}
+
 		if (metadata.isRead !== undefined && metadata.isRead !== this.isRead.get()) {
 			this.isRead.set(metadata.isRead, undefined);
 			didChange = true;
@@ -183,8 +204,17 @@ export class LocalAgentHostSessionsProvider extends Disposable implements ISessi
 	readonly id = LOCAL_PROVIDER_ID;
 	readonly label: string;
 	readonly icon: ThemeIcon = Codicon.vm;
-	readonly sessionTypes: readonly ISessionType[];
 	readonly capabilities = { multipleChatsPerSession: false };
+	private readonly _localLabel = localize('localAgentHostSessionTypeLocation', "Local");
+	private _hasRootStateSnapshot = false;
+	private _sessionTypes: ISessionType[] = [];
+	get sessionTypes(): readonly ISessionType[] {
+		const rootStateValue = this._agentHostService.rootState.value;
+		return this._hasRootStateSnapshot || rootStateValue !== undefined ? this._sessionTypes : this._getSessionTypesFromContributions();
+	}
+
+	private readonly _onDidChangeSessionTypes = this._register(new Emitter<void>());
+	readonly onDidChangeSessionTypes: Event<void> = this._onDidChangeSessionTypes.event;
 
 	readonly browseActions: readonly ISessionWorkspaceBrowseAction[];
 
@@ -193,6 +223,8 @@ export class LocalAgentHostSessionsProvider extends Disposable implements ISessi
 
 	private readonly _onDidReplaceSession = this._register(new Emitter<{ readonly from: ISession; readonly to: ISession }>());
 	readonly onDidReplaceSession: Event<{ readonly from: ISession; readonly to: ISession }> = this._onDidReplaceSession.event;
+	private readonly _onDidChangeSessionConfig = this._register(new Emitter<string>());
+	readonly onDidChangeSessionConfig = this._onDidChangeSessionConfig.event;
 
 	/** Cache of adapted sessions, keyed by raw session ID. */
 	private readonly _sessionCache = new Map<string, LocalSessionAdapter>();
@@ -201,6 +233,13 @@ export class LocalAgentHostSessionsProvider extends Disposable implements ISessi
 	private _selectedModelId: string | undefined;
 	private _currentNewSession: ISession | undefined;
 	private _currentNewSessionStatus: ISettableObservable<SessionStatus> | undefined;
+	private readonly _newSessionWorkspaces = new Map<string, URI>();
+	private readonly _newSessionConfigs = new Map<string, IResolveSessionConfigResult>();
+	private readonly _newSessionAgentProviders = new Map<string, string>();
+	private readonly _newSessionConfigRequests = new Map<string, number>();
+
+	/** Config for running sessions (session-mutable properties only), keyed by session ID. */
+	private readonly _runningSessionConfigs = new Map<string, IResolveSessionConfigResult>();
 
 	private _cacheInitialized = false;
 
@@ -215,8 +254,6 @@ export class LocalAgentHostSessionsProvider extends Disposable implements ISessi
 		super();
 
 		this.label = localize('localAgentHostLabel', "Local Agent Host");
-
-		this.sessionTypes = [LocalAgentHostSessionType];
 
 		this.browseActions = [{
 			label: localize('folders', "Folders"),
@@ -243,20 +280,71 @@ export class LocalAgentHostSessionsProvider extends Disposable implements ISessi
 				this._handleIsReadChanged(e.action.session, e.action.isRead);
 			} else if (e.action.type === ActionType.SessionIsDoneChanged && isSessionAction(e.action)) {
 				this._handleIsDoneChanged(e.action.session, e.action.isDone);
+			} else if (e.action.type === ActionType.SessionConfigChanged && isSessionAction(e.action)) {
+				this._handleConfigChanged(e.action.session, e.action.config);
 			}
 		}));
+
+		const rootStateValue = this._agentHostService.rootState.value;
+		if (rootStateValue !== undefined) {
+			this._hasRootStateSnapshot = true;
+		}
+		if (rootStateValue && !(rootStateValue instanceof Error)) {
+			this._syncSessionTypesFromRootState(rootStateValue);
+		}
+		this._register(this._agentHostService.rootState.onDidChange(rootState => {
+			const didHydrate = !this._hasRootStateSnapshot;
+			this._hasRootStateSnapshot = true;
+			this._syncSessionTypesFromRootState(rootState, didHydrate);
+		}));
+	}
+
+	private _syncSessionTypesFromRootState(rootState: IRootState, forceFire = false): void {
+		const next = rootState.agents.map((agent): ISessionType => ({
+			id: sessionTypeForProvider(agent.provider),
+			label: this._formatSessionTypeLabel(agent.displayName || agent.provider),
+			icon: Codicon.vm,
+		}));
+
+		const prev = this._sessionTypes;
+		if (!forceFire && prev.length === next.length && prev.every((t, i) => t.id === next[i].id && t.label === next[i].label)) {
+			return;
+		}
+		this._sessionTypes = next;
+		this._onDidChangeSessionTypes.fire();
+	}
+
+	private _formatSessionTypeLabel(agentLabel: string): string {
+		return localize('localAgentHostSessionType', "{0} [{1}]", agentLabel, this._localLabel);
+	}
+
+	private _getSessionTypesFromContributions(): ISessionType[] {
+		return this._chatSessionsService.getAllChatSessionContributions()
+			.filter(contribution => contribution.type.startsWith('agent-host-'))
+			.map((contribution): ISessionType => ({
+				id: contribution.type,
+				label: this._formatSessionTypeLabel(contribution.displayName),
+				icon: Codicon.vm,
+			}));
+	}
+
+	private _sessionTypeById(id: string): ISessionType {
+		const advertised = this.sessionTypes.find(t => t.id === id);
+		if (advertised) {
+			return advertised;
+		}
+		const contribution = this._chatSessionsService.getChatSessionContribution(id);
+		if (contribution) {
+			return { id, label: this._formatSessionTypeLabel(contribution.displayName), icon: Codicon.vm };
+		}
+		const provider = id.startsWith('agent-host-') ? id.substring('agent-host-'.length) : id;
+		return { id, label: this._formatSessionTypeLabel(provider), icon: Codicon.vm };
 	}
 
 	// -- Workspaces --
 
-	static buildWorkspace(workingDirectory: URI): ISessionWorkspace {
-		const folderName = basename(workingDirectory) || workingDirectory.path;
-		return {
-			label: folderName,
-			icon: Codicon.folder,
-			repositories: [{ uri: workingDirectory, workingDirectory: undefined, detail: undefined, baseBranchName: undefined, baseBranchProtected: undefined }],
-			requiresWorkspaceTrust: true,
-		};
+	static buildWorkspace(project: IAgentSessionMetadata['project'], workingDirectory: URI | undefined): ISessionWorkspace | undefined {
+		return buildAgentHostSessionWorkspace(project, workingDirectory, { fallbackIcon: Codicon.folder, requiresWorkspaceTrust: true });
 	}
 
 	resolveWorkspace(repositoryUri: URI): ISessionWorkspace {
@@ -271,7 +359,15 @@ export class LocalAgentHostSessionsProvider extends Disposable implements ISessi
 
 	// -- Sessions --
 
-	getSessionTypes(_sessionId: string): ISessionType[] {
+	getSessionTypes(sessionId: string): ISessionType[] {
+		if (this._currentNewSession?.sessionId === sessionId) {
+			return [...this.sessionTypes];
+		}
+		const rawId = this._rawIdFromChatId(sessionId);
+		const cached = rawId ? this._sessionCache.get(rawId) : undefined;
+		if (cached) {
+			return [this._sessionTypeById(cached.sessionType)];
+		}
 		return [...this.sessionTypes];
 	}
 
@@ -284,6 +380,25 @@ export class LocalAgentHostSessionsProvider extends Disposable implements ISessi
 		return sessions;
 	}
 
+	getSessionByResource(resource: URI): ISession | undefined {
+		if (this._currentNewSession?.resource.toString() === resource.toString()) {
+			return this._currentNewSession;
+		}
+
+		if (this._pendingSession?.resource.toString() === resource.toString()) {
+			return this._pendingSession;
+		}
+
+		this._ensureSessionCache();
+		for (const cached of this._sessionCache.values()) {
+			if (cached.resource.toString() === resource.toString()) {
+				return cached;
+			}
+		}
+
+		return undefined;
+	}
+
 	// -- Session Lifecycle --
 
 	createNewSession(workspace: ISessionWorkspace): ISession {
@@ -292,10 +407,27 @@ export class LocalAgentHostSessionsProvider extends Disposable implements ISessi
 			throw new Error('Workspace has no repository URI');
 		}
 
+		if (this._currentNewSession) {
+			this._clearNewSessionConfig(this._currentNewSession.sessionId);
+		}
 		this._currentNewSession = undefined;
 		this._selectedModelId = undefined;
 
-		const resource = URI.from({ scheme: sessionTypeForProvider(DEFAULT_AGENT_PROVIDER), path: `/untitled-${generateUuid()}` });
+		const defaultType = this.sessionTypes[0];
+		if (!defaultType) {
+			throw new Error(localize('noAgents', "Local agent host has not advertised any agents yet."));
+		}
+
+		return this._createNewSessionForType(workspace, defaultType);
+	}
+
+	private _createNewSessionForType(workspace: ISessionWorkspace, sessionType: ISessionType): ISession {
+		const workspaceUri = workspace.repositories[0]?.uri;
+		if (!workspaceUri) {
+			throw new Error('Workspace has no repository URI');
+		}
+
+		const resource = URI.from({ scheme: sessionType.id, path: `/untitled-${generateUuid()}` });
 		const status = observableValue<SessionStatus>(this, SessionStatus.Untitled);
 		const title = observableValue(this, '');
 		const updatedAt = observableValue(this, new Date());
@@ -317,7 +449,7 @@ export class LocalAgentHostSessionsProvider extends Disposable implements ISessi
 			sessionId: `${this.id}:${resource.toString()}`,
 			resource,
 			providerId: this.id,
-			sessionType: this.sessionTypes[0].id,
+			sessionType: sessionType.id,
 			icon: Codicon.vm,
 			createdAt,
 			workspace: observableValue(this, workspace),
@@ -338,11 +470,101 @@ export class LocalAgentHostSessionsProvider extends Disposable implements ISessi
 		};
 		this._currentNewSession = session;
 		this._currentNewSessionStatus = status;
+		const agentProvider = this._agentProviderFromSessionType(sessionType.id);
+		this._newSessionWorkspaces.set(session.sessionId, workspaceUri);
+		this._newSessionAgentProviders.set(session.sessionId, agentProvider);
+		this._newSessionConfigs.set(session.sessionId, { ready: false, schema: { type: 'object', properties: {} }, values: {} });
+		this._onDidChangeSessionConfig.fire(session.sessionId);
+		this._resolveSessionConfig(session.sessionId, agentProvider, workspaceUri, undefined);
 		return session;
 	}
 
-	setSessionType(_sessionId: string, _type: ISessionType): ISession {
-		throw new Error('Local agent host sessions do not support changing session type');
+	getSessionConfig(sessionId: string): IResolveSessionConfigResult | undefined {
+		return this._newSessionConfigs.get(sessionId) ?? this._runningSessionConfigs.get(sessionId);
+	}
+
+	async setSessionConfigValue(sessionId: string, property: string, value: string): Promise<void> {
+		// New session (pre-creation): re-resolve the full config schema
+		const workingDirectory = this._newSessionWorkspaces.get(sessionId);
+		if (workingDirectory) {
+			const current = this._newSessionConfigs.get(sessionId)?.values ?? {};
+			this._newSessionConfigs.set(sessionId, { ready: false, schema: { type: 'object', properties: {} }, values: { ...current, [property]: value } });
+			this._onDidChangeSessionConfig.fire(sessionId);
+			await this._resolveSessionConfig(sessionId, this._getAgentProviderForSession(sessionId), workingDirectory, { ...current, [property]: value });
+			return;
+		}
+
+		// Running session: dispatch SessionConfigChanged for sessionMutable properties
+		const runningConfig = this._runningSessionConfigs.get(sessionId);
+		if (!runningConfig) {
+			return;
+		}
+		const schema = runningConfig.schema.properties[property];
+		if (!schema?.sessionMutable) {
+			return;
+		}
+
+		// Update local cache optimistically
+		this._runningSessionConfigs.set(sessionId, {
+			...runningConfig,
+			values: { ...runningConfig.values, [property]: value },
+		});
+		this._onDidChangeSessionConfig.fire(sessionId);
+
+		// Dispatch to the agent host
+		const rawId = this._rawIdFromChatId(sessionId);
+		const cached = rawId ? this._sessionCache.get(rawId) : undefined;
+		if (cached && rawId) {
+			const action = { type: ActionType.SessionConfigChanged as const, session: AgentSession.uri(cached.agentProvider, rawId).toString(), config: { [property]: value } };
+			this._agentHostService.dispatch(action);
+		}
+	}
+
+	async getSessionConfigCompletions(sessionId: string, property: string, query?: string): Promise<readonly ISessionConfigValueItem[]> {
+		const workingDirectory = this._newSessionWorkspaces.get(sessionId);
+		if (!workingDirectory) {
+			return [];
+		}
+		const result = await this._agentHostService.sessionConfigCompletions({
+			provider: this._getAgentProviderForSession(sessionId),
+			workingDirectory,
+			config: this._newSessionConfigs.get(sessionId)?.values,
+			property,
+			query,
+		});
+		return result.items;
+	}
+
+	getCreateSessionConfig(sessionId: string): Record<string, string> | undefined {
+		return this._newSessionConfigs.get(sessionId)?.values;
+	}
+
+	clearSessionConfig(sessionId: string): void {
+		this._clearNewSessionConfig(sessionId);
+	}
+
+	setSessionType(sessionId: string, type: ISessionType): ISession {
+		const prev = this._currentNewSession;
+		if (!prev || prev.sessionId !== sessionId) {
+			throw new Error(localize('cannotChangeExistingSessionType', "Cannot change session type on an existing local agent host session."));
+		}
+		const newType = this.sessionTypes.find(t => t.id === type.id);
+		if (!newType) {
+			throw new Error(localize('unknownSessionType', "Session type '{0}' is not available on local agent host.", type.id));
+		}
+		if (newType.id === prev.sessionType) {
+			return prev;
+		}
+		const workspace = prev.workspace.get();
+		if (!workspace) {
+			throw new Error('Pending session has no workspace');
+		}
+
+		this._clearNewSessionConfig(prev.sessionId);
+		const rebuilt = this._createNewSessionForType(workspace, newType);
+		this._selectedModelId = undefined;
+		this._onDidReplaceSession.fire({ from: prev, to: rebuilt });
+		return rebuilt;
 	}
 
 	setModel(sessionId: string, modelId: string): void {
@@ -381,6 +603,7 @@ export class LocalAgentHostSessionsProvider extends Disposable implements ISessi
 		if (cached && rawId) {
 			await this._agentHostService.disposeSession(AgentSession.uri(cached.agentProvider, rawId));
 			this._sessionCache.delete(rawId);
+			this._runningSessionConfigs.delete(sessionId);
 			this._onDidChangeSessions.fire({ added: [], removed: [cached], changed: [] });
 		}
 	}
@@ -398,16 +621,6 @@ export class LocalAgentHostSessionsProvider extends Disposable implements ISessi
 
 	async deleteChat(_sessionId: string, _chatUri: URI): Promise<void> {
 		// Agent host sessions don't support deleting individual chats
-	}
-
-	setRead(sessionId: string, read: boolean): void {
-		const rawId = this._rawIdFromChatId(sessionId);
-		const cached = rawId ? this._sessionCache.get(rawId) : undefined;
-		if (cached && rawId) {
-			cached.isRead.set(read, undefined);
-			const action = { type: ActionType.SessionIsReadChanged as const, session: AgentSession.uri(cached.agentProvider, rawId).toString(), isRead: read };
-			this._agentHostService.dispatch(action);
-		}
 	}
 
 	async sendAndCreateChat(chatId: string, options: ISendRequestOptions): Promise<ISession> {
@@ -434,6 +647,7 @@ export class LocalAgentHostSessionsProvider extends Disposable implements ISessi
 			},
 			agentIdSilent: contribution?.type,
 			attachedContext,
+			agentHostSessionConfig: this.getCreateSessionConfig(chatId),
 		};
 
 		// Open chat widget — getOrCreateChatSession will wait for the session
@@ -475,7 +689,9 @@ export class LocalAgentHostSessionsProvider extends Disposable implements ISessi
 		try {
 			const committedSession = await this._waitForNewSession(existingKeys);
 			if (committedSession) {
+				this._preserveSessionMutableConfig(chatId, committedSession.sessionId);
 				this._currentNewSession = undefined;
+				this._clearNewSessionConfig(chatId);
 				this._onDidReplaceSession.fire({ from: newSession, to: committedSession });
 				return committedSession;
 			}
@@ -486,7 +702,75 @@ export class LocalAgentHostSessionsProvider extends Disposable implements ISessi
 		}
 
 		this._currentNewSession = undefined;
+		this._clearNewSessionConfig(chatId);
 		return newSession;
+	}
+
+	private async _resolveSessionConfig(sessionId: string, agentProvider: string, workingDirectory: URI, config: Record<string, string> | undefined): Promise<void> {
+		const request = (this._newSessionConfigRequests.get(sessionId) ?? 0) + 1;
+		this._newSessionConfigRequests.set(sessionId, request);
+		try {
+			const result = await this._agentHostService.resolveSessionConfig({
+				provider: agentProvider,
+				workingDirectory,
+				config,
+			});
+			if (this._newSessionConfigRequests.get(sessionId) !== request) {
+				return;
+			}
+			this._newSessionConfigs.set(sessionId, result);
+		} catch {
+			if (this._newSessionConfigRequests.get(sessionId) !== request) {
+				return;
+			}
+			this._newSessionConfigs.delete(sessionId);
+		}
+		this._onDidChangeSessionConfig.fire(sessionId);
+	}
+
+	private _clearNewSessionConfig(sessionId: string): void {
+		this._newSessionWorkspaces.delete(sessionId);
+		this._newSessionConfigs.delete(sessionId);
+		this._newSessionAgentProviders.delete(sessionId);
+		this._newSessionConfigRequests.delete(sessionId);
+	}
+
+	/**
+	 * When a session transitions from untitled (new) to committed (running),
+	 * preserve the session-mutable config properties so they can be changed
+	 * during the running session.
+	 */
+	private _preserveSessionMutableConfig(oldSessionId: string, newSessionId: string): void {
+		const config = this._newSessionConfigs.get(oldSessionId);
+		if (!config) {
+			return;
+		}
+		// Filter schema to only include session-mutable properties
+		const mutableProperties: IResolveSessionConfigResult['schema']['properties'] = {};
+		const mutableValues: Record<string, string> = {};
+		for (const [key, propSchema] of Object.entries(config.schema.properties)) {
+			if (propSchema.sessionMutable) {
+				mutableProperties[key] = propSchema;
+				if (Object.hasOwn(config.values, key)) {
+					mutableValues[key] = config.values[key];
+				}
+			}
+		}
+		if (Object.keys(mutableProperties).length > 0) {
+			this._runningSessionConfigs.set(newSessionId, {
+				ready: true,
+				schema: { type: 'object', properties: mutableProperties },
+				values: mutableValues,
+			});
+		}
+	}
+
+	private _agentProviderFromSessionType(sessionType: string): string {
+		return sessionType.startsWith('agent-host-') ? sessionType.substring('agent-host-'.length) : DEFAULT_AGENT_PROVIDER;
+	}
+
+	private _getAgentProviderForSession(sessionId: string): string {
+		return this._newSessionAgentProviders.get(sessionId) ?? DEFAULT_AGENT_PROVIDER;
 	}
 
 	// -- Private: Session Cache --
@@ -508,7 +792,6 @@ export class LocalAgentHostSessionsProvider extends Disposable implements ISessi
 
 			for (const meta of sessions) {
 				const rawId = AgentSession.id(meta.session);
-				const provider = AgentSession.provider(meta.session) ?? DEFAULT_AGENT_PROVIDER;
 				currentKeys.add(rawId);
 
 				const existing = this._sessionCache.get(rawId);
@@ -517,7 +800,8 @@ export class LocalAgentHostSessionsProvider extends Disposable implements ISessi
 						changed.push(existing);
 					}
 				} else {
-					const cached = new LocalSessionAdapter(meta, this.id, sessionTypeForProvider(provider), this.sessionTypes[0].id);
+					const sessionType = this._sessionTypeForMetadata(meta);
+					const cached = new LocalSessionAdapter(meta, this.id, sessionType, sessionType);
 					this._sessionCache.set(rawId, cached);
 					added.push(cached);
 				}
@@ -527,6 +811,7 @@ export class LocalAgentHostSessionsProvider extends Disposable implements ISessi
 			for (const [key, cached] of this._sessionCache) {
 				if (!currentKeys.has(key)) {
 					this._sessionCache.delete(key);
+					this._runningSessionConfigs.delete(cached.sessionId);
 					removed.push(cached);
 				}
 			}
@@ -566,7 +851,7 @@ export class LocalAgentHostSessionsProvider extends Disposable implements ISessi
 		}
 	}
 
-	private _handleSessionAdded(summary: { resource: string; provider: string; title: string; createdAt: number; modifiedAt: number; workingDirectory?: string; isRead?: boolean; isDone?: boolean }): void {
+	private _handleSessionAdded(summary: { resource: string; provider: string; title: string; createdAt: number; modifiedAt: number; project?: { uri: string; displayName: string }; workingDirectory?: string; isRead?: boolean; isDone?: boolean }): void {
 		const sessionUri = URI.parse(summary.resource);
 		const rawId = AgentSession.id(sessionUri);
 		if (this._sessionCache.has(rawId)) {
@@ -581,14 +866,20 @@ export class LocalAgentHostSessionsProvider extends Disposable implements ISessi
 			startTime: summary.createdAt,
 			modifiedTime: summary.modifiedAt,
 			summary: summary.title,
+			...(summary.project ? { project: { uri: URI.parse(summary.project.uri), displayName: summary.project.displayName } } : {}),
 			workingDirectory: workingDir,
 			isRead: summary.isRead,
 			isDone: summary.isDone,
 		};
-		const provider = AgentSession.provider(sessionUri) ?? DEFAULT_AGENT_PROVIDER;
-		const cached = new LocalSessionAdapter(meta, this.id, sessionTypeForProvider(provider), this.sessionTypes[0].id);
+		const sessionType = this._sessionTypeForMetadata(meta);
+		const cached = new LocalSessionAdapter(meta, this.id, sessionType, sessionType);
 		this._sessionCache.set(rawId, cached);
 		this._onDidChangeSessions.fire({ added: [cached], removed: [], changed: [] });
+	}
+
+	private _sessionTypeForMetadata(meta: IAgentSessionMetadata): string {
+		const provider = AgentSession.provider(meta.session) ?? DEFAULT_AGENT_PROVIDER;
+		return sessionTypeForProvider(provider);
 	}
 
 	private _handleSessionRemoved(session: URI | string): void {
@@ -596,6 +887,7 @@ export class LocalAgentHostSessionsProvider extends Disposable implements ISessi
 		const cached = this._sessionCache.get(rawId);
 		if (cached) {
 			this._sessionCache.delete(rawId);
+			this._runningSessionConfigs.delete(cached.sessionId);
 			this._onDidChangeSessions.fire({ added: [], removed: [cached], changed: [] });
 		}
 	}
@@ -625,6 +917,31 @@ export class LocalAgentHostSessionsProvider extends Disposable implements ISessi
 			cached.isArchived.set(isDone, undefined);
 			this._onDidChangeSessions.fire({ added: [], removed: [], changed: [cached] });
 		}
+	}
+
+	private _handleConfigChanged(session: string, config: Record<string, string>): void {
+		const rawId = AgentSession.id(session);
+		const cached = this._sessionCache.get(rawId);
+		if (!cached) {
+			return;
+		}
+		const sessionId = cached.sessionId;
+		const existing = this._runningSessionConfigs.get(sessionId);
+		if (existing) {
+			this._runningSessionConfigs.set(sessionId, {
+				...existing,
+				values: { ...existing.values, ...config },
+			});
+		} else {
+			// Session was restored (e.g. after reload) — create a minimal
+			// config entry from the changed values so the picker can render.
+			this._runningSessionConfigs.set(sessionId, {
+				ready: true,
+				schema: { type: 'object', properties: buildMutableConfigSchema(config) },
+				values: config,
+			});
+		}
+		this._onDidChangeSessionConfig.fire(sessionId);
 	}
 
 	private _rawIdFromChatId(chatId: string): string | undefined {
