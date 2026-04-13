@@ -146,6 +146,10 @@ export class MockAgent implements IAgent {
 		this.setCustomizationEnabledCalls.push({ uri, enabled });
 	}
 
+	setClientTools(): void { }
+
+	onClientToolCallComplete(): void { }
+
 	async shutdown(): Promise<void> { }
 
 	fireProgress(event: IAgentProgressEvent): void {
@@ -459,6 +463,10 @@ export class ScriptedMockAgent implements IAgent {
 	setCustomizationEnabled() {
 
 	}
+
+	setClientTools(): void { }
+
+	onClientToolCallComplete(): void { }
 
 	async getSessionMessages(session: URI): Promise<(IAgentMessageEvent | IAgentToolStartEvent | IAgentToolCompleteEvent)[]> {
 		if (session.toString() === PRE_EXISTING_SESSION_URI.toString()) {

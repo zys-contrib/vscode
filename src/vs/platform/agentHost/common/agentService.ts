@@ -9,7 +9,7 @@ import { IAuthorizationProtectedResourceMetadata } from '../../../base/common/oa
 import { URI } from '../../../base/common/uri.js';
 import { createDecorator } from '../../instantiation/common/instantiation.js';
 import type { ISyncedCustomization } from './agentPluginManager.js';
-import { IProtectedResourceMetadata } from './state/protocol/state.js';
+import { IProtectedResourceMetadata, type IToolDefinition } from './state/protocol/state.js';
 import type { IActionEnvelope, INotification, ISessionAction, ITerminalAction } from './state/sessionActions.js';
 import type { IAgentSubscription } from './state/agentSubscription.js';
 import type { ICreateTerminalParams, IResolveSessionConfigResult, ISessionConfigCompletionsResult } from './state/protocol/commands.js';
@@ -204,6 +204,12 @@ export interface IAgentToolStartEvent extends IAgentProgressEventBase {
 	readonly mcpServerName?: string;
 	readonly mcpToolName?: string;
 	readonly parentToolCallId?: string;
+	/**
+	 * If set, this tool is provided by a client and the identified client
+	 * is responsible for executing it. Maps to `toolClientId` in the
+	 * protocol `session/toolCallStart` action.
+	 */
+	readonly toolClientId?: string;
 }
 
 /** A tool has finished executing (`tool.execution_complete`). */
@@ -430,6 +436,28 @@ export interface IAgent {
 	 * The agent MAY defer a client restart until all active sessions are idle.
 	 */
 	setClientCustomizations(clientId: string, customizations: ICustomizationRef[], progress?: (results: ISyncedCustomization[]) => void): Promise<ISyncedCustomization[]>;
+
+	/**
+	 * Receives client-provided tool definitions to make available in a
+	 * specific session. The agent registers these as custom tools so the
+	 * LLM can call them; execution is routed back to the owning client.
+	 *
+	 * Always called on `activeClientChanged`, even with an empty array,
+	 * to clear a previous client's tools.
+	 *
+	 * @param session The session URI this tool set applies to.
+	 * @param clientId The client that owns these tools.
+	 * @param tools The tool definitions (full replacement).
+	 */
+	setClientTools(session: URI, clientId: string, tools: IToolDefinition[]): void;
+
+	/**
+	 * Called when a client completes a client-provided tool call.
+	 * Resolves the tool handler's deferred promise so the SDK can continue.
+	 *
+	 * @param session The session the tool call belongs to.
+	 */
+	onClientToolCallComplete(session: URI, toolCallId: string, result: IToolCallResult): void;
 
 	/**
 	 * Notifies the agent that a customization has been toggled on or off.
