@@ -971,7 +971,7 @@ export class RemoteAgentHostSessionsProvider extends Disposable implements ISess
 	 * to the correct per-agent URI scheme / chat session contribution.
 	 */
 	private _sessionTypeForMetadata(meta: IAgentSessionMetadata): string {
-		const provider = AgentSession.provider(meta.session) ?? 'copilot';
+		const provider = AgentSession.provider(meta.session) ?? DEFAULT_AGENT_PROVIDER;
 		return remoteAgentHostSessionTypeId(this._connectionAuthority, provider);
 	}
 
