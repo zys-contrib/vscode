@@ -122,12 +122,23 @@ export class CrossAppSecretSharing extends Disposable {
 
 		ipc.on('disconnected', (reason) => {
 			this.logService.info(`[CrossAppSecretSharing] disconnected (${reason})`);
+			this.ipc = undefined;
 		});
 
 		ipc.connect();
 
 		// Spawn Code.app with --share-secrets-with-agents-app
 		this.spawnHostApp();
+
+		// If Code.app doesn't connect within 30s (e.g. not installed,
+		// failed to launch), give up and clean up the IPC.
+		setTimeout(() => {
+			if (this.ipc && !this.isMigrationDone()) {
+				this.logService.warn('[CrossAppSecretSharing] Migration timed out, closing IPC');
+				this.ipc.close();
+				this.ipc = undefined;
+			}
+		}, 30_000);
 	}
 
 	/**
@@ -190,6 +201,13 @@ export class CrossAppSecretSharing extends Disposable {
 
 		ipc.on('disconnected', (reason) => {
 			this.logService.info(`[CrossAppSecretSharing] disconnected (${reason})`);
+			this.ipc = undefined;
+
+			// If the agents app disconnected before sending SecretAck
+			// (e.g. it crashed), ensure the host app can still quit
+			// when it was launched solely for migration.
+			this._onHostMigrationComplete?.();
+			this._onHostMigrationComplete = undefined;
 		});
 
 		ipc.connect();
@@ -299,10 +317,13 @@ export class CrossAppSecretSharing extends Disposable {
 		this.stateService.setItem(MIGRATION_STATE_KEY, true);
 		this.logService.info('[CrossAppSecretSharing] Host app received ack, migration complete on both sides');
 
+		const onComplete = this._onHostMigrationComplete;
+		this._onHostMigrationComplete = undefined;
+
 		// Host closes — this triggers 'disconnected' on the agents side
 		this.ipc?.close();
 
-		this._onHostMigrationComplete?.();
+		onComplete?.();
 	}
 
 	private sendMessage(msg: CrossAppSecretMessage): void {
