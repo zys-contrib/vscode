@@ -101,8 +101,19 @@ export interface IAgentCreateSessionConfig {
 	readonly session?: URI;
 	readonly workingDirectory?: URI;
 	readonly config?: Record<string, string>;
-	/** Fork from an existing session at a specific turn index. */
-	readonly fork?: { readonly session: URI; readonly turnIndex: number };
+	/** Fork from an existing session at a specific turn. */
+	readonly fork?: {
+		readonly session: URI;
+		readonly turnIndex: number;
+		readonly turnId: string;
+		/**
+		 * Maps old protocol turn IDs to new protocol turn IDs.
+		 * Populated by the service layer after generating fresh UUIDs
+		 * for the forked session's turns. Used by the agent to remap
+		 * per-turn data (e.g. SDK event ID mappings) in the session database.
+		 */
+		readonly turnIdMapping?: ReadonlyMap<string, string>;
+	};
 }
 
 export const AgentHostSessionConfigBranchNameHintKey = 'branchNameHint';
@@ -406,21 +417,11 @@ export interface IAgent {
 	authenticate(resource: string, token: string): Promise<boolean>;
 
 	/**
-	 * Truncate a session's history. If `turnIndex` is provided (0-based), keeps
-	 * turns up to and including that turn. If omitted, all turns are removed.
+	 * Truncate a session's history. If `turnId` is provided, keeps turns up to
+	 * (but not including) that turn. If omitted, all turns are removed.
 	 * Optional — not all providers support truncation.
 	 */
-	truncateSession?(session: URI, turnIndex?: number): Promise<void>;
-
-	/**
-	 * Fork a session at a specific turn, creating a new session on disk
-	 * with the source session's history up to and including the specified turn.
-	 * Optional — not all providers support forking.
-	 *
-	 * @param turnIndex 0-based turn index to fork at.
-	 * @returns The new session's raw ID.
-	 */
-	forkSession?(sourceSession: URI, newSessionId: string, turnIndex: number): Promise<void>;
+	truncateSession?(session: URI, turnId?: string): Promise<void>;
 
 	/**
 	 * Receives client-provided customization refs and syncs them (e.g. copies

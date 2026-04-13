@@ -1792,11 +1792,13 @@ export class AgentHostSessionHandler extends Disposable implements IChatSessionC
 			throw new Error('Cannot fork: no turns to fork from');
 		}
 
+		const turnId = protocolState!.turns[turnIndex].id;
 		const chatModel = this._chatService.getSession(sessionResource);
 
 		const forkedSession = await this._createAndSubscribe(sessionResource, protocolState?.summary.model, {
 			session: backendSession,
 			turnIndex,
+			turnId,
 		});
 
 		const forkedRawId = AgentSession.id(forkedSession);
@@ -1814,7 +1816,7 @@ export class AgentHostSessionHandler extends Disposable implements IChatSessionC
 	}
 
 	/** Creates a new backend session and subscribes to its state. */
-	private async _createAndSubscribe(sessionResource: URI, modelId?: string, fork?: { session: URI; turnIndex: number }, sessionConfig?: Record<string, string>, branchNameHint?: string): Promise<URI> {
+	private async _createAndSubscribe(sessionResource: URI, modelId?: string, fork?: { session: URI; turnIndex: number; turnId: string }, sessionConfig?: Record<string, string>, branchNameHint?: string): Promise<URI> {
 		const rawModelId = this._extractRawModelId(modelId);
 		const config = branchNameHint ? { ...sessionConfig, [AgentHostSessionConfigBranchNameHintKey]: branchNameHint } : sessionConfig;
 		const workingDirectory = this._config.resolveWorkingDirectory?.(sessionResource)
