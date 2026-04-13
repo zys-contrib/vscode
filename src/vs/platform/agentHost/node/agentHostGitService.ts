@@ -20,6 +20,26 @@ export interface IAgentHostGitService {
 	removeWorktree(repositoryRoot: URI, worktree: URI): Promise<void>;
 }
 
+function getCommonBranchPriority(branch: string): number {
+	if (branch === 'main') {
+		return 0;
+	}
+	if (branch === 'master') {
+		return 1;
+	}
+	return 2;
+}
+
+export function getBranchCompletions(branches: readonly string[], options?: { readonly query?: string; readonly limit?: number }): string[] {
+	const normalizedQuery = options?.query?.toLowerCase();
+	const filtered = normalizedQuery
+		? branches.filter(branch => branch.toLowerCase().includes(normalizedQuery))
+		: [...branches];
+
+	filtered.sort((a, b) => getCommonBranchPriority(a) - getCommonBranchPriority(b));
+	return options?.limit ? filtered.slice(0, options.limit) : filtered;
+}
+
 export class AgentHostGitService implements IAgentHostGitService {
 	declare readonly _serviceBrand: undefined;
 
@@ -35,9 +55,6 @@ export class AgentHostGitService implements IAgentHostGitService {
 
 	async getBranches(workingDirectory: URI, options?: { readonly query?: string; readonly limit?: number }): Promise<string[]> {
 		const args = ['for-each-ref', '--format=%(refname:short)', '--sort=-committerdate'];
-		if (options?.limit && !options.query) {
-			args.push(`--count=${options.limit}`);
-		}
 		args.push('refs/heads');
 
 		const output = await this._runGit(workingDirectory, args);
@@ -45,11 +62,7 @@ export class AgentHostGitService implements IAgentHostGitService {
 			return [];
 		}
 		const branches = output.split(/\r?\n/g).map(line => line.trim()).filter(branch => branch.length > 0);
-		const normalizedQuery = options?.query?.toLowerCase();
-		const filtered = normalizedQuery
-			? branches.filter(branch => branch.toLowerCase().includes(normalizedQuery))
-			: branches;
-		return options?.limit ? filtered.slice(0, options.limit) : filtered;
+		return getBranchCompletions(branches, options);
 	}
 
 	async getRepositoryRoot(workingDirectory: URI): Promise<URI | undefined> {

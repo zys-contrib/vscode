@@ -21,7 +21,6 @@ import { ContextKeyExpr } from '../../../../platform/contextkey/common/contextke
 import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
 import { AgentHostSessionConfigBranchNameHintKey } from '../../../../platform/agentHost/common/agentService.js';
 import type { ISessionConfigPropertySchema, ISessionConfigValueItem } from '../../../../platform/agentHost/common/state/protocol/commands.js';
-import { IQuickInputService, type IQuickPickItem } from '../../../../platform/quickinput/common/quickInput.js';
 import { IWorkbenchContribution, registerWorkbenchContribution2, WorkbenchPhase } from '../../../../workbench/common/contributions.js';
 import { Menus } from '../../../browser/menus.js';
 import { ActiveSessionProviderIdContext } from '../../../common/contextkeys.js';
@@ -57,6 +56,16 @@ interface IConfigPickerItem {
 	readonly icon?: string;
 }
 
+function toActionItems(items: readonly IConfigPickerItem[], currentValue: string | undefined): IActionListItem<IConfigPickerItem>[] {
+	return items.map(item => ({
+		kind: ActionListItemKind.Action,
+		label: item.label,
+		description: item.description,
+		group: { title: '', icon: item.icon ? ThemeIcon.fromId(item.icon) : undefined },
+		item: { ...item, label: item.value === currentValue ? `${item.label} ${localize('selected', "(Selected)")}` : item.label },
+	}));
+}
+
 function renderPickerTrigger(slot: HTMLElement, disabled: boolean, disposables: DisposableStore, onOpen: () => void): HTMLElement {
 	const trigger = dom.append(slot, disabled ? dom.$('span.action-label') : dom.$('a.action-label'));
 	if (disabled) {
@@ -85,11 +94,11 @@ class AgentHostSessionConfigPicker extends Disposable {
 
 	private readonly _renderDisposables = this._register(new DisposableStore());
 	private readonly _providerListeners = this._register(new DisposableMap<string>());
+	private readonly _filterDelayer = this._register(new Delayer<readonly IActionListItem<IConfigPickerItem>[]>(200));
 	private _container: HTMLElement | undefined;
 
 	constructor(
 		@IActionWidgetService private readonly _actionWidgetService: IActionWidgetService,
-		@IQuickInputService private readonly _quickInputService: IQuickInputService,
 		@ISessionsManagementService private readonly _sessionsManagementService: ISessionsManagementService,
 		@ISessionsProvidersService private readonly _sessionsProvidersService: ISessionsProvidersService,
 	) {
@@ -174,30 +183,22 @@ class AgentHostSessionConfigPicker extends Disposable {
 		if (schema.readOnly || this._actionWidgetService.isVisible) {
 			return;
 		}
-		if (schema.enumDynamic) {
-			this._showDynamicPicker(provider, sessionId, property, schema, trigger);
-			return;
-		}
-
 		const items = await this._getItems(provider, sessionId, property, schema);
 		if (items.length === 0) {
 			return;
 		}
 
 		const currentValue = provider.getSessionConfig?.(sessionId)?.values[property];
-		const actionItems: IActionListItem<IConfigPickerItem>[] = items.map(item => ({
-			kind: ActionListItemKind.Action,
-			label: item.label,
-			description: item.description,
-			group: { title: '', icon: item.icon ? ThemeIcon.fromId(item.icon) : undefined },
-			item: { ...item, label: item.value === currentValue ? `${item.label} ${localize('selected', "(Selected)")}` : item.label },
-		}));
+		const actionItems = toActionItems(items, currentValue);
 
 		const delegate: IActionListDelegate<IConfigPickerItem> = {
 			onSelect: item => {
 				this._actionWidgetService.hide();
 				provider.setSessionConfigValue?.(sessionId, property, item.value).catch(() => { /* best-effort */ });
 			},
+			onFilter: schema.enumDynamic && provider.getSessionConfigCompletions
+				? query => this._filterDelayer.trigger(async () => toActionItems(await this._getItems(provider, sessionId, property, schema, query), provider.getSessionConfig?.(sessionId)?.values[property]))
+				: undefined,
 			onHide: () => trigger.focus(),
 		};
 
@@ -217,69 +218,9 @@ class AgentHostSessionConfigPicker extends Disposable {
 		);
 	}
 
-	private _showDynamicPicker(provider: ISessionsProvider, sessionId: string, property: string, schema: ISessionConfigPropertySchema, trigger: HTMLElement): void {
-		if (!provider.getSessionConfigCompletions) {
-			return;
-		}
-
-		interface IDynamicQuickPickItem extends IQuickPickItem {
-			readonly value: string;
-		}
-
-		const quickPick = this._quickInputService.createQuickPick<IDynamicQuickPickItem>();
-		quickPick.placeholder = schema.description ?? localize('agentHostSessionConfig.dynamicPlaceholder', "Search options...");
-		quickPick.ariaLabel = localize('agentHostSessionConfig.dynamicAriaLabel', "{0} Picker", schema.title);
-		quickPick.busy = true;
-		let request = 0;
-		const delayer = new Delayer<void>(200);
-
-		const updateItems = async (query?: string) => {
-			const requestId = ++request;
-			quickPick.busy = true;
-			try {
-				const items = await provider.getSessionConfigCompletions!(sessionId, property, query);
-				if (requestId !== request) {
-					return;
-				}
-				quickPick.items = items.map(item => ({
-					value: item.value,
-					label: item.label,
-					description: item.description,
-					iconClass: item.icon ? ThemeIcon.asClassName(ThemeIcon.fromId(item.icon)) : undefined,
-				}));
-			} finally {
-				if (requestId === request) {
-					quickPick.busy = false;
-				}
-			}
-		};
-
-		const disposables = new DisposableStore();
-		disposables.add(delayer);
-		disposables.add(quickPick.onDidChangeValue(value => {
-			quickPick.busy = true;
-			delayer.trigger(() => updateItems(value)).catch(() => { /* best-effort */ });
-		}));
-		disposables.add(quickPick.onDidAccept(() => {
-			const item = quickPick.selectedItems[0] ?? quickPick.activeItems[0];
-			if (item) {
-				provider.setSessionConfigValue?.(sessionId, property, item.value).catch(() => { /* best-effort */ });
-			}
-			quickPick.hide();
-		}));
-		disposables.add(quickPick.onDidHide(() => {
-			disposables.dispose();
-			quickPick.dispose();
-			trigger.focus();
-		}));
-
-		updateItems().catch(() => { quickPick.busy = false; });
-		quickPick.show();
-	}
-
-	private async _getItems(provider: ISessionsProvider, sessionId: string, property: string, schema: ISessionConfigPropertySchema): Promise<readonly IConfigPickerItem[]> {
+	private async _getItems(provider: ISessionsProvider, sessionId: string, property: string, schema: ISessionConfigPropertySchema, query?: string): Promise<readonly IConfigPickerItem[]> {
 		const dynamicItems = schema.enumDynamic && provider.getSessionConfigCompletions
-			? await provider.getSessionConfigCompletions(sessionId, property)
+			? await provider.getSessionConfigCompletions(sessionId, property, query)
 			: undefined;
 		if (dynamicItems?.length) {
 			return dynamicItems.map(item => this._fromCompletionItem(item));
