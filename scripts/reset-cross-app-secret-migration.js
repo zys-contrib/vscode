@@ -30,17 +30,17 @@ for (const filePath of stateFiles) {
 		if (KEY in state) {
 			delete state[KEY];
 			fs.writeFileSync(filePath, JSON.stringify(state, null, '\t'), 'utf8');
-			console.log(`✓ Removed '${KEY}' from ${filePath}`);
+			console.log(`[OK] Removed '${KEY}' from ${filePath}`);
 			changed++;
 		} else {
-			console.log(`- '${KEY}' not found in ${filePath}`);
+			console.log(`[--] '${KEY}' not found in ${filePath}`);
 		}
 	} catch (err) {
 		if (err.code === 'ENOENT') {
-			console.log(`- File not found: ${filePath}`);
+			console.log(`[--] File not found: ${filePath}`);
 		} else {
 			// allow-any-unicode-next-line
-			console.error(`✗ Error processing ${filePath}: ${err.message}`);
+			console.error(`[!!] Error processing ${filePath}: ${err.message}`);
 		}
 	}
 }

@@ -1399,6 +1399,14 @@ export class CodeApplication extends Disposable {
 		const context = isLaunchedFromCli(process.env) ? OpenContext.CLI : OpenContext.DESKTOP;
 		const args = this.environmentMainService.args;
 
+		// If launched solely for cross-app secret sharing, don't open any windows
+		if (args['share-secrets-with-agents-app']) {
+			const hasOtherArgs = args._.length > 0 || args['folder-uri'] || args['file-uri'];
+			if (!hasOtherArgs) {
+				return [];
+			}
+		}
+
 		// Handle agents window first based on context
 		if ((process as INodeProcess).isEmbeddedApp || (args['agents'] && this.productService.quality !== 'stable')) {
 			return windowsMainService.openAgentsWindow({
