@@ -87,14 +87,9 @@ export class CrossAppSecretSharing extends Disposable {
 			return;
 		}
 
-		// Wait for storage to be ready before checking existing secrets
+		// Wait for storage to be ready before we start — handleSecretResponse
+		// will write secrets into applicationStorage.
 		await this.applicationStorage.whenInit;
-
-		if (this.hasAllSharedSecrets()) {
-			this.logService.trace('[CrossAppSecretSharing] All shared secrets already present, marking done');
-			this.stateService.setItem(MIGRATION_STATE_KEY, true);
-			return;
-		}
 
 		const crossAppIPC: Electron.CrossAppIPCModule | undefined = electron.crossAppIPC;
 		if (!crossAppIPC) {
@@ -215,15 +210,6 @@ export class CrossAppSecretSharing extends Disposable {
 
 	private isMigrationDone(): boolean {
 		return this.stateService.getItem<boolean>(MIGRATION_STATE_KEY, false);
-	}
-
-	private hasAllSharedSecrets(): boolean {
-		for (const key of CROSS_APP_SHARED_SECRET_KEYS) {
-			if (this.applicationStorage.get(secretStorageKey(key)) === undefined) {
-				return false;
-			}
-		}
-		return true;
 	}
 
 	private hasAnySharedSecrets(): boolean {
