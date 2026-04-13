@@ -77,13 +77,22 @@ export class CrossAppSecretSharing extends Disposable {
 	 * Called by the agents app on startup. If migration is needed,
 	 * opens crossAppIPC and spawns Code.app to connect.
 	 */
-	initializeAsAgentsApp(): void {
+	async initializeAsAgentsApp(): Promise<void> {
 		if (!isMacintosh || !this.isEmbeddedApp) {
 			return;
 		}
 
 		if (this.isMigrationDone()) {
 			this.logService.trace('[CrossAppSecretSharing] Migration already done, skipping');
+			return;
+		}
+
+		// Wait for storage to be ready before checking existing secrets
+		await this.applicationStorage.whenInit;
+
+		if (this.hasAllSharedSecrets()) {
+			this.logService.trace('[CrossAppSecretSharing] All shared secrets already present, marking done');
+			this.stateService.setItem(MIGRATION_STATE_KEY, true);
 			return;
 		}
 
@@ -188,6 +197,15 @@ export class CrossAppSecretSharing extends Disposable {
 
 	private isMigrationDone(): boolean {
 		return this.stateService.getItem<boolean>(MIGRATION_STATE_KEY, false);
+	}
+
+	private hasAllSharedSecrets(): boolean {
+		for (const key of CROSS_APP_SHARED_SECRET_KEYS) {
+			if (this.applicationStorage.get(secretStorageKey(key)) === undefined) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	private hasAnySharedSecrets(): boolean {
