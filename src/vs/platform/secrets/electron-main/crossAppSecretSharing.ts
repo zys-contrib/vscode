@@ -232,6 +232,7 @@ export class CrossAppSecretSharing extends Disposable {
 
 		const child = execFile('open', [
 			'-a', codeAppBundle,
+			'-n',                                // new instance (so args are passed even if already running)
 			'-g',                                // don't bring to front
 			'--args', '--share-secrets-with-agents-app',
 		], (error) => {
