@@ -239,7 +239,7 @@ abstract class BaseRemoteCodeSearchRepo extends Disposable implements CodeSearch
 	public abstract prepareSearch(telemetryInfo: TelemetryCorrelationId, token: CancellationToken): Promise<boolean>;
 
 	public async refreshStatusFromEndpoint(force = false, telemetryInfo: TelemetryCorrelationId, token: CancellationToken): Promise<RemoteCodeSearchState | undefined> {
-		if (!force && this.status === CodeSearchRepoStatus.Ready) {
+		if (!force && (this.status === CodeSearchRepoStatus.Ready || this.status === CodeSearchRepoStatus.NotAuthorized)) {
 			return;
 		}
 
