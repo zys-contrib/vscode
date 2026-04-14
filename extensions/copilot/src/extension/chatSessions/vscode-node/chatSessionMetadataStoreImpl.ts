@@ -158,6 +158,7 @@ export class ChatSessionMetadataStore extends Disposable implements IChatSession
 			await this.writeToGlobalStorage(data);
 		}
 		try {
+			await this.fileSystemService.delete(this.getMetadataFileUri(sessionId));
 			await this.fileSystemService.delete(this.getRequestMappingFileUri(sessionId));
 		} catch {
 			// File may not exist, ignore.
@@ -220,17 +221,6 @@ export class ChatSessionMetadataStore extends Disposable implements IChatSession
 			}
 		}
 		return undefined;
-	}
-
-	async getSessionIdForWorkspaceFolder(folder: vscode.Uri): Promise<string[]> {
-		await this._intialize.value;
-		const sessionIds: string[] = [];
-		for (const [sessionId, value] of Object.entries(this._cache)) {
-			if (value.workspaceFolder?.folderPath && isEqual(vscode.Uri.file(value.workspaceFolder.folderPath), folder)) {
-				sessionIds.push(sessionId);
-			}
-		}
-		return sessionIds;
 	}
 
 	async getSessionWorkspaceFolder(sessionId: string): Promise<vscode.Uri | undefined> {
@@ -344,6 +334,17 @@ export class ChatSessionMetadataStore extends Disposable implements IChatSession
 		const content = new TextEncoder().encode(JSON.stringify(details, null, 2));
 		await this.fileSystemService.writeFile(fileUri, content);
 		this.logService.trace(`[ChatSessionMetadataStore] Wrote request details for session ${sessionId}`);
+	}
+
+	async storeForkedSessionMetadata(sourceSessionId: string, targetSessionId: string, customTitle: string): Promise<void> {
+		await this._intialize.value;
+		const sourceMetadata = await this.getSessionMetadata(sourceSessionId);
+		const forkedMetadata: ChatSessionMetadataFile = {
+			...sourceMetadata,
+			customTitle,
+			writtenToDisc: true,
+		};
+		await this.updateMetadataFields(targetSessionId, forkedMetadata);
 	}
 
 	private async getSessionMetadata(sessionId: string): Promise<ChatSessionMetadataFile | undefined> {
