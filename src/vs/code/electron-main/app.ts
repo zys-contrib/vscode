@@ -86,7 +86,7 @@ import { IUpdateService } from '../../platform/update/common/update.js';
 import { UpdateChannel } from '../../platform/update/common/updateIpc.js';
 import { AbstractUpdateService } from '../../platform/update/electron-main/abstractUpdateService.js';
 import { CrossAppUpdateCoordinator } from '../../platform/update/electron-main/crossAppUpdateIpc.js';
-import { CrossAppSecretSharing } from '../../platform/secrets/electron-main/crossAppSecretSharing.js';
+import { MacOSCrossAppSecretSharing } from '../../platform/secrets/electron-main/macOSCrossAppSecretSharing.js';
 import { DarwinUpdateService } from '../../platform/update/electron-main/updateService.darwin.js';
 import { LinuxUpdateService } from '../../platform/update/electron-main/updateService.linux.js';
 import { SnapUpdateService } from '../../platform/update/electron-main/updateService.snap.js';
@@ -1258,7 +1258,7 @@ export class CodeApplication extends Disposable {
 
 		// Cross-app secret sharing (macOS only, demand-driven)
 		if (isMacintosh) {
-			this._register(new CrossAppSecretSharing(
+			this._register(new MacOSCrossAppSecretSharing(
 				accessor.get(IStorageMainService),
 				accessor.get(IEncryptionMainService),
 				accessor.get(IStateService),

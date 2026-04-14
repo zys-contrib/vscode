@@ -58,7 +58,7 @@ interface CrossAppSecretMessage {
  * on macOS) — the kernel authenticates both endpoints. No secrets are
  * ever in process args, files, or network.
  */
-export class CrossAppSecretSharing extends Disposable {
+export class MacOSCrossAppSecretSharing extends Disposable {
 
 	private ipc: Electron.CrossAppIPC | undefined;
 	private readonly isEmbeddedApp: boolean;
