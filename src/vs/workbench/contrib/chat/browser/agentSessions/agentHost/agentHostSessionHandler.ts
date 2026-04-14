@@ -1110,6 +1110,18 @@ export class AgentHostSessionHandler extends Disposable implements IChatSessionC
 			const existing = invocation.toolSpecificData?.kind === 'terminal'
 				? invocation.toolSpecificData as IChatTerminalToolInvocationData
 				: undefined;
+
+			// Resolve the terminalCommandId from the AHP command source
+			let terminalCommandId = existing?.terminalCommandId;
+			if (!terminalCommandId) {
+				const source = this._terminalChatService.getAhpCommandSource(sessionId);
+				if (source) {
+					// Use the executing command or the most recent completed command
+					const cmd = source.executingCommandObject ?? source.commands[source.commands.length - 1];
+					terminalCommandId = cmd?.id;
+				}
+			}
+
 			invocation.toolSpecificData = {
 				...existing,
 				kind: 'terminal',
@@ -1117,6 +1129,7 @@ export class AgentHostSessionHandler extends Disposable implements IChatSessionC
 				language: 'shellscript',
 				terminalToolSessionId: sessionId,
 				terminalCommandUri: URI.parse(terminalUri),
+				terminalCommandId,
 			};
 		});
 	}
@@ -1738,11 +1751,19 @@ export class AgentHostSessionHandler extends Disposable implements IChatSessionC
 	 */
 	private async _ensureTerminalInstance(terminalUri: string, backendSession: URI): Promise<string> {
 		const terminalToolSessionId = makeAhpTerminalToolSessionId(terminalUri, backendSession);
+		const parsedUri = URI.parse(terminalUri);
 		const instance = await this._agentHostTerminalService.reviveTerminal(
 			this._config.connection,
-			URI.parse(terminalUri),
+			parsedUri,
 		);
 		this._terminalChatService.registerTerminalInstanceWithToolSession(terminalToolSessionId, instance);
+
+		// Register the command source created by reviveTerminal with the chat service
+		const commandSource = this._agentHostTerminalService.getCommandSource(parsedUri);
+		if (commandSource && !this._terminalChatService.getAhpCommandSource(terminalToolSessionId)) {
+			instance.store.add(this._terminalChatService.registerAhpCommandSource(terminalToolSessionId, commandSource));
+		}
+
 		return terminalToolSessionId;
 	}
 

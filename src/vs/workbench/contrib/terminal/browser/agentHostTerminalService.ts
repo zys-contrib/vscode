@@ -3,14 +3,15 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { Disposable } from '../../../../base/common/lifecycle.js';
+import { Disposable, DisposableStore } from '../../../../base/common/lifecycle.js';
 import { URI } from '../../../../base/common/uri.js';
 import { generateUuid } from '../../../../base/common/uuid.js';
 import { localize } from '../../../../nls.js';
 import { IAgentConnection } from '../../../../platform/agentHost/common/agentService.js';
 import { createDecorator } from '../../../../platform/instantiation/common/instantiation.js';
 import { AgentHostPty } from './agentHostPty.js';
-import { ITerminalInstance, ITerminalLocationOptions, ITerminalService } from './terminal.js';
+import { AhpTerminalCommandSource } from './ahpTerminalCommandSource.js';
+import { IAhpTerminalCommandSource, ITerminalInstance, ITerminalLocationOptions, ITerminalService } from './terminal.js';
 
 export interface IAgentHostTerminalCreateOptions {
 	/** Human-readable terminal name. */
@@ -43,6 +44,13 @@ export interface IAgentHostTerminalService {
 	 * the same instance.
 	 */
 	reviveTerminal(connection: IAgentConnection, terminalUri: URI): Promise<ITerminalInstance>;
+
+	/**
+	 * Retrieve the {@link IAhpTerminalCommandSource} for a revived terminal.
+	 * The source is created automatically during {@link reviveTerminal}.
+	 * @param terminalUri The terminal URI used when reviving.
+	 */
+	getCommandSource(terminalUri: URI): IAhpTerminalCommandSource | undefined;
 }
 
 export class AgentHostTerminalService extends Disposable implements IAgentHostTerminalService {
@@ -50,6 +58,8 @@ export class AgentHostTerminalService extends Disposable implements IAgentHostTe
 
 	/** Revived terminal instances, keyed by terminal URI string. */
 	private readonly _revivedInstances = new Map<string, ITerminalInstance>();
+	/** AHP command sources, keyed by terminal URI string. */
+	private readonly _commandSources = new Map<string, AhpTerminalCommandSource>();
 
 	constructor(
 		@ITerminalService private readonly _terminalService: ITerminalService,
@@ -88,6 +98,7 @@ export class AgentHostTerminalService extends Disposable implements IAgentHostTe
 			return existing;
 		}
 
+		const store = new DisposableStore();
 		const instance = await this._terminalService.createTerminal({
 			config: {
 				customPtyImplementation: (id, cols, rows) => {
@@ -97,6 +108,13 @@ export class AgentHostTerminalService extends Disposable implements IAgentHostTe
 					if (cols > 0 && rows > 0) {
 						pty.resize(cols, rows);
 					}
+
+					if (!store.isDisposed) {
+						const source = new AhpTerminalCommandSource(instance, pty);
+						store.add(source);
+						this._commandSources.set(key, source);
+					}
+
 					return pty;
 				},
 				name: localize('agentHostTerminal.tool', "Agent Host Terminal"),
@@ -105,8 +123,15 @@ export class AgentHostTerminalService extends Disposable implements IAgentHostTe
 		});
 
 		this._revivedInstances.set(key, instance);
-		this._register(instance.onDisposed(() => this._revivedInstances.delete(key)));
+		instance.store.add(store);
+		this._register(instance.onDisposed(() => {
+			this._revivedInstances.delete(key);
+		}));
 
 		return instance;
+	}
+
+	getCommandSource(terminalUri: URI): IAhpTerminalCommandSource | undefined {
+		return this._commandSources.get(terminalUri.toString());
 	}
 }
