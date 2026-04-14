@@ -5,6 +5,7 @@
 
 import { app } from 'electron';
 import { coalesce } from '../../../base/common/arrays.js';
+import { Emitter, Event } from '../../../base/common/event.js';
 import { IProcessEnvironment, isMacintosh } from '../../../base/common/platform.js';
 import { URI } from '../../../base/common/uri.js';
 import { whenDeleted } from '../../../base/node/pfs.js';
@@ -37,17 +38,18 @@ export interface ILaunchMainService {
 	getMainProcessId(): Promise<number>;
 
 	/**
-	 * Register a callback to be invoked when a second instance sends
-	 * `--share-secrets-with-agents-app`. Used for cross-app secret migration.
+	 * Fires when a second instance sends `--share-secrets-with-agents-app`.
+	 * Used for cross-app secret migration.
 	 */
-	onShareSecretsRequested(callback: () => void): void;
+	readonly onDidRequestShareSecrets: Event<void>;
 }
 
 export class LaunchMainService implements ILaunchMainService {
 
 	declare readonly _serviceBrand: undefined;
 
-	private _onShareSecretsRequested: (() => void) | undefined;
+	private readonly _onDidRequestShareSecrets = new Emitter<void>();
+	readonly onDidRequestShareSecrets: Event<void> = this._onDidRequestShareSecrets.event;
 
 	constructor(
 		@ILogService private readonly logService: ILogService,
@@ -57,10 +59,6 @@ export class LaunchMainService implements ILaunchMainService {
 		@IProductService private readonly productService: IProductService,
 	) { }
 
-	onShareSecretsRequested(callback: () => void): void {
-		this._onShareSecretsRequested = callback;
-	}
-
 	async start(args: NativeParsedArgs, userEnv: IProcessEnvironment): Promise<void> {
 		this.logService.trace('Received data from other instance: ', args, userEnv);
 
@@ -68,7 +66,7 @@ export class LaunchMainService implements ILaunchMainService {
 		// trigger the secret sharing handshake without opening any window.
 		if (args['share-secrets-with-agents-app']) {
 			this.logService.info('Received --share-secrets-with-agents-app from second instance');
-			this._onShareSecretsRequested?.();
+			this._onDidRequestShareSecrets.fire();
 			return;
 		}
 

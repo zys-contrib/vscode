@@ -99,9 +99,9 @@ export class MacOSCrossAppSecretSharing extends Disposable {
 		} else {
 			// Code.app already running: listen for --share-secrets-with-agents-app
 			// forwarded from a second instance via the launch service
-			launchMainService.onShareSecretsRequested(() => {
+			this._register(launchMainService.onDidRequestShareSecrets(() => {
 				this.initializeAsHostApp();
-			});
+			}));
 		}
 	}
 
