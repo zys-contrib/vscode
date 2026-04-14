@@ -4,32 +4,34 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { CopilotClient } from '@github/copilot-sdk';
-import * as fs from 'fs/promises';
 import { rgPath } from '@vscode/ripgrep';
+import * as fs from 'fs/promises';
 import { Limiter, SequencerByKey } from '../../../../base/common/async.js';
 import { Emitter } from '../../../../base/common/event.js';
 import { Disposable, DisposableMap } from '../../../../base/common/lifecycle.js';
+import { ResourceMap } from '../../../../base/common/map.js';
 import { FileAccess } from '../../../../base/common/network.js';
+import { equals } from '../../../../base/common/objects.js';
 import { basename, delimiter, dirname } from '../../../../base/common/path.js';
 import { URI } from '../../../../base/common/uri.js';
 import { generateUuid } from '../../../../base/common/uuid.js';
+import { localize } from '../../../../nls.js';
 import { IParsedPlugin, parsePlugin } from '../../../agentPlugins/common/pluginParsers.js';
 import { IFileService } from '../../../files/common/files.js';
 import { IInstantiationService } from '../../../instantiation/common/instantiation.js';
 import { ILogService } from '../../../log/common/log.js';
-import { localize } from '../../../../nls.js';
 import { IAgentPluginManager, ISyncedCustomization } from '../../common/agentPluginManager.js';
 import { AgentHostSessionConfigBranchNameHintKey, AgentSession, IAgent, IAgentAttachment, IAgentCreateSessionConfig, IAgentCreateSessionResult, IAgentDescriptor, IAgentMessageEvent, IAgentModelInfo, IAgentProgressEvent, IAgentResolveSessionConfigParams, IAgentSessionConfigCompletionsParams, IAgentSessionMetadata, IAgentSessionProjectInfo, IAgentSubagentStartedEvent, IAgentToolCompleteEvent, IAgentToolStartEvent } from '../../common/agentService.js';
-import type { IResolveSessionConfigResult, ISessionConfigCompletionsResult } from '../../common/state/protocol/commands.js';
 import { ISessionDataService, SESSION_DB_FILENAME } from '../../common/sessionDataService.js';
-import { CustomizationStatus, ICustomizationRef, SessionInputResponseKind, type ISessionInputAnswer, type IPendingMessage, type PolicyState } from '../../common/state/sessionState.js';
-import { CopilotAgentSession, SessionWrapperFactory } from './copilotAgentSession.js';
-import { parsedPluginsEqual, toSdkCustomAgents, toSdkHooks, toSdkMcpServers, toSdkSkillDirectories } from './copilotPluginConverters.js';
-import { CopilotSessionWrapper } from './copilotSessionWrapper.js';
-import { IProtectedResourceMetadata } from '../../common/state/protocol/state.js';
+import type { IResolveSessionConfigResult, ISessionConfigCompletionsResult } from '../../common/state/protocol/commands.js';
+import { IProtectedResourceMetadata, type IToolDefinition } from '../../common/state/protocol/state.js';
+import { CustomizationStatus, ICustomizationRef, SessionInputResponseKind, type IPendingMessage, type ISessionInputAnswer, type IToolCallResult, type PolicyState } from '../../common/state/sessionState.js';
 import { IAgentHostGitService } from '../agentHostGitService.js';
 import { IAgentHostTerminalManager } from '../agentHostTerminalManager.js';
+import { CopilotAgentSession, SessionWrapperFactory, type IActiveClientSnapshot } from './copilotAgentSession.js';
 import { ICopilotSessionContext, projectFromCopilotContext } from './copilotGitProject.js';
+import { parsedPluginsEqual, toSdkCustomAgents, toSdkHooks, toSdkMcpServers, toSdkSkillDirectories } from './copilotPluginConverters.js';
+import { CopilotSessionWrapper } from './copilotSessionWrapper.js';
 import { createShellTools, ShellManager } from './copilotShellTools.js';
 
 interface ICreatedWorktree {
@@ -67,6 +69,8 @@ export class CopilotAgent extends Disposable implements IAgent {
 	private readonly _sessionSequencer = new SequencerByKey<string>();
 	private _shutdownPromise: Promise<void> | undefined;
 	private readonly _plugins: PluginController;
+	/** Per-session active client state for tools + plugin snapshot tracking. */
+	private readonly _activeClients = new ResourceMap<ActiveClient>();
 
 	constructor(
 		@ILogService private readonly _logService: ILogService,
@@ -233,7 +237,6 @@ export class CopilotAgent extends Disposable implements IAgent {
 	async createSession(config?: IAgentCreateSessionConfig): Promise<IAgentCreateSessionResult> {
 		this._logService.info(`[Copilot] Creating session... ${config?.model ? `model=${config.model}` : ''}`);
 		const client = await this._ensureClient();
-		const parsedPlugins = await this._plugins.getAppliedPlugins();
 
 		// When forking, use the SDK's sessions.fork RPC.
 		if (config?.fork) {
@@ -290,7 +293,9 @@ export class CopilotAgent extends Disposable implements IAgent {
 		const sessionId = config?.session ? AgentSession.id(config.session) : generateUuid();
 		const sessionUri = AgentSession.uri(this.id, sessionId);
 		const shellManager = this._instantiationService.createInstance(ShellManager, sessionUri);
-		const sessionConfig = this._buildSessionConfig(parsedPlugins, shellManager);
+		const activeClient = this._activeClients.get(sessionUri);
+		const snapshot = activeClient ? await activeClient.snapshot() : undefined;
+		const sessionConfig = this._buildSessionConfig(snapshot, shellManager);
 		const workingDirectory = await this._resolveSessionWorkingDirectory(config, sessionId);
 
 		const factory: SessionWrapperFactory = async callbacks => {
@@ -306,8 +311,7 @@ export class CopilotAgent extends Disposable implements IAgent {
 
 		let agentSession: CopilotAgentSession;
 		try {
-			agentSession = this._createAgentSession(factory, workingDirectory, sessionId, shellManager);
-			this._plugins.setAppliedPlugins(agentSession, parsedPlugins);
+			agentSession = this._createAgentSession(factory, workingDirectory, sessionId, shellManager, snapshot);
 			await agentSession.initializeSession();
 		} catch (error) {
 			await this._removeCreatedWorktree(sessionId);
@@ -406,6 +410,17 @@ export class CopilotAgent extends Disposable implements IAgent {
 		return this._plugins.sync(clientId, customizations, progress);
 	}
 
+	setClientTools(session: URI, clientId: string, tools: IToolDefinition[]): void {
+		const activeClient = this._getOrCreateActiveClient(session);
+		activeClient.updateTools(clientId, tools);
+		this._logService.info(`[Copilot:${AgentSession.id(session)}] Client tools updated: ${tools.map(t => t.name).join(', ') || '(none)'}`);
+	}
+
+	onClientToolCallComplete(session: URI, toolCallId: string, result: IToolCallResult): void {
+		const entry = this._sessions.get(AgentSession.id(session));
+		entry?.handleClientToolCallComplete(toolCallId, result);
+	}
+
 	setCustomizationEnabled(uri: string, enabled: boolean): void {
 		this._plugins.setEnabled(uri, enabled);
 	}
@@ -414,11 +429,12 @@ export class CopilotAgent extends Disposable implements IAgent {
 		const sessionId = AgentSession.id(session);
 		await this._sessionSequencer.queue(sessionId, async () => {
 
-			// If plugin config changed, dispose this session so it gets resumed
-			// with the updated plugin primitives.
+			// If the active client's config changed (tools or plugins),
+			// dispose this session so it gets resumed with the updated config.
 			let entry = this._sessions.get(sessionId);
-			if (entry && await this._plugins.needsSessionRefresh(entry)) {
-				this._logService.info(`[Copilot:${sessionId}] Plugin config changed, refreshing session`);
+			const activeClient = this._activeClients.get(session);
+			if (entry && activeClient && await activeClient.isOutdated(entry.appliedSnapshot)) {
+				this._logService.info(`[Copilot:${sessionId}] Session config changed, refreshing session`);
 				this._sessions.deleteAndDispose(sessionId);
 				entry = undefined;
 			}
@@ -549,22 +565,34 @@ export class CopilotAgent extends Disposable implements IAgent {
 
 	// ---- helpers ------------------------------------------------------------
 
+	private _getOrCreateActiveClient(session: URI): ActiveClient {
+		let client = this._activeClients.get(session);
+		if (!client) {
+			client = new ActiveClient(() => this._plugins.getAppliedPlugins());
+			this._activeClients.set(session, client);
+		}
+		return client;
+	}
+
 	/**
 	 * Creates a {@link CopilotAgentSession}, registers it in the sessions map,
 	 * and returns it. The caller must call {@link CopilotAgentSession.initializeSession}
 	 * to wire up the SDK session.
 	 */
-	private _createAgentSession(wrapperFactory: SessionWrapperFactory, workingDirectory: URI | undefined, sessionId: string, shellManager: ShellManager): CopilotAgentSession {
+	private _createAgentSession(wrapperFactory: SessionWrapperFactory, workingDirectory: URI | undefined, sessionId: string, shellManager: ShellManager, snapshot?: IActiveClientSnapshot): CopilotAgentSession {
 		const sessionUri = AgentSession.uri(this.id, sessionId);
 
 		const agentSession = this._instantiationService.createInstance(
 			CopilotAgentSession,
-			sessionUri,
-			sessionId,
-			workingDirectory,
-			this._onDidSessionProgress,
-			wrapperFactory,
-			shellManager,
+			{
+				sessionUri,
+				rawSessionId: sessionId,
+				workingDirectory,
+				onDidSessionProgress: this._onDidSessionProgress,
+				wrapperFactory,
+				shellManager,
+				clientSnapshot: snapshot,
+			},
 		);
 
 		this._sessions.set(sessionId, agentSession);
@@ -592,19 +620,20 @@ export class CopilotAgent extends Disposable implements IAgent {
 	 * session's permission/hook callbacks, so it can be called lazily
 	 * inside the {@link SessionWrapperFactory}.
 	 */
-	private _buildSessionConfig(parsedPlugins: readonly IParsedPlugin[], shellManager: ShellManager) {
+	private _buildSessionConfig(snapshot: IActiveClientSnapshot | undefined, shellManager: ShellManager) {
 		const shellTools = createShellTools(shellManager, this._terminalManager, this._logService);
+		const plugins = snapshot?.plugins ?? [];
 
 		return async (callbacks: Parameters<SessionWrapperFactory>[0]) => {
-			const customAgents = await toSdkCustomAgents(parsedPlugins.flatMap(p => p.agents), this._fileService);
+			const customAgents = await toSdkCustomAgents(plugins.flatMap(p => p.agents), this._fileService);
 			return {
 				onPermissionRequest: callbacks.onPermissionRequest,
 				onUserInputRequest: callbacks.onUserInputRequest,
-				hooks: toSdkHooks(parsedPlugins.flatMap(p => p.hooks), callbacks.hooks),
-				mcpServers: toSdkMcpServers(parsedPlugins.flatMap(p => p.mcpServers)),
+				hooks: toSdkHooks(plugins.flatMap(p => p.hooks), callbacks.hooks),
+				mcpServers: toSdkMcpServers(plugins.flatMap(p => p.mcpServers)),
 				customAgents,
-				skillDirectories: toSdkSkillDirectories(parsedPlugins.flatMap(p => p.skills)),
-				tools: shellTools,
+				skillDirectories: toSdkSkillDirectories(plugins.flatMap(p => p.skills)),
+				tools: [...shellTools, ...callbacks.clientTools],
 			};
 		};
 	}
@@ -612,9 +641,10 @@ export class CopilotAgent extends Disposable implements IAgent {
 	private async _resumeSession(sessionId: string): Promise<CopilotAgentSession> {
 		this._logService.info(`[Copilot:${sessionId}] Session not in memory, resuming...`);
 		const client = await this._ensureClient();
-		const parsedPlugins = await this._plugins.getAppliedPlugins();
 
 		const sessionUri = AgentSession.uri(this.id, sessionId);
+		const activeClient = this._activeClients.get(sessionUri);
+		const snapshot = activeClient ? await activeClient.snapshot() : undefined;
 		const storedMetadata = await this._readSessionMetadata(sessionUri);
 		const sessionMetadata = await client.getSessionMetadata(sessionId).catch(err => {
 			this._logService.warn(`[Copilot:${sessionId}] getSessionMetadata failed`, err);
@@ -622,7 +652,7 @@ export class CopilotAgent extends Disposable implements IAgent {
 		});
 		const workingDirectory = typeof sessionMetadata?.context?.cwd === 'string' ? URI.file(sessionMetadata.context.cwd) : storedMetadata.workingDirectory;
 		const shellManager = this._instantiationService.createInstance(ShellManager, sessionUri);
-		const sessionConfig = this._buildSessionConfig(parsedPlugins, shellManager);
+		const sessionConfig = this._buildSessionConfig(snapshot, shellManager);
 
 		const factory: SessionWrapperFactory = async callbacks => {
 			const config = await sessionConfig(callbacks);
@@ -653,8 +683,7 @@ export class CopilotAgent extends Disposable implements IAgent {
 			}
 		};
 
-		const agentSession = this._createAgentSession(factory, workingDirectory, sessionId, shellManager);
-		this._plugins.setAppliedPlugins(agentSession, parsedPlugins);
+		const agentSession = this._createAgentSession(factory, workingDirectory, sessionId, shellManager, snapshot);
 		await agentSession.initializeSession();
 
 		return agentSession;
@@ -820,9 +849,6 @@ class PluginController {
 	private readonly _enablement = new Map<string, boolean>();
 	private _lastSynced: Promise<{ synced: ISyncedCustomization[]; parsed: IParsedPlugin[] }> = Promise.resolve({ synced: [], parsed: [] });
 
-	/** Parsed plugin contents from the most recently applied sync. */
-	private _appliedParsed = new WeakMap<CopilotAgentSession, readonly IParsedPlugin[]>();
-
 	constructor(
 		@IAgentPluginManager private readonly _pluginManager: IAgentPluginManager,
 		@ILogService private readonly _logService: ILogService,
@@ -830,27 +856,11 @@ class PluginController {
 	) { }
 
 	/**
-	 * Returns true if the plugin configuration has changed since the last
-	 * time sessions were created/resumed. Used by {@link CopilotAgent.sendMessage}
-	 * to decide whether a session needs to be refreshed.
-	 */
-	public async needsSessionRefresh(session: CopilotAgentSession): Promise<boolean> {
-		const { parsed } = await this._lastSynced;
-		return !parsedPluginsEqual(this._appliedParsed.get(session) || [], parsed);
-	}
-
-	/**
-	 * Returns the current parsed plugins filtered by enablement,
-	 * then marks them as applied so {@link needsSessionRefresh} returns
-	 * false until the next change.
+	 * Returns the current parsed plugins, awaiting any pending sync.
 	 */
 	public async getAppliedPlugins(): Promise<readonly IParsedPlugin[]> {
 		const { parsed } = await this._lastSynced;
 		return parsed;
-	}
-
-	public setAppliedPlugins(session: CopilotAgentSession, plugins: readonly IParsedPlugin[]) {
-		this._appliedParsed.set(session, plugins);
 	}
 
 	public setEnabled(pluginProtocolUri: string, enabled: boolean) {
@@ -889,5 +899,51 @@ class PluginController {
 
 	private _getUserHome(): string {
 		return process.env['HOME'] ?? process.env['USERPROFILE'] ?? '';
+	}
+}
+
+/**
+ * Tracks per-session active client contributions (tools and plugins).
+ * The {@link snapshot} captures the state at session creation time, and
+ * {@link isOutdated} detects when the session needs to be refreshed.
+ */
+class ActiveClient {
+	private _tools: readonly IToolDefinition[] = [];
+	private _clientId = '';
+
+	constructor(
+		/** Resolves the current set of applied plugins. May block while a sync is in progress. */
+		private readonly _resolvePlugins: () => Promise<readonly IParsedPlugin[]>,
+	) { }
+
+	updateTools(clientId: string, tools: readonly IToolDefinition[]): void {
+		this._clientId = clientId;
+		this._tools = tools;
+	}
+
+	async snapshot(): Promise<IActiveClientSnapshot> {
+		return { clientId: this._clientId, tools: this._tools, plugins: await this._resolvePlugins() };
+	}
+
+	async isOutdated(snap: IActiveClientSnapshot): Promise<boolean> {
+		const plugins = await this._resolvePlugins();
+		if (!parsedPluginsEqual(snap.plugins, plugins)) {
+			return true;
+		}
+		if (snap.tools.length !== this._tools.length) {
+			return true;
+		}
+		// Compare tool definitions by name, description, and schema —
+		// not just names — so schema/description changes trigger a refresh.
+		const snapByName = new Map(snap.tools.map(t => [t.name, t]));
+		for (const tool of this._tools) {
+			const prev = snapByName.get(tool.name);
+			if (!prev
+				|| prev.description !== tool.description
+				|| !equals(prev.inputSchema, tool.inputSchema)) {
+				return true;
+			}
+		}
+		return false;
 	}
 }
