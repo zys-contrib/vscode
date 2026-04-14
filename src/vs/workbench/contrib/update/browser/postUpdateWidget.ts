@@ -7,7 +7,7 @@ import * as dom from '../../../../base/browser/dom.js';
 import { WorkbenchActionExecutedClassification, WorkbenchActionExecutedEvent } from '../../../../base/common/actions.js';
 import { CancellationToken } from '../../../../base/common/cancellation.js';
 import { MarkdownString } from '../../../../base/common/htmlContent.js';
-import { Disposable } from '../../../../base/common/lifecycle.js';
+import { Disposable, DisposableStore } from '../../../../base/common/lifecycle.js';
 import { isWeb } from '../../../../base/common/platform.js';
 import { localize } from '../../../../nls.js';
 import { CommandsRegistry, ICommandService } from '../../../../platform/commands/common/commands.js';
@@ -85,17 +85,19 @@ export class PostUpdateWidgetContribution extends Disposable implements IWorkben
 			return;
 		}
 
+		const contentDisposables = new DisposableStore();
 		const target = this.layoutService.mainContainer;
 		const { clientWidth } = target;
-		const width = Math.min(640, Math.max(clientWidth - 32, 320));
+		const maxWidth = 550;
+		const x = Math.max(clientWidth - maxWidth - 80, 16);
 
 		this.hoverService.showInstantHover({
-			content: this.buildContent(info),
+			content: this.buildContent(info, contentDisposables),
 			target: {
 				targetElements: [target],
-				x: Math.max(clientWidth - width - 80, 16),
+				x,
 				y: 40,
-				dispose: () => { }
+				dispose: () => contentDisposables.dispose()
 			},
 			persistence: { sticky: true },
 			appearance: { showPointer: false, compact: true, maxHeightRatio: 0.8 },
@@ -130,7 +132,7 @@ export class PostUpdateWidgetContribution extends Disposable implements IWorkben
 		return info;
 	}
 
-	private buildContent({ markdown, buttons }: IParsedUpdateInfoInput): HTMLElement {
+	private buildContent({ markdown, buttons }: IParsedUpdateInfoInput, disposables: DisposableStore): HTMLElement {
 		const container = dom.$('.post-update-widget');
 
 		// Header
@@ -140,7 +142,7 @@ export class PostUpdateWidgetContribution extends Disposable implements IWorkben
 
 		// Markdown
 		const markdownContainer = dom.append(container, dom.$('.update-markdown'));
-		const rendered = this.markdownRendererService.render(
+		const rendered = disposables.add(this.markdownRendererService.render(
 			new MarkdownString(markdown, {
 				isTrusted: true,
 				supportHtml: true,
@@ -151,7 +153,7 @@ export class PostUpdateWidgetContribution extends Disposable implements IWorkben
 					openLinkFromMarkdown(this.openerService, link, mdStr.isTrusted);
 					this.hoverService.hideHover(true);
 				},
-			});
+			}));
 		markdownContainer.appendChild(rendered.element);
 
 		// Buttons
@@ -173,7 +175,7 @@ export class PostUpdateWidgetContribution extends Disposable implements IWorkben
 					button.classList.add('update-button-primary');
 				}
 
-				dom.addDisposableListener(button, 'click', () => {
+				disposables.add(dom.addDisposableListener(button, 'click', () => {
 					this.telemetryService.publicLog2<WorkbenchActionExecutedEvent, WorkbenchActionExecutedClassification>(
 						'workbenchActionExecuted',
 						{ id: commandId, from: 'postUpdateWidget' }
@@ -181,7 +183,7 @@ export class PostUpdateWidgetContribution extends Disposable implements IWorkben
 
 					void this.commandService.executeCommand(commandId, ...(args ?? []));
 					this.hoverService.hideHover(true);
-				});
+				}));
 			}
 		}
 

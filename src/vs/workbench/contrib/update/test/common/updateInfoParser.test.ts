@@ -94,6 +94,19 @@ suite('updateInfoParser', () => {
 			});
 		});
 
+		test('inline frontmatter handles nested JSON with braces', () => {
+			const buttons = [{ label: 'Open', commandId: 'cmd.open' }, { label: 'Try', commandId: 'cmd.try' }];
+			const input = `--- ${JSON.stringify({ buttons })} ---\nBody`;
+
+			assert.deepStrictEqual(parseUpdateInfoInput(input), {
+				markdown: '\nBody',
+				buttons: [
+					{ label: 'Open', commandId: 'cmd.open', style: undefined, args: undefined },
+					{ label: 'Try', commandId: 'cmd.try', style: undefined, args: undefined },
+				],
+			});
+		});
+
 		test('frontmatter with invalid JSON falls back to full text', () => {
 			const input = '---\nnot json\n---\nBody';
 			assert.deepStrictEqual(parseUpdateInfoInput(input), {

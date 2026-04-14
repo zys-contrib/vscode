@@ -81,7 +81,7 @@ function parseUpdateInfoFrontmatter(text: string): IParsedUpdateInfoInput {
 		return parseUpdateInfoFrontmatterMatch(text, blockMatch.groups['json'], blockMatch.groups['body'] ?? '');
 	}
 
-	const inlineMatch = text.match(/^---[ \t]*(?<json>\{[\s\S]*?\})[ \t]*---[ \t]*(?<body>[\s\S]*)$/);
+	const inlineMatch = text.match(/^---[ \t]*(?<json>\{.*\})[ \t]*---[ \t]*(?<body>[\s\S]*)$/);
 	if (inlineMatch?.groups) {
 		return parseUpdateInfoFrontmatterMatch(text, inlineMatch.groups['json'], inlineMatch.groups['body']);
 	}
