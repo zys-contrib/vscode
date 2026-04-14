@@ -1039,11 +1039,12 @@ export class ExtHostChatSessions extends Disposable implements ExtHostChatSessio
 			return undefined;
 		}
 
+		const previousInputState = this._createInputStateFromOptions(controllerData.optionGroups ?? [], request.initialSessionOptions);
 		let inputState: vscode.ChatSessionInputState;
 		if (controllerData.controller.getChatSessionInputState) {
-			inputState = await controllerData.controller.getChatSessionInputState(undefined, { previousInputState: this._createInputStateFromOptions(controllerData.optionGroups ?? [], request.initialSessionOptions) }, token);
+			inputState = await controllerData.controller.getChatSessionInputState(undefined, { previousInputState }, token);
 		} else {
-			inputState = new ChatSessionInputStateImpl([]);
+			inputState = previousInputState;
 		}
 
 		const item = await handler({
