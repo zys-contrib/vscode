@@ -21,12 +21,11 @@ import { localize } from '../../../../nls.js';
 import { IAgentPluginManager, ISyncedCustomization } from '../../common/agentPluginManager.js';
 import { AgentHostSessionConfigBranchNameHintKey, AgentSession, IAgent, IAgentAttachment, IAgentCreateSessionConfig, IAgentCreateSessionResult, IAgentDescriptor, IAgentMessageEvent, IAgentModelInfo, IAgentProgressEvent, IAgentResolveSessionConfigParams, IAgentSessionConfigCompletionsParams, IAgentSessionMetadata, IAgentSessionProjectInfo, IAgentSubagentStartedEvent, IAgentToolCompleteEvent, IAgentToolStartEvent } from '../../common/agentService.js';
 import type { IResolveSessionConfigResult, ISessionConfigCompletionsResult } from '../../common/state/protocol/commands.js';
-import { ISessionDataService } from '../../common/sessionDataService.js';
+import { ISessionDataService, SESSION_DB_FILENAME } from '../../common/sessionDataService.js';
 import { CustomizationStatus, ICustomizationRef, SessionInputResponseKind, type ISessionInputAnswer, type IPendingMessage, type PolicyState } from '../../common/state/sessionState.js';
 import { CopilotAgentSession, SessionWrapperFactory } from './copilotAgentSession.js';
 import { parsedPluginsEqual, toSdkCustomAgents, toSdkHooks, toSdkMcpServers, toSdkSkillDirectories } from './copilotPluginConverters.js';
 import { CopilotSessionWrapper } from './copilotSessionWrapper.js';
-import { forkCopilotSessionOnDisk, getCopilotDataDir, truncateCopilotSessionOnDisk } from './copilotAgentForking.js';
 import { IProtectedResourceMetadata } from '../../common/state/protocol/state.js';
 import { IAgentHostGitService } from '../agentHostGitService.js';
 import { IAgentHostTerminalManager } from '../agentHostTerminalManager.js';
@@ -236,27 +235,50 @@ export class CopilotAgent extends Disposable implements IAgent {
 		const client = await this._ensureClient();
 		const parsedPlugins = await this._plugins.getAppliedPlugins();
 
-		// When forking, we manipulate the CLI's on-disk data and then resume
-		// instead of creating a fresh session via the SDK.
+		// When forking, use the SDK's sessions.fork RPC.
 		if (config?.fork) {
 			const sourceSessionId = AgentSession.id(config.fork.session);
-			const newSessionId = config.session ? AgentSession.id(config.session) : generateUuid();
 
 			// Serialize against the source session to prevent concurrent
-			// modifications while we read its on-disk data.
+			// modifications while we read its state.
 			return this._sessionSequencer.queue(sourceSessionId, async () => {
-				this._logService.info(`[Copilot] Forking session ${sourceSessionId} at index ${config.fork!.turnIndex} → ${newSessionId}`);
+				this._logService.info(`[Copilot] Forking session ${sourceSessionId} at turnId=${config.fork!.turnId}`);
 
-				// Ensure the source session is loaded so on-disk data is available
-				if (!this._sessions.has(sourceSessionId)) {
-					await this._resumeSession(sourceSessionId);
+				// Ensure the source session is loaded so we can read its event IDs
+				const sourceEntry = this._sessions.get(sourceSessionId) ?? await this._resumeSession(sourceSessionId);
+
+				// Look up the SDK event ID for the turn *after* the fork point.
+				// toEventId is exclusive — events before it are included.
+				// If there's no next turn, omit toEventId to include all events.
+				const toEventId = await sourceEntry.getNextTurnEventId(config.fork!.turnId);
+
+				const forkResult = await client.rpc.sessions.fork({
+					sessionId: sourceSessionId,
+					...(toEventId ? { toEventId } : {}),
+				});
+				const newSessionId = forkResult.sessionId;
+
+				// Copy the source session's database file so the forked session
+				// inherits turn event IDs and file-edit snapshots.
+				const sourceDbDir = this._sessionDataService.getSessionDataDir(config.fork!.session);
+				const targetDbDir = this._sessionDataService.getSessionDataDirById(newSessionId);
+				const sourceDbPath = URI.joinPath(sourceDbDir, SESSION_DB_FILENAME);
+				const targetDbPath = URI.joinPath(targetDbDir, SESSION_DB_FILENAME);
+				try {
+					await fs.mkdir(targetDbDir.fsPath, { recursive: true });
+					await fs.copyFile(sourceDbPath.fsPath, targetDbPath.fsPath);
+				} catch (err) {
+					this._logService.warn(`[Copilot] Failed to copy session database for fork: ${err instanceof Error ? err.message : String(err)}`);
 				}
-
-				const copilotDataDir = getCopilotDataDir();
-				await forkCopilotSessionOnDisk(copilotDataDir, sourceSessionId, newSessionId, config.fork!.turnIndex);
 
 				// Resume the forked session so the SDK loads the forked history
 				const agentSession = await this._resumeSession(newSessionId);
+
+				// Remap turn IDs to match the new protocol turn IDs
+				if (config.fork!.turnIdMapping) {
+					await agentSession.remapTurnIds(config.fork!.turnIdMapping);
+				}
+
 				const session = agentSession.sessionUri;
 				this._logService.info(`[Copilot] Forked session created: ${session.toString()}`);
 				const project = await projectFromCopilotContext({ cwd: config.workingDirectory?.fsPath }, this._gitService);
@@ -448,39 +470,33 @@ export class CopilotAgent extends Disposable implements IAgent {
 		});
 	}
 
-	async truncateSession(session: URI, turnIndex?: number): Promise<void> {
+	async truncateSession(session: URI, turnId?: string): Promise<void> {
 		const sessionId = AgentSession.id(session);
 		await this._sessionSequencer.queue(sessionId, async () => {
-			this._logService.info(`[Copilot:${sessionId}] Truncating session${turnIndex !== undefined ? ` at index ${turnIndex}` : ' (all turns)'}`);
+			this._logService.info(`[Copilot:${sessionId}] Truncating session${turnId !== undefined ? ` at turnId=${turnId}` : ' (all turns)'}`);
 
-			const keepUpToTurnIndex = turnIndex ?? -1;
+			// Ensure the session is loaded so we can use the SDK RPC
+			const entry = this._sessions.get(sessionId) ?? await this._resumeSession(sessionId);
 
-			// Destroy the SDK session first and wait for cleanup to complete,
-			// ensuring on-disk data (events.jsonl, locks) is released before
-			// we modify it. Then dispose the wrapper.
-			const entry = this._sessions.get(sessionId);
-			if (entry) {
-				await entry.destroySession();
+			// Look up the SDK event ID for the truncation boundary.
+			// The protocol semantics: turnId is the last turn to KEEP.
+			// The SDK semantics: eventId and all events after it are removed.
+			// So we need the event ID of the *next* turn after turnId.
+			// For "remove all", we need the first turn's event ID.
+			let eventId: string | undefined;
+			if (turnId) {
+				eventId = await entry.getNextTurnEventId(turnId);
+			} else {
+				eventId = await entry.getFirstTurnEventId();
 			}
-			this._sessions.deleteAndDispose(sessionId);
 
-			const copilotDataDir = getCopilotDataDir();
-			await truncateCopilotSessionOnDisk(copilotDataDir, sessionId, keepUpToTurnIndex);
+			if (eventId) {
+				await entry.truncateAtEventId(eventId, turnId);
+			} else {
+				this._logService.info(`[Copilot:${sessionId}] No event ID found for truncation, nothing to truncate`);
+			}
 
-			// Resume the session from the modified on-disk data
-			await this._resumeSession(sessionId);
-			this._logService.info(`[Copilot:${sessionId}] Session truncated and resumed`);
-		});
-	}
-
-	async forkSession(sourceSession: URI, newSessionId: string, turnIndex: number): Promise<void> {
-		const sourceSessionId = AgentSession.id(sourceSession);
-		await this._sessionSequencer.queue(sourceSessionId, async () => {
-			this._logService.info(`[Copilot] Forking session ${sourceSessionId} at index ${turnIndex} → ${newSessionId}`);
-
-			const copilotDataDir = getCopilotDataDir();
-			await forkCopilotSessionOnDisk(copilotDataDir, sourceSessionId, newSessionId, turnIndex);
-			this._logService.info(`[Copilot] Forked session ${newSessionId} created on disk`);
+			this._logService.info(`[Copilot:${sessionId}] Session truncated`);
 		});
 	}
 
