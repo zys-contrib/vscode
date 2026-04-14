@@ -453,7 +453,7 @@ suite('AgentHostClientTools', () => {
 			source: ToolDataSource.Internal,
 		};
 
-		test('includes allowlisted tools in activeClientChanged dispatch', async () => {
+		test('maps allowlisted tool data to protocol definitions', async () => {
 			const { connection } = createHandlerWithMocks(disposables, [testRunTestsTool, testRunTaskTool, testUnlistedTool]);
 
 			// The handler dispatches activeClientChanged in the constructor when
@@ -468,7 +468,7 @@ suite('AgentHostClientTools', () => {
 			assert.strictEqual(runTestsDef.description, 'Runs unit tests');
 		});
 
-		test('excludes tools not in the allowlist', () => {
+		test('filters tool data to entries in configured allowlist', () => {
 			createHandlerWithMocks(disposables, [testRunTestsTool, testRunTaskTool, testUnlistedTool], {
 				clientTools: ['runTests'],
 			});

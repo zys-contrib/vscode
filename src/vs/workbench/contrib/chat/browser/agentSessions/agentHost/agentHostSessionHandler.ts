@@ -1170,9 +1170,26 @@ export class AgentHostSessionHandler extends Disposable implements IChatSessionC
 		let parameters: Record<string, unknown> = {};
 		if (tc.toolInput) {
 			try {
-				parameters = JSON.parse(tc.toolInput);
+				const parsed: unknown = JSON.parse(tc.toolInput);
+				if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+					throw new Error('expected JSON object');
+				}
+				parameters = parsed as Record<string, unknown>;
 			} catch {
 				this._logService.warn(`[AgentHost] Failed to parse tool input for ${tc.toolName}`);
+				this._dispatchAction({
+					type: ActionType.SessionToolCallComplete,
+					session: ctx.backendSession.toString(),
+					turnId: ctx.turnId,
+					toolCallId,
+					result: {
+						success: false,
+						pastTenseMessage: `Failed to execute ${tc.toolName}`,
+						error: { message: `Invalid tool input for "${tc.toolName}": expected JSON object parameters` },
+					},
+				});
+				this._executingClientToolCalls.delete(toolCallId);
+				return;
 			}
 		}
 

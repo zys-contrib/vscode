@@ -33,6 +33,7 @@ import { IAgentHostGitService } from '../agentHostGitService.js';
 import { IAgentHostTerminalManager } from '../agentHostTerminalManager.js';
 import { ICopilotSessionContext, projectFromCopilotContext } from './copilotGitProject.js';
 import { createShellTools, ShellManager } from './copilotShellTools.js';
+import { equals } from '../../../../base/common/objects.js';
 
 interface ICreatedWorktree {
 	readonly repositoryRoot: URI;
@@ -913,7 +914,17 @@ class ActiveClient {
 		if (snap.tools.length !== this._tools.length) {
 			return true;
 		}
-		const snapNames = new Set(snap.tools.map(t => t.name));
-		return this._tools.some(t => !snapNames.has(t.name));
+		// Compare tool definitions by name, description, and schema —
+		// not just names — so schema/description changes trigger a refresh.
+		const snapByName = new Map(snap.tools.map(t => [t.name, t]));
+		for (const tool of this._tools) {
+			const prev = snapByName.get(tool.name);
+			if (!prev
+				|| prev.description !== tool.description
+				|| !equals(prev.inputSchema, tool.inputSchema)) {
+				return true;
+			}
+		}
+		return false;
 	}
 }
