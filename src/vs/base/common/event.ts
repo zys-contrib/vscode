@@ -1091,7 +1091,7 @@ export class ListenerLeakError extends Error {
 
 	static is(err: unknown): err is ListenerLeakError {
 		return err instanceof ListenerLeakError
-			|| (err instanceof Error && typeof (err as any).kind === 'string' && typeof (err as any).listenerCount === 'number');
+			|| (err instanceof Error && typeof (err as Error & { kind: unknown; listenerCount: unknown }).kind === 'string' && typeof (err as Error & { kind: unknown; listenerCount: unknown }).listenerCount === 'number');
 	}
 }
 
