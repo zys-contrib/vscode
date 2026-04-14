@@ -14,6 +14,9 @@ import { CROSS_APP_SHARED_SECRET_KEYS, secretStorageKey, readEncryptedSecret, wr
 import { IStateService } from '../../state/node/state.js';
 import { INodeProcess, isMacintosh } from '../../../base/common/platform.js';
 import { IStorageMain } from '../../storage/electron-main/storageMain.js';
+import { IEnvironmentMainService } from '../../environment/electron-main/environmentMainService.js';
+import { ILaunchMainService } from '../../launch/electron-main/launchMainService.js';
+import { ILifecycleMainService } from '../../lifecycle/electron-main/lifecycleMainService.js';
 
 const MIGRATION_STATE_KEY = 'crossAppSecretSharing.migrationDone';
 
@@ -67,17 +70,42 @@ export class CrossAppSecretSharing extends Disposable {
 		private readonly encryptionMainService: IEncryptionMainService,
 		private readonly stateService: IStateService,
 		private readonly logService: ILogService,
+		environmentMainService: IEnvironmentMainService,
+		launchMainService: ILaunchMainService,
+		lifecycleMainService: ILifecycleMainService,
 	) {
 		super();
 		this.isEmbeddedApp = !!(process as INodeProcess).isEmbeddedApp;
 		this.applicationStorage = storageMainService.applicationStorage;
+		this.initialize(environmentMainService, launchMainService, lifecycleMainService);
 	}
 
-	/**
-	 * Called by the agents app on startup. If migration is needed,
-	 * opens crossAppIPC and spawns Code.app to connect.
-	 */
-	async initializeAsAgentsApp(): Promise<void> {
+	private initialize(
+		environmentMainService: IEnvironmentMainService,
+		launchMainService: ILaunchMainService,
+		lifecycleMainService: ILifecycleMainService,
+	): void {
+		if (this.isEmbeddedApp) {
+			// Agents app: initiate migration if needed
+			this.initializeAsAgentsApp();
+		} else if (environmentMainService.args['share-secrets-with-agents-app']) {
+			// Code.app launched fresh with --share-secrets-with-agents-app:
+			// respond to the agents app's request, then quit if no other reason to stay
+			const hasOtherArgs = environmentMainService.args._.length > 0 || environmentMainService.args['folder-uri'] || environmentMainService.args['file-uri'];
+			this.initializeAsHostApp(hasOtherArgs ? undefined : () => {
+				this.logService.info('[CrossAppSecretSharing] Host app was launched for migration only, quitting');
+				lifecycleMainService.quit();
+			});
+		} else {
+			// Code.app already running: listen for --share-secrets-with-agents-app
+			// forwarded from a second instance via the launch service
+			launchMainService.onShareSecretsRequested(() => {
+				this.initializeAsHostApp();
+			});
+		}
+	}
+
+	private async initializeAsAgentsApp(): Promise<void> {
 		if (!isMacintosh || !this.isEmbeddedApp) {
 			return;
 		}
@@ -136,15 +164,7 @@ export class CrossAppSecretSharing extends Disposable {
 		}, 30_000);
 	}
 
-	/**
-	 * Called by Code.app (host) when it receives `--share-secrets-with-agents-app`,
-	 * either from its own argv or forwarded from a second instance via the
-	 * launch service.
-	 * @param onComplete Optional callback invoked after migration completes
-	 *   (or immediately if there's nothing to do). Use this to quit Code.app
-	 *   when it was launched solely for secret sharing.
-	 */
-	async initializeAsHostApp(onComplete?: () => void): Promise<void> {
+	private async initializeAsHostApp(onComplete?: () => void): Promise<void> {
 		if (!isMacintosh || this.isEmbeddedApp) {
 			onComplete?.();
 			return;

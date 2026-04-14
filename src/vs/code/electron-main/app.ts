@@ -1258,31 +1258,15 @@ export class CodeApplication extends Disposable {
 
 		// Cross-app secret sharing (macOS only, demand-driven)
 		if (isMacintosh) {
-			const secretSharing = this._register(new CrossAppSecretSharing(
+			this._register(new CrossAppSecretSharing(
 				accessor.get(IStorageMainService),
 				accessor.get(IEncryptionMainService),
 				accessor.get(IStateService),
 				this.logService,
+				this.environmentMainService,
+				accessor.get(ILaunchMainService),
+				this.lifecycleMainService,
 			));
-			if ((process as INodeProcess).isEmbeddedApp) {
-				// Agents app: initiate migration if needed
-				secretSharing.initializeAsAgentsApp();
-			} else if (this.environmentMainService.args['share-secrets-with-agents-app']) {
-				// Code.app launched fresh with --share-secrets-with-agents-app:
-				// respond to the agents app's request, then quit if no other reason to stay
-				const hasOtherArgs = this.environmentMainService.args._.length > 0 || this.environmentMainService.args['folder-uri'] || this.environmentMainService.args['file-uri'];
-				secretSharing.initializeAsHostApp(hasOtherArgs ? undefined : () => {
-					this.logService.info('[CrossAppSecretSharing] Host app was launched for migration only, quitting');
-					this.lifecycleMainService.quit();
-				});
-			} else {
-				// Code.app already running: listen for --share-secrets-with-agents-app
-				// forwarded from a second instance via the launch service
-				const launchMainService = accessor.get(ILaunchMainService);
-				launchMainService.onShareSecretsRequested(() => {
-					secretSharing.initializeAsHostApp();
-				});
-			}
 		}
 
 		// Metered Connection
