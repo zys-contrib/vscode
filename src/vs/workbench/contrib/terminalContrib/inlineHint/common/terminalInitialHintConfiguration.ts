@@ -25,6 +25,9 @@ export const terminalInitialHintConfiguration: IStringDictionary<IConfigurationP
 		markdownDescription: localize('terminal.integrated.initialHint.copilotCli', "When enabled, the terminal initial hint will suggest using Copilot CLI by typing {0} instead of opening Copilot Chat.", '`copilot`'),
 		type: 'boolean',
 		default: false,
-		tags: ['experimental']
+		tags: ['experimental'],
+		experiment: {
+			mode: 'auto'
+		},
 	}
 };
