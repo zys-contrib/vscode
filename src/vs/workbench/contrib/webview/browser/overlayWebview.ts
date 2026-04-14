@@ -215,16 +215,8 @@ export class OverlayWebview extends Disposable implements IOverlayWebview {
 			return;
 		}
 
-		const frameRect = element.getBoundingClientRect();
-		const containerRect = this._container.domNode.parentElement.getBoundingClientRect();
-		const parentBorderTop = (containerRect.height - this._container.domNode.parentElement.clientHeight) / 2.0;
-		const parentBorderLeft = (containerRect.width - this._container.domNode.parentElement.clientWidth) / 2.0;
-
-		this._container.setWidth(dimension ? dimension.width : frameRect.width);
-		this._container.setHeight(dimension ? dimension.height : frameRect.height);
-
 		// Use CSS anchor positioning when available to let the browser
-		// automatically track position changes between explicit layout calls.
+		// automatically track position and size changes between explicit layout calls.
 		if (OverlayWebview._supportsAnchorPositioning.value) {
 			if (this._anchor?.element !== element) {
 				this._clearAnchorPositioning();
@@ -234,14 +226,29 @@ export class OverlayWebview extends Disposable implements IOverlayWebview {
 				this._container.domNode.style.setProperty('position-anchor', name);
 				this._anchor = { element, name };
 			}
-			this._container.setTop('anchor(top)');
-			this._container.setLeft('anchor(left)');
+			this._container.domNode.style.setProperty('top', 'anchor(top)');
+			this._container.domNode.style.setProperty('left', 'anchor(left)');
+			if (dimension) {
+				this._container.setWidth(dimension.width);
+				this._container.setHeight(dimension.height);
+			} else {
+				this._container.domNode.style.setProperty('width', 'anchor-size(width)');
+				this._container.domNode.style.setProperty('height', 'anchor-size(height)');
+			}
 		} else {
+			const frameRect = element.getBoundingClientRect();
+			const containerRect = this._container.domNode.parentElement.getBoundingClientRect();
+			const parentBorderTop = (containerRect.height - this._container.domNode.parentElement.clientHeight) / 2.0;
+			const parentBorderLeft = (containerRect.width - this._container.domNode.parentElement.clientWidth) / 2.0;
+
 			this._container.setTop(frameRect.top - containerRect.top - parentBorderTop);
 			this._container.setLeft(frameRect.left - containerRect.left - parentBorderLeft);
+			this._container.setWidth(dimension ? dimension.width : frameRect.width);
+			this._container.setHeight(dimension ? dimension.height : frameRect.height);
 		}
 
 		if (clippingContainer) {
+			const frameRect = element.getBoundingClientRect();
 			const { top, left, right, bottom } = computeClippingRect(frameRect, clippingContainer);
 			this._container.domNode.style.clipPath = `polygon(${left}px ${top}px, ${right}px ${top}px, ${right}px ${bottom}px, ${left}px ${bottom}px)`;
 		}
@@ -254,8 +261,13 @@ export class OverlayWebview extends Disposable implements IOverlayWebview {
 			}
 			this._anchor = undefined;
 		}
-
-		this._container?.domNode.style.removeProperty('position-anchor');
+		if (this._container) {
+			this._container.domNode.style.removeProperty('position-anchor');
+			this._container.domNode.style.removeProperty('top');
+			this._container.domNode.style.removeProperty('left');
+			this._container.domNode.style.removeProperty('width');
+			this._container.domNode.style.removeProperty('height');
+		}
 	}
 
 	private _show(targetWindow: CodeWindow) {
