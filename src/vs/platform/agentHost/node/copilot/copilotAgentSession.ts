@@ -558,6 +558,15 @@ export class CopilotAgentSession extends Disposable {
 		const sessionId = this.sessionId;
 		const session = this.sessionUri;
 
+		// Capture SDK event IDs for each user.message event so we can map
+		// protocol turn indices to the event IDs needed by the SDK's
+		// history.truncate and sessions.fork RPCs.
+		this._register(wrapper.onUserMessage(e => {
+			if (this._turnId) {
+				this._databaseRef.object.setTurnEventId(this._turnId, e.id);
+			}
+		}));
+
 		this._register(wrapper.onMessageDelta(e => {
 			this._logService.trace(`[Copilot:${sessionId}] delta: ${e.data.deltaContent}`);
 			this._onDidSessionProgress.fire({
@@ -847,6 +856,54 @@ export class CopilotAgentSession extends Disposable {
 		this._register(wrapper.onSystemMessage(e => {
 			this._logService.trace(`[Copilot:${sessionId}] System message [${e.data.role}]: ${e.data.content.length} chars`);
 		}));
+	}
+
+	// ---- SDK event ID tracking & truncation ---------------------------------
+
+	/**
+	 * Returns the SDK event ID for the turn inserted after the given turn,
+	 * or `undefined` if it's the last turn.
+	 */
+	getNextTurnEventId(turnId: string): Promise<string | undefined> {
+		return this._databaseRef.object.getNextTurnEventId(turnId);
+	}
+
+	/**
+	 * Returns the SDK event ID of the earliest turn.
+	 */
+	getFirstTurnEventId(): Promise<string | undefined> {
+		return this._databaseRef.object.getFirstTurnEventId();
+	}
+
+	/**
+	 * Truncates the session history via the SDK's RPC and cleans up
+	 * stale turns from the session database.
+	 *
+	 * @param eventId The SDK event ID at which to truncate. This event
+	 *        and all events after it are removed.
+	 * @param keepTurnId If provided, turns inserted after this turn are
+	 *        deleted from the DB. If omitted, all turns are deleted.
+	 */
+	async truncateAtEventId(eventId: string, keepTurnId?: string): Promise<void> {
+		this._logService.info(`[Copilot:${this.sessionId}] Truncating via SDK RPC at eventId=${eventId}`);
+		const result = await this._wrapper.session.rpc.history.truncate({ eventId });
+		this._logService.info(`[Copilot:${this.sessionId}] SDK truncation removed ${result.eventsRemoved} events`);
+
+		// Clean up stale turns from our DB so getNextTurnEventId doesn't
+		// return event IDs for turns that no longer exist in the SDK.
+		if (keepTurnId) {
+			await this._databaseRef.object.deleteTurnsAfter(keepTurnId);
+		} else {
+			await this._databaseRef.object.deleteAllTurns();
+		}
+	}
+
+	/**
+	 * Bulk-remaps turn IDs in this session's database.
+	 * Used after file-copying a source session's database for a fork.
+	 */
+	async remapTurnIds(mapping: ReadonlyMap<string, string>): Promise<void> {
+		await this._databaseRef.object.remapTurnIds(mapping);
 	}
 
 	// ---- cleanup ------------------------------------------------------------
