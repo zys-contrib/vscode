@@ -10,7 +10,7 @@ import { TerminalSettingId } from '../../../../../platform/terminal/common/termi
 
 export const enum TerminalInitialHintSettingId {
 	Enabled = 'terminal.integrated.initialHint',
-	CopilotCli = 'terminal.integrated.initialHint.copilotCli',
+	CopilotCli = 'terminal.integrated.initialHintCopilotCli',
 }
 
 export const terminalInitialHintConfiguration: IStringDictionary<IConfigurationPropertySchema> = {
