@@ -418,7 +418,7 @@ export interface IAgent {
 
 	/**
 	 * Truncate a session's history. If `turnId` is provided, keeps turns up to
-	 * (but not including) that turn. If omitted, all turns are removed.
+	 * and including that turn. If omitted, all turns are removed.
 	 * Optional — not all providers support truncation.
 	 */
 	truncateSession?(session: URI, turnId?: string): Promise<void>;

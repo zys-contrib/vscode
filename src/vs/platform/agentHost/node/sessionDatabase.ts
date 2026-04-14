@@ -264,7 +264,10 @@ export class SessionDatabase implements ISessionDatabase {
 	async setTurnEventId(turnId: string, eventId: string): Promise<void> {
 		const db = await this._ensureDb();
 		await dbRun(db, 'INSERT OR IGNORE INTO turns (id) VALUES (?)', [turnId]);
-		await dbRun(db, 'UPDATE turns SET event_id = ? WHERE id = ?', [eventId, turnId]);
+		// Only set the event ID if not already set — steering messages
+		// trigger additional user.message events within the same turn,
+		// and we must preserve the first (boundary) event ID.
+		await dbRun(db, 'UPDATE turns SET event_id = ? WHERE id = ? AND event_id IS NULL', [eventId, turnId]);
 	}
 
 	async getTurnEventId(turnId: string): Promise<string | undefined> {
