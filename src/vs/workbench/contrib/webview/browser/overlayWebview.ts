@@ -9,6 +9,7 @@ import { IMouseWheelEvent } from '../../../../base/browser/mouseEvent.js';
 import { CodeWindow } from '../../../../base/browser/window.js';
 import { Emitter } from '../../../../base/common/event.js';
 import { Disposable, DisposableStore, MutableDisposable } from '../../../../base/common/lifecycle.js';
+import { Lazy } from '../../../../base/common/lazy.js';
 import { autorun, observableValue } from '../../../../base/common/observable.js';
 import { URI } from '../../../../base/common/uri.js';
 import { generateUuid } from '../../../../base/common/uuid.js';
@@ -22,6 +23,8 @@ import { IOverlayWebview, IWebview, IWebviewElement, IWebviewService, KEYBINDING
  * Webview that is absolutely positioned over another element and that can creates and destroys an underlying webview as needed.
  */
 export class OverlayWebview extends Disposable implements IOverlayWebview {
+
+	private static readonly _supportsAnchorPositioning = new Lazy(() => CSS.supports('(top: anchor(top))'));
 
 	private _isFirstLoad = true;
 	private readonly _firstLoadPendingMessages = new Set<{ readonly message: unknown; readonly transfer?: readonly ArrayBuffer[]; readonly resolve: (value: boolean) => void }>();
@@ -52,6 +55,7 @@ export class OverlayWebview extends Disposable implements IOverlayWebview {
 	public origin: string;
 
 	private _container: FastDomNode<HTMLDivElement> | undefined;
+	private _anchor: { element: HTMLElement; name: string } | undefined;
 
 	public constructor(
 		initInfo: WebviewInitInfo,
@@ -83,6 +87,7 @@ export class OverlayWebview extends Disposable implements IOverlayWebview {
 	override dispose() {
 		this._isDisposed = true;
 
+		this._clearAnchorPositioning();
 		this._container?.domNode.remove();
 		this._container = undefined;
 
@@ -173,6 +178,7 @@ export class OverlayWebview extends Disposable implements IOverlayWebview {
 		this._scopedContextKeyService.clear();
 
 		this._owner = undefined;
+		this._clearAnchorPositioning();
 		if (this._container) {
 			this._container.setVisibility('hidden');
 		}
@@ -214,15 +220,42 @@ export class OverlayWebview extends Disposable implements IOverlayWebview {
 		const parentBorderTop = (containerRect.height - this._container.domNode.parentElement.clientHeight) / 2.0;
 		const parentBorderLeft = (containerRect.width - this._container.domNode.parentElement.clientWidth) / 2.0;
 
-		this._container.setTop(frameRect.top - containerRect.top - parentBorderTop);
-		this._container.setLeft(frameRect.left - containerRect.left - parentBorderLeft);
 		this._container.setWidth(dimension ? dimension.width : frameRect.width);
 		this._container.setHeight(dimension ? dimension.height : frameRect.height);
+
+		// Use CSS anchor positioning when available to let the browser
+		// automatically track position changes between explicit layout calls.
+		if (OverlayWebview._supportsAnchorPositioning.value) {
+			if (this._anchor?.element !== element) {
+				this._clearAnchorPositioning();
+
+				const name = `--overlay-webview-${generateUuid()}`;
+				element.style.setProperty('anchor-name', name);
+				this._container.domNode.style.setProperty('position-anchor', name);
+				this._anchor = { element, name };
+			}
+			this._container.setTop('anchor(top)');
+			this._container.setLeft('anchor(left)');
+		} else {
+			this._container.setTop(frameRect.top - containerRect.top - parentBorderTop);
+			this._container.setLeft(frameRect.left - containerRect.left - parentBorderLeft);
+		}
 
 		if (clippingContainer) {
 			const { top, left, right, bottom } = computeClippingRect(frameRect, clippingContainer);
 			this._container.domNode.style.clipPath = `polygon(${left}px ${top}px, ${right}px ${top}px, ${right}px ${bottom}px, ${left}px ${bottom}px)`;
 		}
+	}
+
+	private _clearAnchorPositioning() {
+		if (this._anchor) {
+			if (this._anchor.element.style.getPropertyValue('anchor-name') === this._anchor.name) {
+				this._anchor.element.style.removeProperty('anchor-name');
+			}
+			this._anchor = undefined;
+		}
+
+		this._container?.domNode.style.removeProperty('position-anchor');
 	}
 
 	private _show(targetWindow: CodeWindow) {
