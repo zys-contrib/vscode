@@ -665,7 +665,6 @@
 		"--vscode-sessionsBadge-background",
 		"--vscode-sessionsBadge-foreground",
 		"--vscode-sessionsCard-border",
-		"--vscode-sessionsChatBar-background",
 		"--vscode-sessionsGradient-tintColor",
 		"--vscode-sessionsInput-border",
 		"--vscode-sessionsPanel-background",
