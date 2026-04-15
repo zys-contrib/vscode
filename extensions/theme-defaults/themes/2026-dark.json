@@ -280,9 +280,6 @@
 			"sessionsPanel.background": "#191A1B",
 			"sessionsPanel.foreground": "#bfbfbf",
 			"sessionsPanel.border": "#2A2B2CFF",
-			"sessionsPanelTab.activeForeground": "#bfbfbf",
-			"sessionsPanelTab.inactiveForeground": "#8C8C8C",
-			"sessionsPanelTab.activeBorder": "#3994BC",
 
 		"sessionsGradient.tintColor": "#297AA0",
 		"sessionsChatInput.background": "#202122",

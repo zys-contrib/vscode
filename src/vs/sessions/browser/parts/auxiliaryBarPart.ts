@@ -14,8 +14,8 @@ import { INotificationService } from '../../../platform/notification/common/noti
 import { IStorageService } from '../../../platform/storage/common/storage.js';
 import { IThemeService } from '../../../platform/theme/common/themeService.js';
 import { ActiveAuxiliaryContext, AuxiliaryBarFocusContext } from '../../../workbench/common/contextkeys.js';
-import { ACTIVITY_BAR_TOP_ACTIVE_BORDER, ACTIVITY_BAR_TOP_DRAG_AND_DROP_BORDER, ACTIVITY_BAR_TOP_FOREGROUND, ACTIVITY_BAR_TOP_INACTIVE_FOREGROUND, PANEL_DRAG_AND_DROP_BORDER, SIDE_BAR_TITLE_BORDER } from '../../../workbench/common/theme.js';
-import { sessionsPanelBackground, sessionsPanelBorder, sessionsPanelForeground, sessionsBadgeBackground, sessionsBadgeForeground, sessionsPanelTabActiveForeground, sessionsPanelTabInactiveForeground, sessionsPanelTabActiveBorder } from '../../common/theme.js';
+import { ACTIVITY_BAR_TOP_ACTIVE_BORDER, ACTIVITY_BAR_TOP_DRAG_AND_DROP_BORDER, ACTIVITY_BAR_TOP_FOREGROUND, ACTIVITY_BAR_TOP_INACTIVE_FOREGROUND, PANEL_ACTIVE_TITLE_BORDER, PANEL_ACTIVE_TITLE_FOREGROUND, PANEL_DRAG_AND_DROP_BORDER, PANEL_INACTIVE_TITLE_FOREGROUND, SIDE_BAR_TITLE_BORDER } from '../../../workbench/common/theme.js';
+import { sessionsPanelBackground, sessionsPanelBorder, sessionsPanelForeground, sessionsBadgeBackground, sessionsBadgeForeground } from '../../common/theme.js';
 import { IViewDescriptorService, ViewContainerLocation } from '../../../workbench/common/views.js';
 import { IExtensionService } from '../../../workbench/services/extensions/common/extensions.js';
 import { IWorkbenchLayoutService, Parts } from '../../../workbench/services/layout/browser/layoutService.js';
@@ -182,9 +182,9 @@ export class AuxiliaryBarPart extends AbstractPaneCompositePart {
 			colors: theme => ({
 				activeBackgroundColor: theme.getColor(sessionsPanelBackground),
 				inactiveBackgroundColor: theme.getColor(sessionsPanelBackground),
-				get activeBorderBottomColor() { return $this.getCompositeBarPosition() === CompositeBarPosition.TITLE ? theme.getColor(sessionsPanelTabActiveBorder) : theme.getColor(ACTIVITY_BAR_TOP_ACTIVE_BORDER); },
-				get activeForegroundColor() { return $this.getCompositeBarPosition() === CompositeBarPosition.TITLE ? theme.getColor(sessionsPanelTabActiveForeground) : theme.getColor(ACTIVITY_BAR_TOP_FOREGROUND); },
-				get inactiveForegroundColor() { return $this.getCompositeBarPosition() === CompositeBarPosition.TITLE ? theme.getColor(sessionsPanelTabInactiveForeground) : theme.getColor(ACTIVITY_BAR_TOP_INACTIVE_FOREGROUND); },
+				get activeBorderBottomColor() { return $this.getCompositeBarPosition() === CompositeBarPosition.TITLE ? theme.getColor(PANEL_ACTIVE_TITLE_BORDER) : theme.getColor(ACTIVITY_BAR_TOP_ACTIVE_BORDER); },
+				get activeForegroundColor() { return $this.getCompositeBarPosition() === CompositeBarPosition.TITLE ? theme.getColor(PANEL_ACTIVE_TITLE_FOREGROUND) : theme.getColor(ACTIVITY_BAR_TOP_FOREGROUND); },
+				get inactiveForegroundColor() { return $this.getCompositeBarPosition() === CompositeBarPosition.TITLE ? theme.getColor(PANEL_INACTIVE_TITLE_FOREGROUND) : theme.getColor(ACTIVITY_BAR_TOP_INACTIVE_FOREGROUND); },
 				badgeBackground: theme.getColor(sessionsBadgeBackground),
 				badgeForeground: theme.getColor(sessionsBadgeForeground),
 				get dragAndDropBorder() { return $this.getCompositeBarPosition() === CompositeBarPosition.TITLE ? theme.getColor(PANEL_DRAG_AND_DROP_BORDER) : theme.getColor(ACTIVITY_BAR_TOP_DRAG_AND_DROP_BORDER); }

@@ -284,9 +284,6 @@
 			"sessionsPanel.background": "#FFFFFF",
 			"sessionsPanel.foreground": "#202020",
 			"sessionsPanel.border": "#E4E5E6FF",
-			"sessionsPanelTab.activeForeground": "#202020",
-			"sessionsPanelTab.inactiveForeground": "#606060",
-			"sessionsPanelTab.activeBorder": "#000000",
 
 		"sessionsGradient.tintColor": "#0069CC",
 		"sessionsChatInput.background": "#F7F7FA",

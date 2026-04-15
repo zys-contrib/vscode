@@ -9,7 +9,8 @@ import { Emitter, Event } from '../../../base/common/event.js';
 import { $, addDisposableListener, EventType, getWindow, reset } from '../../../base/browser/dom.js';
 import { autorun } from '../../../base/common/observable.js';
 import { IThemeService } from '../../../platform/theme/common/themeService.js';
-import { sessionsPanelBackground, sessionsPanelTabActiveForeground, sessionsPanelTabInactiveForeground, sessionsPanelTabActiveBorder } from '../../common/theme.js';
+import { PANEL_ACTIVE_TITLE_BORDER, PANEL_ACTIVE_TITLE_FOREGROUND, PANEL_INACTIVE_TITLE_FOREGROUND } from '../../../workbench/common/theme.js';
+import { sessionsPanelBackground } from '../../common/theme.js';
 import { Action } from '../../../base/common/actions.js';
 import { ActionBar } from '../../../base/browser/ui/actionbar/actionbar.js';
 import { Codicon } from '../../../base/common/codicons.js';
@@ -219,9 +220,9 @@ export class ChatCompositeBar extends Disposable {
 		const theme = this._themeService.getColorTheme();
 
 		const bg = theme.getColor(sessionsPanelBackground);
-		const activeFg = theme.getColor(sessionsPanelTabActiveForeground);
-		const inactiveFg = theme.getColor(sessionsPanelTabInactiveForeground);
-		const activeBorder = theme.getColor(sessionsPanelTabActiveBorder);
+		const activeFg = theme.getColor(PANEL_ACTIVE_TITLE_FOREGROUND);
+		const inactiveFg = theme.getColor(PANEL_INACTIVE_TITLE_FOREGROUND);
+		const activeBorder = theme.getColor(PANEL_ACTIVE_TITLE_BORDER);
 
 		this._container.style.setProperty('--chat-bar-background', bg?.toString() ?? '');
 		this._container.style.setProperty('--chat-tab-active-foreground', activeFg?.toString() ?? '');

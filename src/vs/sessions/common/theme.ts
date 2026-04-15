@@ -15,7 +15,7 @@ import { registerColor, transparent } from '../../platform/theme/common/colorUti
 import { contrastBorder, focusBorder } from '../../platform/theme/common/colorRegistry.js';
 import { editorWidgetBorder, editorBackground } from '../../platform/theme/common/colors/editorColors.js';
 import { buttonBackground, inputBackground, inputBorder, inputForeground, inputPlaceholderForeground } from '../../platform/theme/common/colors/inputColors.js';
-import { ACTIVITY_BAR_BADGE_BACKGROUND, ACTIVITY_BAR_BADGE_FOREGROUND, PANEL_ACTIVE_TITLE_BORDER, PANEL_ACTIVE_TITLE_FOREGROUND, PANEL_BORDER, PANEL_INACTIVE_TITLE_FOREGROUND, SIDE_BAR_BACKGROUND, SIDE_BAR_FOREGROUND } from '../../workbench/common/theme.js';
+import { ACTIVITY_BAR_BADGE_BACKGROUND, ACTIVITY_BAR_BADGE_FOREGROUND, PANEL_BORDER, SIDE_BAR_BACKGROUND, SIDE_BAR_FOREGROUND } from '../../workbench/common/theme.js';
 
 // ============================================================================
 // Sidebar
@@ -56,25 +56,6 @@ export const sessionsPanelBorder = registerColor(
 	'sessionsPanel.border',
 	{ dark: PANEL_BORDER, light: editorWidgetBorder, hcDark: contrastBorder, hcLight: contrastBorder },
 	localize('sessionsPanel.border', 'Border color of the card panels (chat, files, terminal) in the agent sessions window.')
-);
-
-// ============================================================================
-// Chat panel tabs
-// ============================================================================
-
-export const sessionsPanelTabActiveForeground = registerColor(
-	'sessionsPanelTab.activeForeground', PANEL_ACTIVE_TITLE_FOREGROUND,
-	localize('sessionsPanelTab.activeForeground', 'Foreground color of the active chat panel tab in the agent sessions window.')
-);
-
-export const sessionsPanelTabInactiveForeground = registerColor(
-	'sessionsPanelTab.inactiveForeground', PANEL_INACTIVE_TITLE_FOREGROUND,
-	localize('sessionsPanelTab.inactiveForeground', 'Foreground color of inactive chat panel tabs in the agent sessions window.')
-);
-
-export const sessionsPanelTabActiveBorder = registerColor(
-	'sessionsPanelTab.activeBorder', PANEL_ACTIVE_TITLE_BORDER,
-	localize('sessionsPanelTab.activeBorder', 'Border color of the active chat panel tab in the agent sessions window.')
 );
 
 // ============================================================================
