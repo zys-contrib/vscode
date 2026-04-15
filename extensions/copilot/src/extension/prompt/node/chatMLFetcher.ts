@@ -281,7 +281,10 @@ export class ChatMLFetcherImpl extends AbstractChatMLFetcher {
 							systemText = JSON.stringify(systemContent);
 						}
 						// Format as OTel GenAI system instruction JSON schema
-						otelInferenceSpan.setAttribute(GenAiAttr.SYSTEM_INSTRUCTIONS, JSON.stringify(toSystemInstructions(systemText)));
+						const systemInstructions = toSystemInstructions(systemText);
+						if (systemInstructions) {
+							otelInferenceSpan.setAttribute(GenAiAttr.SYSTEM_INSTRUCTIONS, JSON.stringify(systemInstructions));
+						}
 					}
 				}
 
