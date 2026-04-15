@@ -649,10 +649,12 @@ export namespace ConfigKey {
 		export const SearchSubagentToolEnabled = defineSetting<boolean>('chat.searchSubagent.enabled', ConfigType.ExperimentBased, false);
 		/** Use the agentic proxy for the search subagent tool */
 		export const SearchSubagentUseAgenticProxy = defineSetting<boolean>('chat.searchSubagent.useAgenticProxy', ConfigType.ExperimentBased, false);
-		/** Model to use for the search subagent. When useAgenticProxy is true, defaults to 'agentic-search-v3'. When false, defaults to the main agent model. */
+		/** Model to use for the search subagent. When useAgenticProxy is true, defaults to 'vscode-agentic-search-router-a'. When false, defaults to the main agent model. */
 		export const SearchSubagentModel = defineSetting<string>('chat.searchSubagent.model', ConfigType.ExperimentBased, '');
 		/** Maximum number of tool calls the search subagent can make */
 		export const SearchSubagentToolCallLimit = defineSetting<number>('chat.searchSubagent.toolCallLimit', ConfigType.ExperimentBased, 4);
+		/** Enable the thoroughness parameter on the search subagent tool, which adjusts turn limits based on requested thoroughness */
+		export const SearchSubagentThoroughnessEnabled = defineSetting<boolean>('chat.searchSubagent.thoroughnessEnabled', ConfigType.ExperimentBased, false);
 
 		export const ExecutionSubagentToolEnabled = defineSetting<boolean>('chat.executionSubagent.enabled', ConfigType.ExperimentBased, false);
 		/** Model to use for the execution subagent */
