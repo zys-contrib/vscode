@@ -64,9 +64,10 @@ export function emitInferenceDetailsEvent(
 			const systemText = typeof request.systemMessage === 'string'
 				? request.systemMessage
 				: JSON.stringify(request.systemMessage);
-			attributes[GenAiAttr.SYSTEM_INSTRUCTIONS] = truncateForOTel(JSON.stringify(
-				toSystemInstructions(systemText)
-			));
+			const systemInstructions = toSystemInstructions(systemText);
+			if (systemInstructions !== undefined) {
+				attributes[GenAiAttr.SYSTEM_INSTRUCTIONS] = truncateForOTel(JSON.stringify(systemInstructions));
+			}
 		}
 		if (request.tools !== undefined) {
 			attributes[GenAiAttr.TOOL_DEFINITIONS] = truncateForOTel(JSON.stringify(request.tools));

@@ -154,7 +154,7 @@ export function normalizeProviderMessages(messages: ReadonlyArray<Record<string,
 			return { role, parts };
 		}
 
-		if (typeof content === 'string') {
+		if (typeof content === 'string' && content.length > 0) {
 			parts.push({ type: 'text', content });
 		} else if (Array.isArray(content)) {
 			// Anthropic content block array
