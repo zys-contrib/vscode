@@ -34,9 +34,9 @@
 			linear-gradient(
 				to bottom right,
 				transparent 0%,
-				color-mix(in srgb, var(--vscode-button-background) 7%, transparent) 58%,
-				color-mix(in srgb, var(--vscode-button-background) 10%, transparent) 82%,
-				color-mix(in srgb, var(--vscode-button-background) 12%, transparent) 100%
+				color-mix(in srgb, var(--vscode-sessionsGradient-tintColor) 7%, transparent) 58%,
+				color-mix(in srgb, var(--vscode-sessionsGradient-tintColor) 10%, transparent) 82%,
+				color-mix(in srgb, var(--vscode-sessionsGradient-tintColor) 12%, transparent) 100%
 			),
 			var(--vscode-sessionsSidebar-background);
 	}
@@ -46,9 +46,9 @@
 			linear-gradient(
 				to bottom right,
 				transparent 0%,
-				color-mix(in srgb, var(--vscode-button-background) 2%, transparent) 45%,
-				color-mix(in srgb, var(--vscode-button-background) 10%, transparent) 75%,
-				color-mix(in srgb, var(--vscode-button-background) 20%, transparent) 100%
+				color-mix(in srgb, var(--vscode-sessionsGradient-tintColor) 2%, transparent) 45%,
+				color-mix(in srgb, var(--vscode-sessionsGradient-tintColor) 10%, transparent) 75%,
+				color-mix(in srgb, var(--vscode-sessionsGradient-tintColor) 20%, transparent) 100%
 			),
 			var(--vscode-sessionsSidebar-background);
 	}
@@ -57,9 +57,9 @@
 		background: linear-gradient(
 			to bottom right,
 			var(--vscode-sessionsSidebar-background) 0%,
-			color-mix(in srgb, var(--vscode-button-background) 10%, var(--vscode-sessionsSidebar-background)) 56%,
-			color-mix(in srgb, var(--vscode-button-background) 14%, var(--vscode-sessionsSidebar-background)) 82%,
-			color-mix(in srgb, var(--vscode-button-background) 18%, var(--vscode-sessionsSidebar-background)) 100%
+			color-mix(in srgb, var(--vscode-sessionsGradient-tintColor) 10%, var(--vscode-sessionsSidebar-background)) 56%,
+			color-mix(in srgb, var(--vscode-sessionsGradient-tintColor) 14%, var(--vscode-sessionsSidebar-background)) 82%,
+			color-mix(in srgb, var(--vscode-sessionsGradient-tintColor) 18%, var(--vscode-sessionsSidebar-background)) 100%
 		);
 	}
 }
@@ -147,7 +147,7 @@
 .monaco-workbench.vs.agent-sessions-workbench .part.chatbar,
 .monaco-workbench.vs.agent-sessions-workbench .part.auxiliarybar,
 .monaco-workbench.vs.agent-sessions-workbench .part.panel {
-	border-color: var(--vscode-editorWidget-border, var(--vscode-widget-border, transparent));
+	border-color: var(--vscode-sessionsCard-border, transparent);
 }
 
 /* ---- Chat Layout ---- */
@@ -208,11 +208,11 @@
 
 .agent-sessions-workbench .interactive-session .chat-input-container {
 	border-radius: var(--vscode-cornerRadius-large);
-	border-color: var(--vscode-editorWidget-border, var(--vscode-widget-border)) !important;
+	border-color: var(--vscode-chatInput-border, var(--vscode-editorWidget-border, var(--vscode-widget-border))) !important;
 }
 
 .agent-sessions-workbench .interactive-session .chat-input-container.focused {
-	border-color: var(--vscode-focusBorder) !important;
+	border-color: var(--vscode-chatInput-focusBorder, var(--vscode-focusBorder)) !important;
 }
 .agent-sessions-workbench .interactive-session .interactive-input-part {
 	width: 100%;

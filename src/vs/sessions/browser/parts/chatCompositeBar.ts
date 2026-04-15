@@ -9,7 +9,7 @@ import { Emitter, Event } from '../../../base/common/event.js';
 import { $, addDisposableListener, EventType, getWindow, reset } from '../../../base/browser/dom.js';
 import { autorun } from '../../../base/common/observable.js';
 import { IThemeService } from '../../../platform/theme/common/themeService.js';
-import { PANEL_ACTIVE_TITLE_BORDER, PANEL_ACTIVE_TITLE_FOREGROUND, PANEL_INACTIVE_TITLE_FOREGROUND } from '../../../workbench/common/theme.js';
+import { chatBarBackground, chatBarTabActiveForeground, chatBarTabInactiveForeground, chatBarTabActiveBorder } from '../../common/theme.js';
 import { Action } from '../../../base/common/actions.js';
 import { ActionBar } from '../../../base/browser/ui/actionbar/actionbar.js';
 import { Codicon } from '../../../base/common/codicons.js';
@@ -18,7 +18,6 @@ import { IContextMenuService } from '../../../platform/contextview/browser/conte
 import { StandardMouseEvent } from '../../../base/browser/mouseEvent.js';
 import { localize } from '../../../nls.js';
 import { IQuickInputService } from '../../../platform/quickinput/common/quickInput.js';
-import { chatBarBackground } from '../../common/theme.js';
 import { IChat, SessionStatus } from '../../services/sessions/common/session.js';
 import { ISessionsManagementService } from '../../services/sessions/common/sessionsManagement.js';
 
@@ -220,9 +219,9 @@ export class ChatCompositeBar extends Disposable {
 		const theme = this._themeService.getColorTheme();
 
 		const bg = theme.getColor(chatBarBackground);
-		const activeFg = theme.getColor(PANEL_ACTIVE_TITLE_FOREGROUND);
-		const inactiveFg = theme.getColor(PANEL_INACTIVE_TITLE_FOREGROUND);
-		const activeBorder = theme.getColor(PANEL_ACTIVE_TITLE_BORDER);
+		const activeFg = theme.getColor(chatBarTabActiveForeground);
+		const inactiveFg = theme.getColor(chatBarTabInactiveForeground);
+		const activeBorder = theme.getColor(chatBarTabActiveBorder);
 
 		this._container.style.setProperty('--chat-bar-background', bg?.toString() ?? '');
 		this._container.style.setProperty('--chat-tab-active-foreground', activeFg?.toString() ?? '');
