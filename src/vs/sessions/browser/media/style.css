@@ -202,13 +202,13 @@
 
 .agent-sessions-workbench .interactive-session .chat-input-container {
 	border-radius: var(--vscode-cornerRadius-large);
-	border-color: var(--vscode-chatInput-border) !important;
-	background-color: var(--vscode-chatInput-background);
-	color: var(--vscode-chatInput-foreground);
+	border-color: var(--vscode-sessionsChatInput-border) !important;
+	background-color: var(--vscode-sessionsChatInput-background);
+	color: var(--vscode-sessionsChatInput-foreground);
 }
 
 .agent-sessions-workbench .interactive-session .chat-input-container.focused {
-	border-color: var(--vscode-chatInput-focusBorder) !important;
+	border-color: var(--vscode-sessionsChatInput-focusBorder) !important;
 }
 
 /* Make the Monaco editor inside the chat input transparent so it inherits the chatInput.background */

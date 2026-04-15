@@ -62,19 +62,19 @@ export const sessionsPanelBorder = registerColor(
 // Chat panel tabs
 // ============================================================================
 
-export const chatPanelTabActiveForeground = registerColor(
-	'chatPanelTab.activeForeground', PANEL_ACTIVE_TITLE_FOREGROUND,
-	localize('chatPanelTab.activeForeground', 'Foreground color of the active chat panel tab in the agent sessions window.')
+export const sessionsPanelTabActiveForeground = registerColor(
+	'sessionsPanelTab.activeForeground', PANEL_ACTIVE_TITLE_FOREGROUND,
+	localize('sessionsPanelTab.activeForeground', 'Foreground color of the active chat panel tab in the agent sessions window.')
 );
 
-export const chatPanelTabInactiveForeground = registerColor(
-	'chatPanelTab.inactiveForeground', PANEL_INACTIVE_TITLE_FOREGROUND,
-	localize('chatPanelTab.inactiveForeground', 'Foreground color of inactive chat panel tabs in the agent sessions window.')
+export const sessionsPanelTabInactiveForeground = registerColor(
+	'sessionsPanelTab.inactiveForeground', PANEL_INACTIVE_TITLE_FOREGROUND,
+	localize('sessionsPanelTab.inactiveForeground', 'Foreground color of inactive chat panel tabs in the agent sessions window.')
 );
 
-export const chatPanelTabActiveBorder = registerColor(
-	'chatPanelTab.activeBorder', PANEL_ACTIVE_TITLE_BORDER,
-	localize('chatPanelTab.activeBorder', 'Border color of the active chat panel tab in the agent sessions window.')
+export const sessionsPanelTabActiveBorder = registerColor(
+	'sessionsPanelTab.activeBorder', PANEL_ACTIVE_TITLE_BORDER,
+	localize('sessionsPanelTab.activeBorder', 'Border color of the active chat panel tab in the agent sessions window.')
 );
 
 // ============================================================================
@@ -114,30 +114,30 @@ export const sessionsUpdateButtonDownloadedBackground = registerColor(
 // Chat input
 // ============================================================================
 
-export const chatInputBackground = registerColor(
-	'chatInput.background', inputBackground,
-	localize('chatInput.background', 'Background color of the chat input field in the agent sessions window.')
+export const sessionsChatInputBackground = registerColor(
+	'sessionsChatInput.background', inputBackground,
+	localize('sessionsChatInput.background', 'Background color of the chat input field in the agent sessions window.')
 );
 
-export const chatInputForeground = registerColor(
-	'chatInput.foreground', inputForeground,
-	localize('chatInput.foreground', 'Foreground color of the chat input field in the agent sessions window.')
+export const sessionsChatInputForeground = registerColor(
+	'sessionsChatInput.foreground', inputForeground,
+	localize('sessionsChatInput.foreground', 'Foreground color of the chat input field in the agent sessions window.')
 );
 
-export const chatInputBorder = registerColor(
-	'chatInput.border',
+export const sessionsChatInputBorder = registerColor(
+	'sessionsChatInput.border',
 	{ dark: editorWidgetBorder, light: editorWidgetBorder, hcDark: contrastBorder, hcLight: contrastBorder },
-	localize('chatInput.border', 'Border color of the chat input field in the agent sessions window.')
+	localize('sessionsChatInput.border', 'Border color of the chat input field in the agent sessions window.')
 );
 
-export const chatInputFocusBorder = registerColor(
-	'chatInput.focusBorder', focusBorder,
-	localize('chatInput.focusBorder', 'Border color of the chat input field when focused in the agent sessions window.')
+export const sessionsChatInputFocusBorder = registerColor(
+	'sessionsChatInput.focusBorder', focusBorder,
+	localize('sessionsChatInput.focusBorder', 'Border color of the chat input field when focused in the agent sessions window.')
 );
 
-export const chatInputPlaceholderForeground = registerColor(
-	'chatInput.placeholderForeground', inputPlaceholderForeground,
-	localize('chatInput.placeholderForeground', 'Placeholder text color in the chat input field in the agent sessions window.')
+export const sessionsChatInputPlaceholderForeground = registerColor(
+	'sessionsChatInput.placeholderForeground', inputPlaceholderForeground,
+	localize('sessionsChatInput.placeholderForeground', 'Placeholder text color in the chat input field in the agent sessions window.')
 );
 
 // ============================================================================

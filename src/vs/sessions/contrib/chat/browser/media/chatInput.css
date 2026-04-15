@@ -29,7 +29,7 @@
 
 .new-chat-input-container .chat-input-container {
 	overflow: hidden;
-	border-color: var(--vscode-chatInput-border);
+	border-color: var(--vscode-sessionsChatInput-border);
 }
 
 .new-chat-input-area {
@@ -37,22 +37,22 @@
 	width: 100%;
 	max-width: 800px;
 	box-sizing: border-box;
-	border: 1px solid var(--vscode-chatInput-border);
+	border: 1px solid var(--vscode-sessionsChatInput-border);
 	border-radius: 8px;
-	background-color: var(--vscode-chatInput-background);
-	color: var(--vscode-chatInput-foreground);
+	background-color: var(--vscode-sessionsChatInput-background);
+	color: var(--vscode-sessionsChatInput-foreground);
 	overflow: hidden;
 	display: flex;
 	flex-direction: column;
 }
 
 .new-chat-input-area:focus-within {
-	border-color: var(--vscode-chatInput-focusBorder);
+	border-color: var(--vscode-sessionsChatInput-focusBorder);
 }
 
 .new-chat-input-area::placeholder,
 .new-chat-input-area .monaco-editor .ghost-text-decoration {
-	color: var(--vscode-chatInput-placeholderForeground);
+	color: var(--vscode-sessionsChatInput-placeholderForeground);
 }
 
 .chat-input-picker-item .action-label.disabled {
