@@ -108,10 +108,9 @@ export class ToggleRemoteConnectionsActionViewItem extends BaseActionViewItem {
 		this._toastElement.textContent = localize('tunnelHost.toast', "Remote session access is now enabled");
 		this._toastElement.classList.add('visible');
 
-		const timeout = this._register(disposableTimeout(() => {
+		disposableTimeout(() => {
 			this._hideToast();
-			this._store.delete(timeout);
-		}, 3000));
+		}, 3000, this._store);
 	}
 
 	private _hideToast(): void {
@@ -136,7 +135,7 @@ export class ToggleRemoteConnectionsActionViewItem extends BaseActionViewItem {
 
 		lines.push(`[${localize('tunnelHost.hover.showOutput', "Show Output")}](command:${SHOW_TUNNEL_HOST_OUTPUT_ID})`);
 
-		const md = new MarkdownString(lines.join('\n\n'), { isTrusted: true });
+		const md = new MarkdownString(lines.join('\n\n'), { isTrusted: { enabledCommands: [SHOW_TUNNEL_HOST_OUTPUT_ID] } });
 		return { markdown: md, markdownNotSupportedFallback: lines[0] };
 	}
 

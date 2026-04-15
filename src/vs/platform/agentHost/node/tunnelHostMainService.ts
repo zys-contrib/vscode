@@ -12,7 +12,7 @@ import { Disposable, MutableDisposable } from '../../../base/common/lifecycle.js
 import { joinPath } from '../../../base/common/resources.js';
 import { IConfigurationService } from '../../configuration/common/configuration.js';
 import { INativeEnvironmentService } from '../../environment/common/environment.js';
-import { ILogger, ILoggerService, ILogService } from '../../log/common/log.js';
+import { ILogger, ILoggerService } from '../../log/common/log.js';
 import { localize } from '../../../nls.js';
 import { CONFIGURATION_KEY_HOST_NAME } from '../../remoteTunnel/common/remoteTunnel.js';
 import {
@@ -47,7 +47,6 @@ export class TunnelHostMainService extends Disposable implements ITunnelAgentHos
 	private readonly _logger: ILogger;
 
 	constructor(
-		@ILogService _logService: ILogService,
 		@IConfigurationService private readonly _configurationService: IConfigurationService,
 		@ILoggerService loggerService: ILoggerService,
 		@INativeEnvironmentService environmentService: INativeEnvironmentService,
