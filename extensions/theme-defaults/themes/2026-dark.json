@@ -281,7 +281,6 @@
 		"sessionsChatInput.background": "#202122",
 		"sessionsChatInput.foreground": "#bfbfbf",
 		"sessionsChatInput.border": "#333536",
-		"sessionsChatInput.focusBorder": "#3994BCB3",
 		"sessionsChatInput.placeholderForeground": "#555555",
 		"sessionsBadge.background": "#3994BC",
 		"sessionsBadge.foreground": "#FFFFFF",

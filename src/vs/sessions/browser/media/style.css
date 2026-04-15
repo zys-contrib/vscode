@@ -208,7 +208,7 @@
 }
 
 .agent-sessions-workbench .interactive-session .chat-input-container.focused {
-	border-color: var(--vscode-sessionsChatInput-focusBorder) !important;
+	border-color: var(--vscode-focusBorder) !important;
 }
 
 /* Make the Monaco editor inside the chat input transparent so it inherits the chatInput.background */

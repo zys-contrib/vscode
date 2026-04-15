@@ -73,7 +73,6 @@
 		"--vscode-chat-thinkingShimmer",
 		"--vscode-sessionsChatInput-background",
 		"--vscode-sessionsChatInput-border",
-		"--vscode-sessionsChatInput-focusBorder",
 		"--vscode-sessionsChatInput-foreground",
 		"--vscode-sessionsChatInput-placeholderForeground",
 		"--vscode-chatManagement-sashBorder",

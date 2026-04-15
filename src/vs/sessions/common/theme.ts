@@ -12,7 +12,7 @@
 
 import { localize } from '../../nls.js';
 import { registerColor, transparent } from '../../platform/theme/common/colorUtils.js';
-import { contrastBorder, focusBorder } from '../../platform/theme/common/colorRegistry.js';
+import { contrastBorder } from '../../platform/theme/common/colorRegistry.js';
 import { editorWidgetBorder, editorBackground } from '../../platform/theme/common/colors/editorColors.js';
 import { buttonBackground, inputBackground, inputBorder, inputForeground, inputPlaceholderForeground } from '../../platform/theme/common/colors/inputColors.js';
 import { ACTIVITY_BAR_BADGE_BACKGROUND, ACTIVITY_BAR_BADGE_FOREGROUND, PANEL_BORDER, SIDE_BAR_BACKGROUND, SIDE_BAR_FOREGROUND } from '../../workbench/common/theme.js';
@@ -98,11 +98,6 @@ export const sessionsChatInputForeground = registerColor(
 export const sessionsChatInputBorder = registerColor(
 	'sessionsChatInput.border', inputBorder,
 	localize('sessionsChatInput.border', 'Border color of the chat input field in the agent sessions window.')
-);
-
-export const sessionsChatInputFocusBorder = registerColor(
-	'sessionsChatInput.focusBorder', focusBorder,
-	localize('sessionsChatInput.focusBorder', 'Border color of the chat input field when focused in the agent sessions window.')
 );
 
 export const sessionsChatInputPlaceholderForeground = registerColor(
