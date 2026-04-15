@@ -999,6 +999,10 @@ export class SessionsList extends Disposable implements ISessionsList {
 
 	focus(): void {
 		this.tree.domFocus();
+
+		if (this.tree.getFocus().length === 0) {
+			this.tree.focusFirst();
+		}
 	}
 
 	openFind(): void {
