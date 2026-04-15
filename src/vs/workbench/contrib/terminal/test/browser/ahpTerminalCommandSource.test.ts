@@ -160,7 +160,8 @@ suite('AhpTerminalCommandSource', () => {
 	});
 
 	function createSource(): AhpTerminalCommandSource {
-		const source = new AhpTerminalCommandSource(mockInstance as ITerminalInstance, mockPty as AgentHostPty);
+		const source = new AhpTerminalCommandSource();
+		source.connect(mockInstance as ITerminalInstance, mockPty as AgentHostPty);
 		store.add(source);
 		return source;
 	}
@@ -341,7 +342,8 @@ suite('AhpTerminalCommandSource', () => {
 
 	test('dispose cleans up resources', () => {
 		const innerStore = new DisposableStore();
-		const source = new AhpTerminalCommandSource(mockInstance as ITerminalInstance, mockPty as AgentHostPty);
+		const source = new AhpTerminalCommandSource();
+		source.connect(mockInstance as ITerminalInstance, mockPty as AgentHostPty);
 		innerStore.add(source);
 
 		simulateMark('cmd-1', AhpCommandMarkKind.Executed);

@@ -15,10 +15,13 @@ import type { ICreateTerminalParams } from '../common/state/protocol/commands.js
 import { ITerminalClaim, ITerminalContentPart, ITerminalInfo, ITerminalState, TerminalClaimKind } from '../common/state/protocol/state.js';
 import { isTerminalAction } from '../common/state/sessionActions.js';
 import { getShellIntegrationInjection } from '../../terminal/node/terminalEnvironment.js';
-import { Osc633EventType, Osc633Parser } from './osc633Parser.js';
+import { Osc633Event, Osc633EventType, Osc633Parser } from './osc633Parser.js';
 import type { AgentHostStateManager } from './agentHostStateManager.js';
 import * as fs from 'fs';
 import { dirname } from '../../../base/common/path.js';
+import { DeferredPromise, raceCancellablePromises, timeout } from '../../../base/common/async.js';
+
+const WAIT_FOR_PROMPT_TIMEOUT = 10_000;
 
 export const IAgentHostTerminalManager = createDecorator<IAgentHostTerminalManager>('agentHostTerminalManager');
 
@@ -84,6 +87,7 @@ interface IManagedTerminal {
 	cols: number;
 	rows: number;
 	content: ITerminalContentPart[];
+	contentSize: number;
 	claim: ITerminalClaim;
 	exitCode?: number;
 	commandTracker?: ICommandTracker;
@@ -266,6 +270,7 @@ export class AgentHostTerminalManager extends Disposable implements IAgentHostTe
 			cols,
 			rows,
 			content: [],
+			contentSize: 0,
 			claim,
 			commandTracker,
 		};
@@ -277,14 +282,17 @@ export class AgentHostTerminalManager extends Disposable implements IAgentHostTe
 			try { ptyProcess.kill(); } catch { /* already dead */ }
 		}));
 
+		const onFirstData = new DeferredPromise<void>();
 		const dataListener = ptyProcess.onData(rawData => {
 			this._handlePtyData(managed, rawData);
+			onFirstData.complete();
 		});
 		store.add(toDisposable(() => dataListener.dispose()));
 
 		const exitListener = ptyProcess.onExit(e => {
 			managed.exitCode = e.exitCode;
 			managed.onExitEmitter.fire(e.exitCode);
+			onFirstData.complete();
 			this._stateManager.dispatchServerAction({
 				type: ActionType.TerminalExited,
 				terminal: uri,
@@ -310,6 +318,8 @@ export class AgentHostTerminalManager extends Disposable implements IAgentHostTe
 			}, 200);
 			store.add(toDisposable(() => clearInterval(titleInterval)));
 		}
+
+		await raceCancellablePromises([onFirstData.p, timeout(WAIT_FOR_PROMPT_TIMEOUT)]);
 
 		this._broadcastTerminalList();
 	}
@@ -427,6 +437,7 @@ export class AgentHostTerminalManager extends Disposable implements IAgentHostTe
 		const terminal = this._terminals.get(uri);
 		if (terminal) {
 			terminal.content = [];
+			terminal.contentSize = 0;
 		}
 	}
 
@@ -466,7 +477,7 @@ export class AgentHostTerminalManager extends Disposable implements IAgentHostTe
 	}
 
 	/** Handle a parsed OSC 633 event by dispatching the appropriate protocol actions. */
-	private _handleOsc633Event(managed: IManagedTerminal, tracker: ICommandTracker, event: import('./osc633Parser.js').Osc633Event): void {
+	private _handleOsc633Event(managed: IManagedTerminal, tracker: ICommandTracker, event: Osc633Event): void {
 		// Emit TerminalCommandDetectionAvailable on first sequence
 		if (!tracker.detectionAvailableEmitted) {
 			tracker.detectionAvailableEmitted = true;
@@ -577,40 +588,44 @@ export class AgentHostTerminalManager extends Disposable implements IAgentHostTe
 		if (tail && tail.type === 'command' && !tail.isComplete) {
 			// Active command — append to its output
 			tail.output += data;
+			managed.contentSize += data.length;
 		} else if (tail && tail.type === 'unclassified') {
 			// Extend the existing unclassified part
 			tail.value += data;
+			managed.contentSize += data.length;
 		} else {
 			// Start a new unclassified part
 			managed.content.push({ type: 'unclassified', value: data });
+			managed.contentSize += data.length;
 		}
+	}
+
+	private _getContentPartSize(part: ITerminalContentPart): number {
+		return part.type === 'command' ? part.output.length : part.value.length;
 	}
 
 	/** Trim content parts to stay within the rolling buffer limit. */
 	private _trimContent(managed: IManagedTerminal): void {
 		const maxSize = 100_000;
 		const targetSize = 80_000;
-		let totalSize = 0;
-		for (const part of managed.content) {
-			totalSize += part.type === 'command' ? part.output.length : part.value.length;
-		}
-		if (totalSize <= maxSize) {
+		if (managed.contentSize <= maxSize) {
 			return;
 		}
 		// Drop whole parts from the front while possible
-		while (totalSize > targetSize && managed.content.length > 1) {
+		while (managed.contentSize > targetSize && managed.content.length > 1) {
 			const removed = managed.content.shift()!;
-			totalSize -= removed.type === 'command' ? removed.output.length : removed.value.length;
+			managed.contentSize -= this._getContentPartSize(removed);
 		}
 		// If the single remaining (or first) part is still over budget, trim its text
-		if (totalSize > targetSize && managed.content.length > 0) {
+		if (managed.contentSize > targetSize && managed.content.length > 0) {
 			const head = managed.content[0];
-			const excess = totalSize - targetSize;
+			const excess = managed.contentSize - targetSize;
 			if (head.type === 'command') {
 				head.output = head.output.slice(excess);
 			} else {
 				head.value = head.value.slice(excess);
 			}
+			managed.contentSize -= excess;
 		}
 	}
 

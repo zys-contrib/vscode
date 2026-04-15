@@ -10,7 +10,7 @@ import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../../../base/
 import { ToolCallStatus, ToolCallConfirmationReason, ToolResultContentType, TurnState, ResponsePartKind, type IActiveTurn, type ICompletedToolCall, type IToolCallRunningState, type ITurn, type IToolCallResponsePart, ToolCallCancellationReason } from '../../../../../../platform/agentHost/common/state/sessionState.js';
 import { IChatToolInvocationSerialized, type IChatMarkdownContent } from '../../../common/chatService/chatService.js';
 import { ToolDataSource } from '../../../common/tools/languageModelToolsService.js';
-import { turnsToHistory, activeTurnToProgress, toolCallStateToInvocation, finalizeToolInvocation, updateRunningToolSpecificData } from '../../../browser/agentSessions/agentHost/stateToProgressAdapter.js';
+import { turnsToHistory, activeTurnToProgress, toolCallStateToInvocation as rawToolCallStateToInvocation, finalizeToolInvocation as rawFinalizeToolInvocation, updateRunningToolSpecificData } from '../../../browser/agentSessions/agentHost/stateToProgressAdapter.js';
 
 // ---- Helper factories -------------------------------------------------------
 
@@ -49,6 +49,14 @@ function createTurn(overrides?: Partial<ITurn>): ITurn {
 		state: TurnState.Complete,
 		...overrides,
 	};
+}
+
+function toolCallStateToInvocation(tc: Parameters<typeof rawToolCallStateToInvocation>[0], subAgentInvocationId?: string) {
+	return rawToolCallStateToInvocation(tc, subAgentInvocationId, URI.file('/'));
+}
+
+function finalizeToolInvocation(invocation: Parameters<typeof rawFinalizeToolInvocation>[0], tc: Parameters<typeof rawFinalizeToolInvocation>[1]) {
+	return rawFinalizeToolInvocation(invocation, tc, URI.file('/'));
 }
 
 // ---- Tests ------------------------------------------------------------------

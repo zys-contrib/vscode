@@ -137,6 +137,7 @@ const ESC = '\x1b';
 const OSC_START = ESC + ']';
 // Terminators: BEL (0x07) or ST (ESC \)
 const BEL = '\x07';
+const ST = ESC + '\\';
 
 /**
  * Stateful parser that handles data chunks, correctly dealing with
@@ -174,14 +175,14 @@ export class Osc633Parser {
 						this._inOsc = false;
 						const payload = this._pendingOsc;
 						this._pendingOsc = '';
-						this._handleOscPayload(payload, events, /* cleanedRef */ undefined);
+						this._handleOscPayload(payload, events, { value: cleaned, append(s: string) { cleaned = s; } }, ST);
 						continue;
 					}
 					// ESC was not followed by \, malformed: complete the OSC anyway.
 					this._inOsc = false;
 					const payload = this._pendingOsc;
 					this._pendingOsc = '';
-					this._handleOscPayload(payload, events, /* cleanedRef */ undefined);
+					this._handleOscPayload(payload, events, { value: cleaned, append(s: string) { cleaned = s; } });
 					continue;
 				}
 
@@ -192,7 +193,7 @@ export class Osc633Parser {
 					this._inOsc = false;
 					const payload = this._pendingOsc;
 					this._pendingOsc = '';
-					this._handleOscPayload(payload, events, /* cleanedRef */ undefined);
+					this._handleOscPayload(payload, events, { value: cleaned, append(s: string) { cleaned = s; } }, result.terminator);
 				} else if (result.pendingEsc) {
 					this._pendingEscInOsc = true;
 				}
@@ -224,7 +225,7 @@ export class Osc633Parser {
 				const payload = this._pendingOsc;
 				this._pendingOsc = '';
 				// If it's a 633 sequence, extract event; otherwise put it back in cleaned.
-				this._handleOscPayload(payload, events, { value: cleaned, append(s: string) { cleaned = s; } });
+				this._handleOscPayload(payload, events, { value: cleaned, append(s: string) { cleaned = s; } }, result.terminator);
 			} else if (result.pendingEsc) {
 				this._pendingEscInOsc = true;
 			}
@@ -238,13 +239,13 @@ export class Osc633Parser {
 	 * Consume characters from the OSC body, appending to _pendingOsc until a
 	 * terminator (BEL or ST) is found.
 	 */
-	private _consumeOscBody(data: string, startIdx: number): { nextIndex: number; complete: boolean; pendingEsc?: boolean } {
+	private _consumeOscBody(data: string, startIdx: number): { nextIndex: number; complete: boolean; pendingEsc?: boolean; terminator?: string } {
 		const belIdx = data.indexOf(BEL, startIdx);
 		const escIdx = data.indexOf(ESC, startIdx);
 
 		if (belIdx !== -1 && (escIdx === -1 || belIdx < escIdx)) {
 			this._pendingOsc += data.substring(startIdx, belIdx);
-			return { nextIndex: belIdx + 1, complete: true };
+			return { nextIndex: belIdx + 1, complete: true, terminator: BEL };
 		}
 
 		if (escIdx !== -1) {
@@ -255,7 +256,7 @@ export class Osc633Parser {
 
 			this._pendingOsc += data.substring(startIdx, escIdx);
 			if (data[escIdx + 1] === '\\') {
-				return { nextIndex: escIdx + 2, complete: true };
+				return { nextIndex: escIdx + 2, complete: true, terminator: ST };
 			}
 
 			return { nextIndex: escIdx, complete: true };
@@ -274,6 +275,7 @@ export class Osc633Parser {
 		payload: string,
 		events: Osc633Event[],
 		cleanedRef: { value: string; append(s: string): void } | undefined,
+		terminator = BEL,
 	): void {
 		if (payload.startsWith('633;')) {
 			const oscContent = payload.substring(4); // strip "633;"
@@ -283,10 +285,9 @@ export class Osc633Parser {
 			}
 			// 633 sequences are always stripped from output
 		} else {
-			// Non-633 OSC: put back the original bytes (we can't know which terminator
-			// was used, but BEL is the common case in practice)
+			// Non-633 OSC: put back the original bytes.
 			if (cleanedRef) {
-				cleanedRef.append(cleanedRef.value + OSC_START + payload + BEL);
+				cleanedRef.append(cleanedRef.value + OSC_START + payload + terminator);
 			}
 		}
 	}

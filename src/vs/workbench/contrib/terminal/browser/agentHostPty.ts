@@ -66,6 +66,18 @@ function getAhpCommandMarkCode(commandId: string, kind: AhpCommandMarkKind): str
 }
 
 /**
+ * The sentinel prefix used by copilot shell tools for exit code detection.
+ * When shell integration is active, these internal sentinel echo commands
+ * get detected as real commands — we suppress them from command events.
+ */
+const COPILOT_SENTINEL_PREFIX = '<<<COPILOT_SENTINEL_';
+
+/** Returns whether a command line is a copilot sentinel echo, not a real user command. */
+function isCopilotSentinelCommand(commandLine: string): boolean {
+	return commandLine.includes(COPILOT_SENTINEL_PREFIX);
+}
+
+/**
  * A pseudo-terminal backed by an Agent Host Protocol terminal subscription.
  *
  * Uses `customPtyImplementation` on `IShellLaunchConfig` so the
@@ -96,6 +108,14 @@ export class AgentHostPty extends BasePty implements ITerminalChildProcess {
 
 	private _supportsCommandDetection = false;
 	get supportsCommandDetection(): boolean { return this._supportsCommandDetection; }
+
+	/**
+	 * Command IDs for sentinel commands that should be suppressed from shell
+	 * integration events. When the copilot shell tools fall back to sentinel-
+	 * based exit code detection, shell integration may also detect the sentinel
+	 * echo as a real command — we filter those out here.
+	 */
+	private readonly _suppressedCommandIds = new Set<string>();
 
 	constructor(
 		id: number,
@@ -203,6 +223,10 @@ export class AgentHostPty extends BasePty implements ITerminalChildProcess {
 				}
 				break;
 			case ActionType.TerminalCommandExecuted:
+				if (isCopilotSentinelCommand(action.commandLine)) {
+					this._suppressedCommandIds.add(action.commandId);
+					break;
+				}
 				this.handleData(getAhpCommandMarkCode(action.commandId, AhpCommandMarkKind.Executed));
 				this._onCommandExecuted.fire({
 					commandId: action.commandId,
@@ -211,6 +235,9 @@ export class AgentHostPty extends BasePty implements ITerminalChildProcess {
 				});
 				break;
 			case ActionType.TerminalCommandFinished:
+				if (this._suppressedCommandIds.delete(action.commandId)) {
+					break;
+				}
 				this.handleData(getAhpCommandMarkCode(action.commandId, AhpCommandMarkKind.End));
 				this._onCommandFinished.fire({
 					commandId: action.commandId,
@@ -233,6 +260,9 @@ export class AgentHostPty extends BasePty implements ITerminalChildProcess {
 					this.handleData(part.value);
 				}
 			} else if (part.type === 'command') {
+				if (isCopilotSentinelCommand(part.commandLine)) {
+					continue;
+				}
 				this.handleData(getAhpCommandMarkCode(part.commandId, AhpCommandMarkKind.Executed));
 				this._onCommandExecuted.fire({
 					commandId: part.commandId,

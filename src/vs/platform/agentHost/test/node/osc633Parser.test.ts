@@ -176,6 +176,15 @@ suite('Osc633Parser', () => {
 		});
 	});
 
+	test('non-633 OSC sequences preserve ST terminator in output', () => {
+		const nonOsc = '\x1b]0;window title\x1b\\';
+		const result = parser.parse(`before${nonOsc}after`);
+		assert.deepStrictEqual(result, {
+			cleanedData: `before${nonOsc}after`,
+			events: [],
+		});
+	});
+
 	// -- Partial sequences across chunks ----------------------------------
 
 	test('sequence split across two chunks (split in payload)', () => {
@@ -198,6 +207,16 @@ suite('Osc633Parser', () => {
 		const r2 = parser.parse('\\more');
 		assert.strictEqual(r2.cleanedData, 'more');
 		assert.deepStrictEqual(r2.events, [{ type: Osc633EventType.CommandFinished, exitCode: 42 }]);
+	});
+
+	test('non-633 OSC sequence split at ESC of ST terminator preserves ST', () => {
+		const r1 = parser.parse('before\x1b]0;window title\x1b');
+		assert.strictEqual(r1.cleanedData, 'before');
+		assert.deepStrictEqual(r1.events, []);
+
+		const r2 = parser.parse('\\after');
+		assert.strictEqual(r2.cleanedData, '\x1b]0;window title\x1b\\after');
+		assert.deepStrictEqual(r2.events, []);
 	});
 
 	test('sequence split across three chunks', () => {

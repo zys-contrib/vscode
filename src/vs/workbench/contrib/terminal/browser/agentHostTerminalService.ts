@@ -11,7 +11,7 @@ import { IAgentConnection } from '../../../../platform/agentHost/common/agentSer
 import { createDecorator } from '../../../../platform/instantiation/common/instantiation.js';
 import { AgentHostPty } from './agentHostPty.js';
 import { AhpTerminalCommandSource } from './ahpTerminalCommandSource.js';
-import { IAhpTerminalCommandSource, ITerminalChatService, ITerminalInstance, ITerminalLocationOptions, ITerminalService } from './terminal.js';
+import { ITerminalChatService, ITerminalInstance, ITerminalLocationOptions, ITerminalService } from './terminal.js';
 
 export interface IAgentHostTerminalCreateOptions {
 	/** Human-readable terminal name. */
@@ -44,13 +44,6 @@ export interface IAgentHostTerminalService {
 	 * the same instance.
 	 */
 	reviveTerminal(connection: IAgentConnection, terminalUri: URI, terminalToolSessionId: string): Promise<ITerminalInstance>;
-
-	/**
-	 * Retrieve the {@link IAhpTerminalCommandSource} for a revived terminal.
-	 * The source is created automatically during {@link reviveTerminal}.
-	 * @param terminalUri The terminal URI used when reviving.
-	 */
-	getCommandSource(terminalUri: URI): IAhpTerminalCommandSource | undefined;
 }
 
 export class AgentHostTerminalService extends Disposable implements IAgentHostTerminalService {
@@ -58,8 +51,6 @@ export class AgentHostTerminalService extends Disposable implements IAgentHostTe
 
 	/** Revived terminal instances, keyed by terminal URI string. */
 	private readonly _revivedInstances = new Map<string, ITerminalInstance>();
-	/** AHP command sources, keyed by terminal URI string. */
-	private readonly _commandSources = new Map<string, AhpTerminalCommandSource>();
 
 	constructor(
 		@ITerminalService private readonly _terminalService: ITerminalService,
@@ -99,8 +90,8 @@ export class AgentHostTerminalService extends Disposable implements IAgentHostTe
 			return existing;
 		}
 
-		const commandSource = new AhpTerminalCommandSource();
 		const store = new DisposableStore();
+		const commandSource = store.add(new AhpTerminalCommandSource());
 		store.add(this._terminalChatService.registerAhpCommandSource(terminalToolSessionId, commandSource));
 
 		const instance = await this._terminalService.createTerminal({
@@ -132,9 +123,5 @@ export class AgentHostTerminalService extends Disposable implements IAgentHostTe
 		}));
 
 		return instance;
-	}
-
-	getCommandSource(terminalUri: URI): IAhpTerminalCommandSource | undefined {
-		return this._commandSources.get(terminalUri.toString());
 	}
 }
