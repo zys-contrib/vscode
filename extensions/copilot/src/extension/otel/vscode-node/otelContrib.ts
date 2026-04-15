@@ -122,11 +122,12 @@ export class OTelContrib extends Disposable implements IExtensionContribution {
 			if (!changed) {
 				return;
 			}
+			const reloadWindowLabel = vscode.l10n.t("Reload Window");
 			const selection = await vscode.window.showInformationMessage(
-				'Copilot OTel settings changed - a reload is required for the change to take effect.',
-				'Reload Window',
+				vscode.l10n.t("Copilot OTel settings changed - a reload is required for the change to take effect."),
+				reloadWindowLabel,
 			);
-			if (selection === 'Reload Window') {
+			if (selection === reloadWindowLabel) {
 				await vscode.commands.executeCommand('workbench.action.reloadWindow');
 			}
 		}));
