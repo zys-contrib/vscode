@@ -50,7 +50,6 @@
 	border-color: var(--vscode-sessionsChatInput-focusBorder);
 }
 
-.new-chat-input-area::placeholder,
 .new-chat-input-area .monaco-editor .ghost-text-decoration {
 	color: var(--vscode-sessionsChatInput-placeholderForeground);
 }

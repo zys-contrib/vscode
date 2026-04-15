@@ -274,11 +274,9 @@
 		"minimapSlider.activeBackground": "#83848599",
 
 		"sessions.background": "#121314",
-
 		"sessionsPanel.background": "#191A1B",
 		"sessionsPanel.foreground": "#bfbfbf",
 		"sessionsPanel.border": "#2A2B2CFF",
-
 		"sessionsGradient.tintColor": "#297AA0",
 		"sessionsChatInput.background": "#202122",
 		"sessionsChatInput.foreground": "#bfbfbf",
@@ -288,7 +286,7 @@
 		"sessionsBadge.background": "#3994BC",
 		"sessionsBadge.foreground": "#FFFFFF",
 		"sessionsUnreadBadge.background": "#3994BC",
-			"sessionsUnreadBadge.foreground": "#FFFFFF"
+		"sessionsUnreadBadge.foreground": "#FFFFFF"
 	},
 	"tokenColors": [
 		{

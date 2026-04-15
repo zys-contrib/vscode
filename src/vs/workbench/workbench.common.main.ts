@@ -10,9 +10,12 @@ import '../editor/editor.all.js';
 import './api/browser/extensionHost.contribution.js';
 import './browser/workbench.contribution.js';
 
-// Agent-sessions color tokens — side-effect import so they register in the
-// global color registry and appear in the color-theme JSON schema.
-import '../sessions/common/theme.js';
+// Agent-sessions color tokens should not be pulled into the synchronous main
+// workbench entrypoint load. Defer registration so the sessions layer is only
+// loaded after initial module evaluation.
+queueMicrotask(() => {
+	void import('../sessions/common/theme.js');
+});
 
 //#endregion
 

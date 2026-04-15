@@ -243,7 +243,7 @@ export class TitlebarPart extends Part implements ITitlebarPart {
 			this.element.classList.toggle('inactive', this.isInactive);
 
 			// Titlebar is transparent — it inherits the sidebar/gradient background via CSS.
-			// Only set foreground and light/dark class for icon contrast.
+			// Only set foreground color for text/icon contrast.
 			this.element.style.backgroundColor = '';
 
 			const titleForeground = this.getColor(sessionsPanelForeground);

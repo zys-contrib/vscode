@@ -135,8 +135,8 @@ export class ChatBarPart extends AbstractPaneCompositePart { // TODO: should not
 		// Store background and border as CSS variables for the card styling on .part
 		container.style.setProperty('--part-background', this.getColor(sessionsPanelBackground) || '');
 		container.style.setProperty('--part-border-color', this.getColor(sessionsPanelBorder) || 'transparent');
+		container.style.setProperty('--part-foreground', this.getColor(sessionsPanelForeground) || '');
 		container.style.backgroundColor = this.getColor(sessionsPanelBackground) || '';
-		container.style.color = this.getColor(sessionsPanelForeground) || '';
 	}
 
 	override layout(width: number, height: number, top: number, left: number): void {
