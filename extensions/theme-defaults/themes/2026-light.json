@@ -278,8 +278,6 @@
 		"minimapSlider.activeBackground": "#99999955",
 
 		"sessionsSidebar.background": "#FAFAFD",
-		"sessionsSidebar.foreground": "#202020",
-		"sessionsSidebar.border": "#F0F1F2FF",
 
 			"sessionsPanel.background": "#FFFFFF",
 			"sessionsPanel.foreground": "#202020",

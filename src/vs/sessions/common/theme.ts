@@ -18,23 +18,13 @@ import { buttonBackground, inputBackground, inputBorder, inputForeground, inputP
 import { ACTIVITY_BAR_BADGE_BACKGROUND, ACTIVITY_BAR_BADGE_FOREGROUND, PANEL_BORDER, SIDE_BAR_BACKGROUND, SIDE_BAR_FOREGROUND } from '../../workbench/common/theme.js';
 
 // ============================================================================
-// Sidebar
+// Shell background (used by the gradient system)
 // ============================================================================
 
 export const sessionsSidebarBackground = registerColor(
 	'sessionsSidebar.background',
 	{ dark: editorBackground, light: SIDE_BAR_BACKGROUND, hcDark: editorBackground, hcLight: editorBackground },
-	localize('sessionsSidebar.background', 'Background color of the sidebar in the agent sessions window.')
-);
-
-export const sessionsSidebarForeground = registerColor(
-	'sessionsSidebar.foreground', SIDE_BAR_FOREGROUND,
-	localize('sessionsSidebar.foreground', 'Foreground color of the sidebar in the agent sessions window.')
-);
-
-export const sessionsSidebarBorder = registerColor(
-	'sessionsSidebar.border', PANEL_BORDER,
-	localize('sessionsSidebar.border', 'Border color for section dividers within the sidebar in the agent sessions window.')
+	localize('sessionsSidebar.background', 'Background color of the agent sessions window shell and gradient base.')
 );
 
 // ============================================================================
