@@ -38,91 +38,24 @@ export const sessionsSidebarBorder = registerColor(
 );
 
 // ============================================================================
-// Sidebar header
-// ============================================================================
-
-export const sessionsSidebarHeaderBackground = registerColor(
-	'sessionsSidebarHeader.background', sessionsSidebarBackground,
-	localize('sessionsSidebarHeader.background', 'Background color of the sidebar header area in the agent sessions window.')
-);
-
-export const sessionsSidebarHeaderForeground = registerColor(
-	'sessionsSidebarHeader.foreground', SIDE_BAR_FOREGROUND,
-	localize('sessionsSidebarHeader.foreground', 'Foreground color of the sidebar header area in the agent sessions window.')
-);
-
-// ============================================================================
-// Auxiliary bar
-// ============================================================================
-
-export const sessionsAuxiliaryBarBackground = registerColor(
-	'sessionsAuxiliaryBar.background',
-	{ dark: SIDE_BAR_BACKGROUND, light: editorBackground, hcDark: SIDE_BAR_BACKGROUND, hcLight: SIDE_BAR_BACKGROUND },
-	localize('sessionsAuxiliaryBar.background', 'Background color of the auxiliary bar in the agent sessions window.')
-);
-
-export const sessionsAuxiliaryBarForeground = registerColor(
-	'sessionsAuxiliaryBar.foreground', SIDE_BAR_FOREGROUND,
-	localize('sessionsAuxiliaryBar.foreground', 'Foreground color of the auxiliary bar in the agent sessions window.')
-);
-
-export const sessionsAuxiliaryBarBorder = registerColor(
-	'sessionsAuxiliaryBar.border', PANEL_BORDER,
-	localize('sessionsAuxiliaryBar.border', 'Border color of the auxiliary bar in the agent sessions window.')
-);
-
-// ============================================================================
-// Panel
+// Panels (chat panel, auxiliary bar, terminal panel)
 // ============================================================================
 
 export const sessionsPanelBackground = registerColor(
 	'sessionsPanel.background',
 	{ dark: SIDE_BAR_BACKGROUND, light: editorBackground, hcDark: SIDE_BAR_BACKGROUND, hcLight: SIDE_BAR_BACKGROUND },
-	localize('sessionsPanel.background', 'Background color of the panel in the agent sessions window.')
+	localize('sessionsPanel.background', 'Background color of the card panels (chat, files, terminal) in the agent sessions window.')
 );
 
 export const sessionsPanelForeground = registerColor(
 	'sessionsPanel.foreground', SIDE_BAR_FOREGROUND,
-	localize('sessionsPanel.foreground', 'Foreground color of the panel in the agent sessions window.')
+	localize('sessionsPanel.foreground', 'Foreground color of the card panels (chat, files, terminal) in the agent sessions window.')
 );
 
 export const sessionsPanelBorder = registerColor(
-	'sessionsPanel.border', PANEL_BORDER,
-	localize('sessionsPanel.border', 'Border color of the panel in the agent sessions window.')
-);
-
-// ============================================================================
-// Chat panel
-// ============================================================================
-
-export const chatPanelBackground = registerColor(
-	'chatPanel.background',
-	{ dark: SIDE_BAR_BACKGROUND, light: editorBackground, hcDark: SIDE_BAR_BACKGROUND, hcLight: SIDE_BAR_BACKGROUND },
-	localize('chatPanel.background', 'Background color of the chat panel in the agent sessions window.')
-);
-
-export const chatPanelForeground = registerColor(
-	'chatPanel.foreground', SIDE_BAR_FOREGROUND,
-	localize('chatPanel.foreground', 'Foreground color of the chat panel in the agent sessions window.')
-);
-
-export const chatPanelBorder = registerColor(
-	'chatPanel.border', PANEL_BORDER,
-	localize('chatPanel.border', 'Border color of the chat panel in the agent sessions window.')
-);
-
-// ============================================================================
-// Chat panel title
-// ============================================================================
-
-export const chatPanelTitleBackground = registerColor(
-	'chatPanelTitle.background', sessionsSidebarBackground,
-	localize('chatPanelTitle.background', 'Background color of the chat panel title area in the agent sessions window.')
-);
-
-export const chatPanelTitleForeground = registerColor(
-	'chatPanelTitle.foreground', SIDE_BAR_FOREGROUND,
-	localize('chatPanelTitle.foreground', 'Foreground color of the chat panel title area in the agent sessions window.')
+	'sessionsPanel.border',
+	{ dark: PANEL_BORDER, light: editorWidgetBorder, hcDark: contrastBorder, hcLight: contrastBorder },
+	localize('sessionsPanel.border', 'Border color of the card panels (chat, files, terminal) in the agent sessions window.')
 );
 
 // ============================================================================
@@ -142,16 +75,6 @@ export const chatPanelTabInactiveForeground = registerColor(
 export const chatPanelTabActiveBorder = registerColor(
 	'chatPanelTab.activeBorder', PANEL_ACTIVE_TITLE_BORDER,
 	localize('chatPanelTab.activeBorder', 'Border color of the active chat panel tab in the agent sessions window.')
-);
-
-// ============================================================================
-// Card appearance
-// ============================================================================
-
-export const sessionsCardBorder = registerColor(
-	'sessionsCard.border',
-	{ dark: PANEL_BORDER, light: editorWidgetBorder, hcDark: contrastBorder, hcLight: contrastBorder },
-	localize('sessionsCard.border', 'Border color of the card surfaces (chat bar, auxiliary bar, panel) in the agent sessions window.')
 );
 
 // ============================================================================

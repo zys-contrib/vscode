@@ -12,7 +12,7 @@ import { INotificationService } from '../../../platform/notification/common/noti
 import { IStorageService } from '../../../platform/storage/common/storage.js';
 import { IThemeService } from '../../../platform/theme/common/themeService.js';
 import { PANEL_ACTIVE_TITLE_BORDER, PANEL_ACTIVE_TITLE_FOREGROUND, PANEL_DRAG_AND_DROP_BORDER, PANEL_INACTIVE_TITLE_FOREGROUND, SIDE_BAR_TITLE_BORDER } from '../../../workbench/common/theme.js';
-import { chatPanelBackground, chatPanelForeground, sessionsBadgeBackground, sessionsBadgeForeground, sessionsCardBorder } from '../../common/theme.js';
+import { sessionsPanelBackground, sessionsPanelBorder, sessionsPanelForeground, sessionsBadgeBackground, sessionsBadgeForeground } from '../../common/theme.js';
 import { IViewDescriptorService, ViewContainerLocation } from '../../../workbench/common/views.js';
 import { IExtensionService } from '../../../workbench/services/extensions/common/extensions.js';
 import { IWorkbenchLayoutService, Parts } from '../../../workbench/services/layout/browser/layoutService.js';
@@ -133,10 +133,10 @@ export class ChatBarPart extends AbstractPaneCompositePart { // TODO: should not
 		const container = assertReturnsDefined(this.getContainer());
 
 		// Store background and border as CSS variables for the card styling on .part
-		container.style.setProperty('--part-background', this.getColor(chatPanelBackground) || '');
-		container.style.setProperty('--part-border-color', this.getColor(sessionsCardBorder) || 'transparent');
-		container.style.backgroundColor = this.getColor(chatPanelBackground) || '';
-		container.style.color = this.getColor(chatPanelForeground) || '';
+		container.style.setProperty('--part-background', this.getColor(sessionsPanelBackground) || '');
+		container.style.setProperty('--part-border-color', this.getColor(sessionsPanelBorder) || 'transparent');
+		container.style.backgroundColor = this.getColor(sessionsPanelBackground) || '';
+		container.style.color = this.getColor(sessionsPanelForeground) || '';
 	}
 
 	override layout(width: number, height: number, top: number, left: number): void {
@@ -179,8 +179,8 @@ export class ChatBarPart extends AbstractPaneCompositePart { // TODO: should not
 			iconSize: 16,
 			overflowActionSize: 30,
 			colors: theme => ({
-				activeBackgroundColor: theme.getColor(chatPanelBackground),
-				inactiveBackgroundColor: theme.getColor(chatPanelBackground),
+				activeBackgroundColor: theme.getColor(sessionsPanelBackground),
+				inactiveBackgroundColor: theme.getColor(sessionsPanelBackground),
 				activeBorderBottomColor: theme.getColor(PANEL_ACTIVE_TITLE_BORDER),
 				activeForegroundColor: theme.getColor(PANEL_ACTIVE_TITLE_FOREGROUND),
 				inactiveForegroundColor: theme.getColor(PANEL_INACTIVE_TITLE_FOREGROUND),

@@ -121,7 +121,7 @@
 }
 
 .agent-sessions-workbench .part.auxiliarybar > .content .pane-body {
-	background-color: var(--vscode-sessionsAuxiliaryBar-background);
+	background-color: var(--vscode-sessionsPanel-background);
 }
 
 .agent-sessions-workbench .part.panel {
@@ -142,12 +142,6 @@
 
 .agent-sessions-workbench .monaco-sash:not(.disabled) > .orthogonal-drag-handle {
 	border-radius: var(--vscode-sash-size);
-}
-
-.monaco-workbench.vs.agent-sessions-workbench .part.chatbar,
-.monaco-workbench.vs.agent-sessions-workbench .part.auxiliarybar,
-.monaco-workbench.vs.agent-sessions-workbench .part.panel {
-	border-color: var(--vscode-sessionsCard-border, transparent);
 }
 
 /* ---- Chat Layout ---- */

@@ -13,7 +13,7 @@ import { IKeybindingService } from '../../../platform/keybinding/common/keybindi
 import { IInstantiationService } from '../../../platform/instantiation/common/instantiation.js';
 import { IThemeService } from '../../../platform/theme/common/themeService.js';
 import { SIDE_BAR_TITLE_FOREGROUND, SIDE_BAR_TITLE_BORDER, SIDE_BAR_FOREGROUND, SIDE_BAR_DRAG_AND_DROP_BACKGROUND, ACTIVITY_BAR_BADGE_BACKGROUND, ACTIVITY_BAR_BADGE_FOREGROUND, ACTIVITY_BAR_TOP_FOREGROUND, ACTIVITY_BAR_TOP_ACTIVE_BORDER, ACTIVITY_BAR_TOP_INACTIVE_FOREGROUND, ACTIVITY_BAR_TOP_DRAG_AND_DROP_BORDER } from '../../../workbench/common/theme.js';
-import { sessionsSidebarBackground, sessionsSidebarHeaderBackground, sessionsSidebarHeaderForeground } from '../../common/theme.js';
+import { sessionsSidebarBackground, sessionsSidebarForeground } from '../../common/theme.js';
 import { INotificationService } from '../../../platform/notification/common/notification.js';
 import { IContextKeyService } from '../../../platform/contextkey/common/contextkey.js';
 import { AnchorAlignment } from '../../../base/browser/ui/contextview/contextview.js';
@@ -234,8 +234,8 @@ export class SidebarPart extends AbstractPaneCompositePart {
 
 		// Title area uses sessions-specific header colors
 		if (this.sideBarTitleArea) {
-			this.sideBarTitleArea.style.backgroundColor = this.getColor(sessionsSidebarHeaderBackground) || '';
-			this.sideBarTitleArea.style.color = this.getColor(sessionsSidebarHeaderForeground) || '';
+			this.sideBarTitleArea.style.backgroundColor = this.getColor(sessionsSidebarBackground) || '';
+			this.sideBarTitleArea.style.color = this.getColor(sessionsSidebarForeground) || '';
 		}
 	}
 

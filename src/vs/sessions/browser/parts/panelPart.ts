@@ -15,7 +15,7 @@ import { IKeybindingService } from '../../../platform/keybinding/common/keybindi
 import { IInstantiationService } from '../../../platform/instantiation/common/instantiation.js';
 import { IThemeService } from '../../../platform/theme/common/themeService.js';
 import { PANEL_TITLE_BORDER, PANEL_ACTIVE_TITLE_FOREGROUND, PANEL_INACTIVE_TITLE_FOREGROUND, PANEL_ACTIVE_TITLE_BORDER, PANEL_DRAG_AND_DROP_BORDER } from '../../../workbench/common/theme.js';
-import { sessionsBadgeBackground, sessionsBadgeForeground, sessionsCardBorder, sessionsPanelBackground, sessionsPanelForeground } from '../../common/theme.js';
+import { sessionsBadgeBackground, sessionsBadgeForeground, sessionsPanelBackground, sessionsPanelBorder, sessionsPanelForeground } from '../../common/theme.js';
 import { INotificationService } from '../../../platform/notification/common/notification.js';
 import { IContextKeyService } from '../../../platform/contextkey/common/contextkey.js';
 import { assertReturnsDefined } from '../../../base/common/types.js';
@@ -129,7 +129,7 @@ export class PanelPart extends AbstractPaneCompositePart {
 
 		// Store background and border as CSS variables for the card styling on .part
 		container.style.setProperty('--part-background', this.getColor(sessionsPanelBackground) || '');
-		container.style.setProperty('--part-border-color', this.getColor(sessionsCardBorder) || 'transparent');
+		container.style.setProperty('--part-border-color', this.getColor(sessionsPanelBorder) || 'transparent');
 		container.style.backgroundColor = this.getColor(sessionsPanelBackground) || '';
 		container.style.color = this.getColor(sessionsPanelForeground) || '';
 
