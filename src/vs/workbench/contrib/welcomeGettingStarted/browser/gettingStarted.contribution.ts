@@ -345,7 +345,7 @@ configurationRegistry.registerConfiguration({
 			tags: ['experimental'],
 			description: localize('workbench.welcomePage.experimentalOnboarding', "When enabled, show the new onboarding experience instead of the classic walkthrough on first launch."),
 			experiment: {
-				mode: 'startup'
+				mode: 'auto'
 			}
 		}
 	}
