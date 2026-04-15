@@ -64,7 +64,7 @@
 .sessions-chat-editor .monaco-editor,
 .sessions-chat-editor .monaco-editor .overflow-guard,
 .sessions-chat-editor .monaco-editor-background {
-	background-color: var(--vscode-input-background) !important;
+	background-color: transparent !important;
 	border-radius: 8px 8px 0 0;
 }
 
