@@ -3,6 +3,13 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
+// Agent-sessions color tokens.
+//
+// Registrations live here in the sessions layer. The workbench entry point
+// (`workbench.common.main.ts`) imports this file as a side-effect so the
+// tokens are present in the global color registry and JSON theme schema
+// for both the main workbench and the sessions workbench.
+
 import { localize } from '../../nls.js';
 import { registerColor, transparent } from '../../platform/theme/common/colorUtils.js';
 import { contrastBorder, focusBorder } from '../../platform/theme/common/colorRegistry.js';
@@ -10,47 +17,23 @@ import { editorWidgetBorder, editorBackground } from '../../platform/theme/commo
 import { buttonBackground, inputBackground, inputBorder, inputForeground, inputPlaceholderForeground } from '../../platform/theme/common/colors/inputColors.js';
 import { ACTIVITY_BAR_BADGE_BACKGROUND, ACTIVITY_BAR_BADGE_FOREGROUND, PANEL_ACTIVE_TITLE_BORDER, PANEL_ACTIVE_TITLE_FOREGROUND, PANEL_BORDER, PANEL_INACTIVE_TITLE_FOREGROUND, SIDE_BAR_BACKGROUND, SIDE_BAR_FOREGROUND } from '../../workbench/common/theme.js';
 
-// ---- Naming Convention ----
-//
-// Agent-sessions color tokens follow the existing VS Code color-service pattern:
-//
-//   sessions{Part}.{property}      — surfaces scoped to the sessions window
-//   sessions{Part}{Sub}.{property} — sub-elements within a part
-//   chatBar.{property}             — the central chat bar (unique enough without prefix)
-//   chatBarTab.{property}          — tab items inside the chat bar composite bar
-//   chatBarTitle.{property}        — title area of the chat bar
-//
-// {Part}     = Sidebar | AuxiliaryBar | Panel | Card | Gradient
-// {property} = background | foreground | border | tintColor
-//
-// Every token inherits a sensible default from the workbench palette so the
-// agent-sessions window looks correct out-of-the-box with any built-in theme.
-// Theme authors can override individual tokens to customise the agent UI.
-
 // ============================================================================
 // Sidebar
 // ============================================================================
 
 export const sessionsSidebarBackground = registerColor(
 	'sessionsSidebar.background',
-	{
-		dark: editorBackground,
-		light: SIDE_BAR_BACKGROUND,
-		hcDark: editorBackground,
-		hcLight: editorBackground,
-	},
+	{ dark: editorBackground, light: SIDE_BAR_BACKGROUND, hcDark: editorBackground, hcLight: editorBackground },
 	localize('sessionsSidebar.background', 'Background color of the sidebar in the agent sessions window.')
 );
 
 export const sessionsSidebarForeground = registerColor(
-	'sessionsSidebar.foreground',
-	SIDE_BAR_FOREGROUND,
+	'sessionsSidebar.foreground', SIDE_BAR_FOREGROUND,
 	localize('sessionsSidebar.foreground', 'Foreground color of the sidebar in the agent sessions window.')
 );
 
 export const sessionsSidebarBorder = registerColor(
-	'sessionsSidebar.border',
-	PANEL_BORDER,
+	'sessionsSidebar.border', PANEL_BORDER,
 	localize('sessionsSidebar.border', 'Border color for section dividers within the sidebar in the agent sessions window.')
 );
 
@@ -59,14 +42,12 @@ export const sessionsSidebarBorder = registerColor(
 // ============================================================================
 
 export const sessionsSidebarHeaderBackground = registerColor(
-	'sessionsSidebarHeader.background',
-	sessionsSidebarBackground,
+	'sessionsSidebarHeader.background', sessionsSidebarBackground,
 	localize('sessionsSidebarHeader.background', 'Background color of the sidebar header area in the agent sessions window.')
 );
 
 export const sessionsSidebarHeaderForeground = registerColor(
-	'sessionsSidebarHeader.foreground',
-	SIDE_BAR_FOREGROUND,
+	'sessionsSidebarHeader.foreground', SIDE_BAR_FOREGROUND,
 	localize('sessionsSidebarHeader.foreground', 'Foreground color of the sidebar header area in the agent sessions window.')
 );
 
@@ -76,24 +57,17 @@ export const sessionsSidebarHeaderForeground = registerColor(
 
 export const sessionsAuxiliaryBarBackground = registerColor(
 	'sessionsAuxiliaryBar.background',
-	{
-		dark: SIDE_BAR_BACKGROUND,
-		light: editorBackground,
-		hcDark: SIDE_BAR_BACKGROUND,
-		hcLight: SIDE_BAR_BACKGROUND,
-	},
+	{ dark: SIDE_BAR_BACKGROUND, light: editorBackground, hcDark: SIDE_BAR_BACKGROUND, hcLight: SIDE_BAR_BACKGROUND },
 	localize('sessionsAuxiliaryBar.background', 'Background color of the auxiliary bar in the agent sessions window.')
 );
 
 export const sessionsAuxiliaryBarForeground = registerColor(
-	'sessionsAuxiliaryBar.foreground',
-	SIDE_BAR_FOREGROUND,
+	'sessionsAuxiliaryBar.foreground', SIDE_BAR_FOREGROUND,
 	localize('sessionsAuxiliaryBar.foreground', 'Foreground color of the auxiliary bar in the agent sessions window.')
 );
 
 export const sessionsAuxiliaryBarBorder = registerColor(
-	'sessionsAuxiliaryBar.border',
-	PANEL_BORDER,
+	'sessionsAuxiliaryBar.border', PANEL_BORDER,
 	localize('sessionsAuxiliaryBar.border', 'Border color of the auxiliary bar in the agent sessions window.')
 );
 
@@ -103,24 +77,17 @@ export const sessionsAuxiliaryBarBorder = registerColor(
 
 export const sessionsPanelBackground = registerColor(
 	'sessionsPanel.background',
-	{
-		dark: SIDE_BAR_BACKGROUND,
-		light: editorBackground,
-		hcDark: SIDE_BAR_BACKGROUND,
-		hcLight: SIDE_BAR_BACKGROUND,
-	},
+	{ dark: SIDE_BAR_BACKGROUND, light: editorBackground, hcDark: SIDE_BAR_BACKGROUND, hcLight: SIDE_BAR_BACKGROUND },
 	localize('sessionsPanel.background', 'Background color of the panel in the agent sessions window.')
 );
 
 export const sessionsPanelForeground = registerColor(
-	'sessionsPanel.foreground',
-	SIDE_BAR_FOREGROUND,
+	'sessionsPanel.foreground', SIDE_BAR_FOREGROUND,
 	localize('sessionsPanel.foreground', 'Foreground color of the panel in the agent sessions window.')
 );
 
 export const sessionsPanelBorder = registerColor(
-	'sessionsPanel.border',
-	PANEL_BORDER,
+	'sessionsPanel.border', PANEL_BORDER,
 	localize('sessionsPanel.border', 'Border color of the panel in the agent sessions window.')
 );
 
@@ -130,24 +97,17 @@ export const sessionsPanelBorder = registerColor(
 
 export const chatBarBackground = registerColor(
 	'chatBar.background',
-	{
-		dark: SIDE_BAR_BACKGROUND,
-		light: editorBackground,
-		hcDark: SIDE_BAR_BACKGROUND,
-		hcLight: SIDE_BAR_BACKGROUND,
-	},
+	{ dark: SIDE_BAR_BACKGROUND, light: editorBackground, hcDark: SIDE_BAR_BACKGROUND, hcLight: SIDE_BAR_BACKGROUND },
 	localize('chatBar.background', 'Background color of the chat bar in the agent sessions window.')
 );
 
 export const chatBarForeground = registerColor(
-	'chatBar.foreground',
-	SIDE_BAR_FOREGROUND,
+	'chatBar.foreground', SIDE_BAR_FOREGROUND,
 	localize('chatBar.foreground', 'Foreground color of the chat bar in the agent sessions window.')
 );
 
 export const chatBarBorder = registerColor(
-	'chatBar.border',
-	PANEL_BORDER,
+	'chatBar.border', PANEL_BORDER,
 	localize('chatBar.border', 'Border color of the chat bar in the agent sessions window.')
 );
 
@@ -156,41 +116,36 @@ export const chatBarBorder = registerColor(
 // ============================================================================
 
 export const chatBarTitleBackground = registerColor(
-	'chatBarTitle.background',
-	sessionsSidebarBackground,
+	'chatBarTitle.background', sessionsSidebarBackground,
 	localize('chatBarTitle.background', 'Background color of the chat bar title area in the agent sessions window.')
 );
 
 export const chatBarTitleForeground = registerColor(
-	'chatBarTitle.foreground',
-	SIDE_BAR_FOREGROUND,
+	'chatBarTitle.foreground', SIDE_BAR_FOREGROUND,
 	localize('chatBarTitle.foreground', 'Foreground color of the chat bar title area in the agent sessions window.')
 );
 
 // ============================================================================
-// Chat bar tabs (composite bar inside the chat bar)
+// Chat bar tabs
 // ============================================================================
 
 export const chatBarTabActiveForeground = registerColor(
-	'chatBarTab.activeForeground',
-	PANEL_ACTIVE_TITLE_FOREGROUND,
+	'chatBarTab.activeForeground', PANEL_ACTIVE_TITLE_FOREGROUND,
 	localize('chatBarTab.activeForeground', 'Foreground color of the active chat bar tab in the agent sessions window.')
 );
 
 export const chatBarTabInactiveForeground = registerColor(
-	'chatBarTab.inactiveForeground',
-	PANEL_INACTIVE_TITLE_FOREGROUND,
+	'chatBarTab.inactiveForeground', PANEL_INACTIVE_TITLE_FOREGROUND,
 	localize('chatBarTab.inactiveForeground', 'Foreground color of inactive chat bar tabs in the agent sessions window.')
 );
 
 export const chatBarTabActiveBorder = registerColor(
-	'chatBarTab.activeBorder',
-	PANEL_ACTIVE_TITLE_BORDER,
+	'chatBarTab.activeBorder', PANEL_ACTIVE_TITLE_BORDER,
 	localize('chatBarTab.activeBorder', 'Border color of the active chat bar tab in the agent sessions window.')
 );
 
 // ============================================================================
-// Card appearance (shared by chatBar, auxiliaryBar, panel)
+// Card appearance
 // ============================================================================
 
 export const sessionsCardBorder = registerColor(
@@ -204,8 +159,7 @@ export const sessionsCardBorder = registerColor(
 // ============================================================================
 
 export const sessionsGradientTintColor = registerColor(
-	'sessionsGradient.tintColor',
-	buttonBackground,
+	'sessionsGradient.tintColor', buttonBackground,
 	localize('sessionsGradient.tintColor', 'Tint color used in the background gradient of the agent sessions window shell.')
 );
 
@@ -224,14 +178,12 @@ export const agentFeedbackInputWidgetBorder = registerColor(
 // ============================================================================
 
 export const sessionsUpdateButtonDownloadingBackground = registerColor(
-	'sessionsUpdateButton.downloadingBackground',
-	transparent(buttonBackground, 0.4),
+	'sessionsUpdateButton.downloadingBackground', transparent(buttonBackground, 0.4),
 	localize('sessionsUpdateButton.downloadingBackground', 'Background color of the update button to show download progress in the agent sessions window.')
 );
 
 export const sessionsUpdateButtonDownloadedBackground = registerColor(
-	'sessionsUpdateButton.downloadedBackground',
-	transparent(buttonBackground, 0.7),
+	'sessionsUpdateButton.downloadedBackground', transparent(buttonBackground, 0.7),
 	localize('sessionsUpdateButton.downloadedBackground', 'Background color of the update button when download is complete in the agent sessions window.')
 );
 
@@ -240,14 +192,12 @@ export const sessionsUpdateButtonDownloadedBackground = registerColor(
 // ============================================================================
 
 export const chatInputBackground = registerColor(
-	'chatInput.background',
-	inputBackground,
+	'chatInput.background', inputBackground,
 	localize('chatInput.background', 'Background color of the chat input field in the agent sessions window.')
 );
 
 export const chatInputForeground = registerColor(
-	'chatInput.foreground',
-	inputForeground,
+	'chatInput.foreground', inputForeground,
 	localize('chatInput.foreground', 'Foreground color of the chat input field in the agent sessions window.')
 );
 
@@ -258,14 +208,12 @@ export const chatInputBorder = registerColor(
 );
 
 export const chatInputFocusBorder = registerColor(
-	'chatInput.focusBorder',
-	focusBorder,
+	'chatInput.focusBorder', focusBorder,
 	localize('chatInput.focusBorder', 'Border color of the chat input field when focused in the agent sessions window.')
 );
 
 export const chatInputPlaceholderForeground = registerColor(
-	'chatInput.placeholderForeground',
-	inputPlaceholderForeground,
+	'chatInput.placeholderForeground', inputPlaceholderForeground,
 	localize('chatInput.placeholderForeground', 'Placeholder text color in the chat input field in the agent sessions window.')
 );
 
@@ -274,14 +222,12 @@ export const chatInputPlaceholderForeground = registerColor(
 // ============================================================================
 
 export const sessionsBadgeBackground = registerColor(
-	'sessionsBadge.background',
-	ACTIVITY_BAR_BADGE_BACKGROUND,
+	'sessionsBadge.background', ACTIVITY_BAR_BADGE_BACKGROUND,
 	localize('sessionsBadge.background', 'Background color of badges in the agent sessions window.')
 );
 
 export const sessionsBadgeForeground = registerColor(
-	'sessionsBadge.foreground',
-	ACTIVITY_BAR_BADGE_FOREGROUND,
+	'sessionsBadge.foreground', ACTIVITY_BAR_BADGE_FOREGROUND,
 	localize('sessionsBadge.foreground', 'Foreground color of badges in the agent sessions window.')
 );
 
@@ -290,19 +236,16 @@ export const sessionsBadgeForeground = registerColor(
 // ============================================================================
 
 export const sessionsUnreadBadgeBackground = registerColor(
-	'sessionsUnreadBadge.background',
-	ACTIVITY_BAR_BADGE_BACKGROUND,
+	'sessionsUnreadBadge.background', ACTIVITY_BAR_BADGE_BACKGROUND,
 	localize('sessionsUnreadBadge.background', 'Background color of the unread sessions count badge on the sidebar toggle.')
 );
 
 export const sessionsUnreadBadgeForeground = registerColor(
-	'sessionsUnreadBadge.foreground',
-	ACTIVITY_BAR_BADGE_FOREGROUND,
+	'sessionsUnreadBadge.foreground', ACTIVITY_BAR_BADGE_FOREGROUND,
 	localize('sessionsUnreadBadge.foreground', 'Foreground color of the unread sessions count badge on the sidebar toggle.')
 );
 
 export const sessionsInputBorder = registerColor(
-	'sessionsInput.border',
-	inputBorder,
+	'sessionsInput.border', inputBorder,
 	localize('sessionsInput.border', 'Border color of input fields (e.g. new-chat input area) within the agent sessions window.')
 );
