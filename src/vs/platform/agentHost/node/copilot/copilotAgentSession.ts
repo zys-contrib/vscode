@@ -260,7 +260,7 @@ export class CopilotAgentSession extends Disposable {
 
 	/**
 	 * The snapshot of client contributions captured when this session was
-	 * created. Used by the agent to detect when the session is stale.
+	 * created. Used by the agent to detect when the session is 1stale.
 	 */
 	get appliedSnapshot(): IActiveClientSnapshot {
 		return this._appliedSnapshot;

@@ -237,7 +237,7 @@ export function completedToolCallToSerialized(tc: ICompletedToolCall, subAgentIn
 	}
 
 	let toolSpecificData: IChatTerminalToolInvocationData | undefined;
-	if (isTerminal) {
+	if (isTerminal || getToolKind(tc) === 'terminal') {
 		toolSpecificData = {
 			kind: 'terminal',
 			commandLine: { original: getTerminalInput(tc) ?? '' },
