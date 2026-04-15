@@ -16,7 +16,7 @@ import { ServiceCollection } from '../../../../../platform/instantiation/common/
 import { IKeybindingService } from '../../../../../platform/keybinding/common/keybinding.js';
 import { IOpenerService } from '../../../../../platform/opener/common/opener.js';
 import { IThemeService } from '../../../../../platform/theme/common/themeService.js';
-import { IViewPaneOptions, ViewPane } from '../../../../../workbench/browser/parts/views/viewPane.js';
+import { IViewPaneOptions, IViewPaneLocationColors, ViewPane } from '../../../../../workbench/browser/parts/views/viewPane.js';
 import { IViewDescriptorService } from '../../../../../workbench/common/views.js';
 import { IConfigurationService } from '../../../../../platform/configuration/common/configuration.js';
 import { IHoverService } from '../../../../../platform/hover/browser/hover.js';
@@ -112,6 +112,18 @@ export class SessionsView extends ViewPane {
 		this.viewPaneContainer.classList.add('agent-sessions-viewpane');
 
 		this.createControls(parent);
+	}
+
+	protected override getLocationBasedColors(): IViewPaneLocationColors {
+		const colors = super.getLocationBasedColors();
+		return {
+			...colors,
+			background: undefined!,
+			listOverrideStyles: {
+				...colors.listOverrideStyles,
+				listBackground: undefined!,
+			}
+		};
 	}
 
 	private createControls(parent: HTMLElement): void {

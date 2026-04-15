@@ -277,7 +277,7 @@
 		"minimapSlider.hoverBackground": "#99999940",
 		"minimapSlider.activeBackground": "#99999955",
 
-		"sessionsSidebar.background": "#FAFAFD",
+		"sessions.background": "#FAFAFD",
 
 		"sessionsPanel.background": "#FFFFFF",
 		"sessionsPanel.foreground": "#202020",

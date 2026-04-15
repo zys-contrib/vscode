@@ -657,7 +657,7 @@
 		"--vscode-sessionsBadge-background",
 		"--vscode-sessionsBadge-foreground",
 		"--vscode-sessionsGradient-tintColor",
-		"--vscode-sessionsSidebar-background",
+		"--vscode-sessions-background",
 		"--vscode-sessionsUnreadBadge-background",
 		"--vscode-sessionsUnreadBadge-foreground",
 		"--vscode-sessionsUpdateButton-downloadedBackground",

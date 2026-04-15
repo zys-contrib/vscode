@@ -21,10 +21,10 @@ import { ACTIVITY_BAR_BADGE_BACKGROUND, ACTIVITY_BAR_BADGE_FOREGROUND, PANEL_BOR
 // Shell background (used by the gradient system)
 // ============================================================================
 
-export const sessionsSidebarBackground = registerColor(
-	'sessionsSidebar.background',
+export const sessionsBackground = registerColor(
+	'sessions.background',
 	{ dark: editorBackground, light: SIDE_BAR_BACKGROUND, hcDark: editorBackground, hcLight: editorBackground },
-	localize('sessionsSidebar.background', 'Background color of the agent sessions window shell and gradient base.')
+	localize('sessions.background', 'Background color of the agent sessions window shell and gradient base.')
 );
 
 // ============================================================================
