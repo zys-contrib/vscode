@@ -275,9 +275,9 @@
 
 		"sessionsSidebar.background": "#121314",
 
-			"sessionsPanel.background": "#191A1B",
-			"sessionsPanel.foreground": "#bfbfbf",
-			"sessionsPanel.border": "#2A2B2CFF",
+		"sessionsPanel.background": "#191A1B",
+		"sessionsPanel.foreground": "#bfbfbf",
+		"sessionsPanel.border": "#2A2B2CFF",
 
 		"sessionsGradient.tintColor": "#297AA0",
 		"sessionsChatInput.background": "#202122",
