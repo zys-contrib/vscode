@@ -92,56 +92,56 @@ export const sessionsPanelBorder = registerColor(
 );
 
 // ============================================================================
-// Chat bar
+// Chat panel
 // ============================================================================
 
-export const chatBarBackground = registerColor(
-	'chatBar.background',
+export const chatPanelBackground = registerColor(
+	'chatPanel.background',
 	{ dark: SIDE_BAR_BACKGROUND, light: editorBackground, hcDark: SIDE_BAR_BACKGROUND, hcLight: SIDE_BAR_BACKGROUND },
-	localize('chatBar.background', 'Background color of the chat bar in the agent sessions window.')
+	localize('chatPanel.background', 'Background color of the chat panel in the agent sessions window.')
 );
 
-export const chatBarForeground = registerColor(
-	'chatBar.foreground', SIDE_BAR_FOREGROUND,
-	localize('chatBar.foreground', 'Foreground color of the chat bar in the agent sessions window.')
+export const chatPanelForeground = registerColor(
+	'chatPanel.foreground', SIDE_BAR_FOREGROUND,
+	localize('chatPanel.foreground', 'Foreground color of the chat panel in the agent sessions window.')
 );
 
-export const chatBarBorder = registerColor(
-	'chatBar.border', PANEL_BORDER,
-	localize('chatBar.border', 'Border color of the chat bar in the agent sessions window.')
-);
-
-// ============================================================================
-// Chat bar title
-// ============================================================================
-
-export const chatBarTitleBackground = registerColor(
-	'chatBarTitle.background', sessionsSidebarBackground,
-	localize('chatBarTitle.background', 'Background color of the chat bar title area in the agent sessions window.')
-);
-
-export const chatBarTitleForeground = registerColor(
-	'chatBarTitle.foreground', SIDE_BAR_FOREGROUND,
-	localize('chatBarTitle.foreground', 'Foreground color of the chat bar title area in the agent sessions window.')
+export const chatPanelBorder = registerColor(
+	'chatPanel.border', PANEL_BORDER,
+	localize('chatPanel.border', 'Border color of the chat panel in the agent sessions window.')
 );
 
 // ============================================================================
-// Chat bar tabs
+// Chat panel title
 // ============================================================================
 
-export const chatBarTabActiveForeground = registerColor(
-	'chatBarTab.activeForeground', PANEL_ACTIVE_TITLE_FOREGROUND,
-	localize('chatBarTab.activeForeground', 'Foreground color of the active chat bar tab in the agent sessions window.')
+export const chatPanelTitleBackground = registerColor(
+	'chatPanelTitle.background', sessionsSidebarBackground,
+	localize('chatPanelTitle.background', 'Background color of the chat panel title area in the agent sessions window.')
 );
 
-export const chatBarTabInactiveForeground = registerColor(
-	'chatBarTab.inactiveForeground', PANEL_INACTIVE_TITLE_FOREGROUND,
-	localize('chatBarTab.inactiveForeground', 'Foreground color of inactive chat bar tabs in the agent sessions window.')
+export const chatPanelTitleForeground = registerColor(
+	'chatPanelTitle.foreground', SIDE_BAR_FOREGROUND,
+	localize('chatPanelTitle.foreground', 'Foreground color of the chat panel title area in the agent sessions window.')
 );
 
-export const chatBarTabActiveBorder = registerColor(
-	'chatBarTab.activeBorder', PANEL_ACTIVE_TITLE_BORDER,
-	localize('chatBarTab.activeBorder', 'Border color of the active chat bar tab in the agent sessions window.')
+// ============================================================================
+// Chat panel tabs
+// ============================================================================
+
+export const chatPanelTabActiveForeground = registerColor(
+	'chatPanelTab.activeForeground', PANEL_ACTIVE_TITLE_FOREGROUND,
+	localize('chatPanelTab.activeForeground', 'Foreground color of the active chat panel tab in the agent sessions window.')
+);
+
+export const chatPanelTabInactiveForeground = registerColor(
+	'chatPanelTab.inactiveForeground', PANEL_INACTIVE_TITLE_FOREGROUND,
+	localize('chatPanelTab.inactiveForeground', 'Foreground color of inactive chat panel tabs in the agent sessions window.')
+);
+
+export const chatPanelTabActiveBorder = registerColor(
+	'chatPanelTab.activeBorder', PANEL_ACTIVE_TITLE_BORDER,
+	localize('chatPanelTab.activeBorder', 'Border color of the active chat panel tab in the agent sessions window.')
 );
 
 // ============================================================================
