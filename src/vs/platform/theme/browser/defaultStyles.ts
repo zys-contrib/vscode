@@ -241,7 +241,7 @@ export function getSelectBoxStyles(override: IStyleOverride<ISelectBoxStyles>): 
 
 export const defaultMenuStyles: IMenuStyles = {
 	shadowColor: asCssVariable(widgetShadow),
-	borderColor: asCssVariableWithDefault(menuBorder, asCssVariable(editorWidgetBorder)),
+	borderColor: asCssVariableWithDefault(menuBorder, editorWidgetBorder),
 	foregroundColor: asCssVariable(menuForeground),
 	backgroundColor: asCssVariable(menuBackground),
 	selectionForegroundColor: asCssVariable(listHoverForeground),
