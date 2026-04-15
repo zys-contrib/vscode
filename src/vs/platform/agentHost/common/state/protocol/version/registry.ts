@@ -26,8 +26,6 @@ export const MIN_PROTOCOL_VERSION = 1;
 export const ACTION_INTRODUCED_IN: { readonly [K in IStateAction['type']]: number } = {
 	[ActionType.RootAgentsChanged]: 1,
 	[ActionType.RootActiveSessionsChanged]: 1,
-	[ActionType.RootLoadedSessionChanged]: 1,
-	[ActionType.RootLoadedSessionRemoved]: 1,
 	[ActionType.SessionReady]: 1,
 	[ActionType.SessionCreationFailed]: 1,
 	[ActionType.SessionTurnStarted]: 1,
@@ -62,6 +60,7 @@ export const ACTION_INTRODUCED_IN: { readonly [K in IStateAction['type']]: numbe
 	[ActionType.SessionIsReadChanged]: 1,
 	[ActionType.SessionIsDoneChanged]: 1,
 	[ActionType.SessionDiffsChanged]: 1,
+	[ActionType.SessionConfigChanged]: 1,
 	[ActionType.RootTerminalsChanged]: 1,
 	[ActionType.TerminalData]: 1,
 	[ActionType.TerminalInput]: 1,

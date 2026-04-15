@@ -43,7 +43,7 @@ function makeSessionState(sessionUri: string, overrides?: Partial<ISessionState>
 function makeTerminalState(overrides?: Partial<ITerminalState>): ITerminalState {
 	return {
 		title: 'bash',
-		content: '',
+		content: [],
 		claim: { kind: TerminalClaimKind.Client, clientId: 'c1' },
 		...overrides,
 	};

@@ -929,14 +929,16 @@ export class ChatTerminalToolProgressPart extends BaseChatToolInvocationSubPart 
 			// Set terminalCommandId on tool invocation data for future lookups
 			if (!this._terminalData.terminalCommandId && cmd.id) {
 				this._terminalData.terminalCommandId = cmd.id;
+				this._updateToolbarContextKeys(terminalInstance, this._terminalData.terminalToolSessionId);
 			}
-			this._updateToolbarContextKeys(terminalInstance, this._terminalData.terminalToolSessionId);
 		}));
 
-		store.add(ahpSource.onCommandFinished(() => {
-			this._updateToolbarContextKeys(terminalInstance, this._terminalData.terminalToolSessionId);
-			const resolvedCommand = this._getResolvedCommand(terminalInstance);
-			this._handleCommandCompletion(resolvedCommand);
+		store.add(ahpSource.onCommandFinished(cmd => {
+			if (this._terminalData.terminalCommandId === cmd.id) {
+				this._updateToolbarContextKeys(terminalInstance, this._terminalData.terminalToolSessionId);
+				const resolvedCommand = this._getResolvedCommand(terminalInstance);
+				this._handleCommandCompletion(resolvedCommand);
+			}
 		}));
 
 		commandDetectionListener.value = store;

@@ -40,10 +40,36 @@ export class AhpTerminalCommand implements ITerminalCommand {
 	// -- ITerminalCommand marker fields --
 	readonly promptStartMarker?: IMarker;
 	readonly marker?: IMarker;
-	endMarker?: IMarker;
-	readonly executedMarker?: IMarker;
 	readonly aliases?: string[][];
 	readonly wasReplayed?: boolean;
+
+	/**
+	 * Lazily resolved executed marker. Uses a getter so that the marker is
+	 * resolved on first access rather than at construction time, giving xterm
+	 * a chance to flush the SetMark sequence through its async write queue.
+	 */
+	get executedMarker(): IMarker | undefined {
+		if (this._executedMarker === undefined && this._resolveMarker) {
+			this._executedMarker = this._resolveMarker(AhpCommandMarkKind.Executed);
+		}
+		return this._executedMarker;
+	}
+	private _executedMarker: IMarker | undefined;
+
+	/**
+	 * Lazily resolved end marker, same rationale as {@link executedMarker}.
+	 */
+	get endMarker(): IMarker | undefined {
+		if (this._endMarker === undefined && this._isComplete && this._resolveMarker) {
+			this._endMarker = this._resolveMarker(AhpCommandMarkKind.End);
+		}
+		return this._endMarker;
+	}
+	set endMarker(value: IMarker | undefined) {
+		this._endMarker = value;
+	}
+	private _endMarker: IMarker | undefined;
+	private _isComplete = false;
 
 	/**
 	 * Stored VT output from the AHP content part. Used as a fallback when
@@ -51,12 +77,18 @@ export class AhpTerminalCommand implements ITerminalCommand {
 	 */
 	private _storedOutput: string | undefined;
 
+	/**
+	 * Optional function to lazily resolve markers from the terminal's
+	 * {@link IBufferMarkCapability}. Set during construction.
+	 */
+	private readonly _resolveMarker?: (kind: AhpCommandMarkKind) => IMarker | undefined;
+
 	constructor(
 		commandId: string,
 		commandLine: string,
 		timestamp: number,
 		options?: {
-			executedMarker?: IMarker;
+			resolveMarker?: (kind: AhpCommandMarkKind) => IMarker | undefined;
 			storedOutput?: string;
 			wasReplayed?: boolean;
 		},
@@ -64,7 +96,7 @@ export class AhpTerminalCommand implements ITerminalCommand {
 		this.id = commandId;
 		this.command = commandLine;
 		this.timestamp = timestamp;
-		this.executedMarker = options?.executedMarker;
+		this._resolveMarker = options?.resolveMarker;
 		this._storedOutput = options?.storedOutput;
 		this.wasReplayed = options?.wasReplayed;
 	}
@@ -121,10 +153,10 @@ export class AhpTerminalCommand implements ITerminalCommand {
 	/**
 	 * Mark this command as finished with the given exit code and duration.
 	 */
-	finish(exitCode: number | undefined, durationMs: number | undefined, endMarker?: IMarker): void {
+	finish(exitCode: number | undefined, durationMs: number | undefined): void {
 		this.exitCode = exitCode;
 		this.duration = durationMs ?? 0;
-		this.endMarker = endMarker;
+		this._isComplete = true;
 	}
 }
 
@@ -144,6 +176,8 @@ export class AhpTerminalCommandSource extends Disposable implements IAhpTerminal
 	private readonly _onCommandFinished = this._register(new Emitter<ITerminalCommand>());
 	readonly onCommandFinished: Event<ITerminalCommand> = this._onCommandFinished.event;
 
+	private _terminalInstance: ITerminalInstance | undefined;
+
 	get commands(): readonly ITerminalCommand[] {
 		return this._commands;
 	}
@@ -152,18 +186,16 @@ export class AhpTerminalCommandSource extends Disposable implements IAhpTerminal
 		return this._executingCommand;
 	}
 
-	constructor(
-		private readonly _terminalInstance: ITerminalInstance,
+	connect(
+		terminalInstance: ITerminalInstance,
 		pty: AgentHostPty,
 	) {
-		super();
-
+		this._terminalInstance = terminalInstance;
 		this._register(pty.onCommandExecuted(e => this._handleCommandExecuted(e)));
 		this._register(pty.onCommandFinished(e => this._handleCommandFinished(e)));
-
 		// Track streaming data so we can append to the executing command's output.
 		// Skip for replayed commands (storedOutput already populated from snapshot).
-		this._register(_terminalInstance.onWillData(data => {
+		this._register(terminalInstance.onWillData(data => {
 			if (this._executingCommand && !this._executingCommand.wasReplayed) {
 				this._executingCommand.appendOutput(data);
 			}
@@ -186,23 +218,17 @@ export class AhpTerminalCommandSource extends Disposable implements IAhpTerminal
 	 */
 	private _resolveMarkById(commandId: string, kind: AhpCommandMarkKind): IMarker | undefined {
 		const markId = getAhpCommandMarkId(commandId, kind);
-		const bufferMarkCapability = this._terminalInstance.capabilities.get(TerminalCapability.BufferMarkDetection);
+		const bufferMarkCapability = this._terminalInstance?.capabilities.get(TerminalCapability.BufferMarkDetection);
 		return bufferMarkCapability?.getMark(markId);
 	}
 
 	private _handleCommandExecuted(event: IAgentHostPtyCommandExecutedEvent): void {
-		// The executed marker is resolved from BufferMarkCapability by the
-		// mark ID injected into the data stream by AgentHostPty. xterm's
-		// OSC 633 parser registers the marker at the exact cursor position
-		// during parsing, so it is accurate for both replay and streaming.
-		const executedMarker = this._resolveMarkById(event.commandId, AhpCommandMarkKind.Executed);
-
 		const command = new AhpTerminalCommand(
 			event.commandId,
 			event.commandLine,
 			event.timestamp,
 			{
-				executedMarker,
+				resolveMarker: (kind) => this._resolveMarkById(event.commandId, kind),
 				storedOutput: event.storedOutput,
 				wasReplayed: event.storedOutput !== undefined,
 			},
@@ -220,8 +246,7 @@ export class AhpTerminalCommandSource extends Disposable implements IAhpTerminal
 			return;
 		}
 
-		const endMarker = this._resolveMarkById(event.commandId, AhpCommandMarkKind.End);
-		command.finish(event.exitCode, event.durationMs, endMarker);
+		command.finish(event.exitCode, event.durationMs);
 
 		// Move from executing to completed
 		if (this._executingCommand === command) {
