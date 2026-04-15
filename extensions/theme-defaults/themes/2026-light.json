@@ -297,8 +297,7 @@
 		"sessionsBadge.background": "#0069CC",
 		"sessionsBadge.foreground": "#FFFFFF",
 		"sessionsUnreadBadge.background": "#0069CC",
-		"sessionsUnreadBadge.foreground": "#FFFFFF",
-		"sessionsInput.border": "#D8D8D866"
+			"sessionsUnreadBadge.foreground": "#FFFFFF"
 	},
 	"tokenColors": [
 		{

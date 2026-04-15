@@ -293,8 +293,7 @@
 		"sessionsBadge.background": "#3994BC",
 		"sessionsBadge.foreground": "#FFFFFF",
 		"sessionsUnreadBadge.background": "#3994BC",
-		"sessionsUnreadBadge.foreground": "#FFFFFF",
-		"sessionsInput.border": "#333536FF"
+			"sessionsUnreadBadge.foreground": "#FFFFFF"
 	},
 	"tokenColors": [
 		{

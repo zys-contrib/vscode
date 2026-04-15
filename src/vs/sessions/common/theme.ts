@@ -125,8 +125,7 @@ export const sessionsChatInputForeground = registerColor(
 );
 
 export const sessionsChatInputBorder = registerColor(
-	'sessionsChatInput.border',
-	{ dark: editorWidgetBorder, light: editorWidgetBorder, hcDark: contrastBorder, hcLight: contrastBorder },
+	'sessionsChatInput.border', inputBorder,
 	localize('sessionsChatInput.border', 'Border color of the chat input field in the agent sessions window.')
 );
 
@@ -166,9 +165,4 @@ export const sessionsUnreadBadgeBackground = registerColor(
 export const sessionsUnreadBadgeForeground = registerColor(
 	'sessionsUnreadBadge.foreground', ACTIVITY_BAR_BADGE_FOREGROUND,
 	localize('sessionsUnreadBadge.foreground', 'Foreground color of the unread sessions count badge on the sidebar toggle.')
-);
-
-export const sessionsInputBorder = registerColor(
-	'sessionsInput.border', inputBorder,
-	localize('sessionsInput.border', 'Border color of input fields (e.g. new-chat input area) within the agent sessions window.')
 );
