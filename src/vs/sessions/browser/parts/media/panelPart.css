@@ -34,7 +34,7 @@
 
 /* Active/checked state: background container instead of underline */
 .agent-sessions-workbench .part.panel > .title > .composite-bar-container > .composite-bar > .monaco-action-bar .action-item.checked {
-	background-color: var(--vscode-activityBarTop-activeBackground, color-mix(in srgb, var(--vscode-sideBarTitle-foreground) 5%, transparent)) !important;
+	background-color: color-mix(in srgb, var(--vscode-sessionsPanel-foreground, var(--vscode-foreground)) 5%, transparent) !important;
 	border-radius: 4px;
 }
 
