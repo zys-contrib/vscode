@@ -11,8 +11,8 @@ import { IKeybindingService } from '../../../platform/keybinding/common/keybindi
 import { INotificationService } from '../../../platform/notification/common/notification.js';
 import { IStorageService } from '../../../platform/storage/common/storage.js';
 import { IThemeService } from '../../../platform/theme/common/themeService.js';
-import { PANEL_ACTIVE_TITLE_BORDER, PANEL_ACTIVE_TITLE_FOREGROUND, PANEL_DRAG_AND_DROP_BORDER, PANEL_INACTIVE_TITLE_FOREGROUND, SIDE_BAR_TITLE_BORDER } from '../../../workbench/common/theme.js';
-import { sessionsPanelBackground, sessionsPanelBorder, sessionsPanelForeground, sessionsBadgeBackground, sessionsBadgeForeground } from '../../common/theme.js';
+import { PANEL_DRAG_AND_DROP_BORDER, SIDE_BAR_TITLE_BORDER } from '../../../workbench/common/theme.js';
+import { sessionsPanelBackground, sessionsPanelBorder, sessionsPanelForeground, sessionsBadgeBackground, sessionsBadgeForeground, sessionsPanelTabActiveForeground, sessionsPanelTabInactiveForeground, sessionsPanelTabActiveBorder } from '../../common/theme.js';
 import { IViewDescriptorService, ViewContainerLocation } from '../../../workbench/common/views.js';
 import { IExtensionService } from '../../../workbench/services/extensions/common/extensions.js';
 import { IWorkbenchLayoutService, Parts } from '../../../workbench/services/layout/browser/layoutService.js';
@@ -181,9 +181,9 @@ export class ChatBarPart extends AbstractPaneCompositePart { // TODO: should not
 			colors: theme => ({
 				activeBackgroundColor: theme.getColor(sessionsPanelBackground),
 				inactiveBackgroundColor: theme.getColor(sessionsPanelBackground),
-				activeBorderBottomColor: theme.getColor(PANEL_ACTIVE_TITLE_BORDER),
-				activeForegroundColor: theme.getColor(PANEL_ACTIVE_TITLE_FOREGROUND),
-				inactiveForegroundColor: theme.getColor(PANEL_INACTIVE_TITLE_FOREGROUND),
+				activeBorderBottomColor: theme.getColor(sessionsPanelTabActiveBorder),
+				activeForegroundColor: theme.getColor(sessionsPanelTabActiveForeground),
+				inactiveForegroundColor: theme.getColor(sessionsPanelTabInactiveForeground),
 				badgeBackground: theme.getColor(sessionsBadgeBackground),
 				badgeForeground: theme.getColor(sessionsBadgeForeground),
 				dragAndDropBorder: theme.getColor(PANEL_DRAG_AND_DROP_BORDER)

@@ -14,8 +14,8 @@ import { IContextMenuService } from '../../../platform/contextview/browser/conte
 import { IKeybindingService } from '../../../platform/keybinding/common/keybinding.js';
 import { IInstantiationService } from '../../../platform/instantiation/common/instantiation.js';
 import { IThemeService } from '../../../platform/theme/common/themeService.js';
-import { PANEL_TITLE_BORDER, PANEL_ACTIVE_TITLE_FOREGROUND, PANEL_INACTIVE_TITLE_FOREGROUND, PANEL_ACTIVE_TITLE_BORDER, PANEL_DRAG_AND_DROP_BORDER } from '../../../workbench/common/theme.js';
-import { sessionsBadgeBackground, sessionsBadgeForeground, sessionsPanelBackground, sessionsPanelBorder, sessionsPanelForeground } from '../../common/theme.js';
+import { PANEL_TITLE_BORDER, PANEL_DRAG_AND_DROP_BORDER } from '../../../workbench/common/theme.js';
+import { sessionsBadgeBackground, sessionsBadgeForeground, sessionsPanelBackground, sessionsPanelBorder, sessionsPanelForeground, sessionsPanelTabActiveForeground, sessionsPanelTabInactiveForeground, sessionsPanelTabActiveBorder } from '../../common/theme.js';
 import { INotificationService } from '../../../platform/notification/common/notification.js';
 import { IContextKeyService } from '../../../platform/contextkey/common/contextkey.js';
 import { assertReturnsDefined } from '../../../base/common/types.js';
@@ -159,9 +159,9 @@ export class PanelPart extends AbstractPaneCompositePart {
 			colors: theme => ({
 				activeBackgroundColor: theme.getColor(sessionsPanelBackground),
 				inactiveBackgroundColor: theme.getColor(sessionsPanelBackground),
-				activeBorderBottomColor: theme.getColor(PANEL_ACTIVE_TITLE_BORDER),
-				activeForegroundColor: theme.getColor(PANEL_ACTIVE_TITLE_FOREGROUND),
-				inactiveForegroundColor: theme.getColor(PANEL_INACTIVE_TITLE_FOREGROUND),
+				activeBorderBottomColor: theme.getColor(sessionsPanelTabActiveBorder),
+				activeForegroundColor: theme.getColor(sessionsPanelTabActiveForeground),
+				inactiveForegroundColor: theme.getColor(sessionsPanelTabInactiveForeground),
 				badgeBackground: theme.getColor(sessionsBadgeBackground),
 				badgeForeground: theme.getColor(sessionsBadgeForeground),
 				dragAndDropBorder: theme.getColor(PANEL_DRAG_AND_DROP_BORDER)
