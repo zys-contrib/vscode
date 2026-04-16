@@ -146,8 +146,39 @@
 	opacity: 1;
 }
 
+.agent-sessions-workbench .part.editor .multiDiffEntry .collapse-button a {
+	border-radius: 4px;
+}
+
 .agent-sessions-workbench .part.editor .multiDiffEntry .editorParent {
 	border-bottom: none;
+}
+
+.agent-sessions-workbench .part.editor .multiDiffEntry .header-content .status {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	min-width: 16px;
+	font-size: 11px;
+	font-weight: 600;
+	opacity: 0.9;
+}
+
+.agent-sessions-workbench .part.editor .multiDiffEntry .header-content .status.added {
+	color: var(--vscode-gitDecoration-addedResourceForeground);
+}
+
+.agent-sessions-workbench .part.editor .multiDiffEntry .header-content .status.deleted {
+	color: var(--vscode-gitDecoration-deletedResourceForeground);
+}
+
+.agent-sessions-workbench .part.editor .multiDiffEntry .header-content .status.renamed {
+	color: var(--vscode-gitDecoration-modifiedResourceForeground);
+}
+
+.agent-sessions-workbench .part.editor .multiDiffEntry .header-content .actions {
+	padding: 0 0 0 8px;
 }
 
 .agent-sessions-workbench .part.editor .title.tabs {
