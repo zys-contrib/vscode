@@ -71,14 +71,14 @@ export const agentFeedbackInputWidgetBorder = registerColor(
 // Update button
 // ============================================================================
 
-export const sessionsUpdateButtonDownloadingBackground = registerColor(
-	'sessionsUpdateButton.downloadingBackground', transparent(buttonBackground, 0.4),
-	localize('sessionsUpdateButton.downloadingBackground', 'Background color of the update button to show download progress in the agent sessions window.')
+export const agentsUpdateButtonDownloadingBackground = registerColor(
+	'agentsUpdateButton.downloadingBackground', transparent(buttonBackground, 0.4),
+	localize('agentsUpdateButton.downloadingBackground', 'Background color of the update button to show download progress in the agent sessions window.')
 );
 
-export const sessionsUpdateButtonDownloadedBackground = registerColor(
-	'sessionsUpdateButton.downloadedBackground', transparent(buttonBackground, 0.7),
-	localize('sessionsUpdateButton.downloadedBackground', 'Background color of the update button when download is complete in the agent sessions window.')
+export const agentsUpdateButtonDownloadedBackground = registerColor(
+	'agentsUpdateButton.downloadedBackground', transparent(buttonBackground, 0.7),
+	localize('agentsUpdateButton.downloadedBackground', 'Background color of the update button when download is complete in the agent sessions window.')
 );
 
 // ============================================================================
