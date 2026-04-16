@@ -137,8 +137,13 @@
 	margin-top: 4px;
 }
 
+.agent-sessions-workbench .part.editor .multiDiffEntry .header {
+	cursor: pointer;
+}
+
 .agent-sessions-workbench .part.editor .multiDiffEntry .header-content .actions {
 	opacity: 0;
+	padding: 0 0 0 8px;
 }
 
 .agent-sessions-workbench .part.editor .multiDiffEntry .header:hover .header-content .actions,
@@ -169,16 +174,16 @@
 	color: var(--vscode-gitDecoration-addedResourceForeground);
 }
 
+.agent-sessions-workbench .part.editor .multiDiffEntry .header-content .status.modified {
+	color: var(--vscode-gitDecoration-modifiedResourceForeground);
+}
+
 .agent-sessions-workbench .part.editor .multiDiffEntry .header-content .status.deleted {
 	color: var(--vscode-gitDecoration-deletedResourceForeground);
 }
 
 .agent-sessions-workbench .part.editor .multiDiffEntry .header-content .status.renamed {
 	color: var(--vscode-gitDecoration-modifiedResourceForeground);
-}
-
-.agent-sessions-workbench .part.editor .multiDiffEntry .header-content .actions {
-	padding: 0 0 0 8px;
 }
 
 .agent-sessions-workbench .part.editor .title.tabs {

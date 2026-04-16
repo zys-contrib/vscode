@@ -139,10 +139,10 @@ export class DiffEditorItemTemplate extends Disposable implements IPooledObject<
 			this._viewModel.get()?.collapsed.set(!this._collapsed.get(), undefined);
 		}));
 
-		this._elements.header.style.cursor = 'pointer';
 		this._register(addDisposableListener(this._elements.header, EventType.CLICK, (e) => {
 			// Don't toggle if clicking on actions or the collapse button itself (already handled)
-			if ((e.target as HTMLElement).closest('.actions') || (e.target as HTMLElement).closest('.collapse-button')) {
+			const target = e.target as Element;
+			if (target.closest('.actions') || target.closest('.collapse-button')) {
 				return;
 			}
 			this._viewModel.get()?.collapsed.set(!this._collapsed.get(), undefined);
