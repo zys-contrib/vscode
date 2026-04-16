@@ -33,7 +33,7 @@
 	gap: 4px;
 	padding: 2px 0 6px;
 	margin-bottom: 6px;
-	border-bottom: 1px solid var(--vscode-panel-border, transparent);
+	border-bottom: 1px solid var(--vscode-sideBarSectionHeader-border, var(--vscode-panel-border, var(--vscode-widget-border, transparent)));
 }
 
 .ai-customization-management-editor .sidebar-home-button {
