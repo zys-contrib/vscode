@@ -147,6 +147,10 @@
 	cursor: pointer;
 }
 
+.agent-sessions-workbench .part.editor .multiDiffEntry .header:hover .header-content {
+	background: color-mix(in srgb, var(--vscode-sideBarSectionHeader-background) 80%, var(--vscode-foreground) 5%);
+}
+
 .agent-sessions-workbench .part.editor .multiDiffEntry .header-content .actions {
 	opacity: 0;
 	padding: 0 0 0 8px;
