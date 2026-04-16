@@ -276,7 +276,23 @@ export class AutomodeService extends Disposable implements IAutomodeService {
 				turn_number: (entry?.turnCount ?? 0) + 1,
 			};
 			const routingMethod = this._configurationService.getExperimentBasedConfig(ConfigKey.TeamInternal.AutoModeRoutingMethod, this._expService) || undefined;
-			const result = await this._routerDecisionFetcher.getRouterDecision(prompt, token.session_token, token.available_models, undefined, contextSignals, conversationId, chatRequest?.id, routingMethod, hasImage(chatRequest));
+
+			// Filter available_models to only those the client can actually serve.
+			// The AutoModels API and Models API are separate CAPI calls that can be
+			// out of sync (e.g. a new model appears in available_models before the
+			// Models API returns it). Sending unresolvable models to the router
+			// causes it to recommend models the client must silently discard.
+			const knownModelIds = new Set(knownEndpoints.map(e => e.model));
+			const routableModels = token.available_models.filter(m => knownModelIds.has(m));
+			if (!routableModels.length) {
+				this._logService.warn(`[AutomodeService] No available_models matched knownEndpoints. available_models=[${token.available_models.join(', ')}], knownEndpoints=[${knownEndpoints.map(e => e.model).join(', ')}]`);
+				return { lastRoutedPrompt: prompt, fallbackReason: 'noMatchingEndpoint' };
+			}
+			if (routableModels.length < token.available_models.length) {
+				this._logService.info(`[AutomodeService] Filtered ${token.available_models.length - routableModels.length} unresolvable model(s) before routing: [${token.available_models.filter(m => !knownModelIds.has(m)).join(', ')}]`);
+			}
+
+			const result = await this._routerDecisionFetcher.getRouterDecision(prompt, token.session_token, routableModels, undefined, contextSignals, conversationId, chatRequest?.id, routingMethod, hasImage(chatRequest));
 
 			if (result.fallback) {
 				this._logService.info(`[AutomodeService] Router signaled fallback: ${result.fallback_reason ?? 'unknown'}, routing_method=${result.routing_method ?? 'n/a'}`);
@@ -287,11 +303,15 @@ export class AutomodeService extends Disposable implements IAutomodeService {
 				return { lastRoutedPrompt: prompt, fallbackReason: 'emptyCandidateList' };
 			}
 
-			// Prefer same-provider model, then fall back to the router's top candidate
-			const selectedModel = (entry?.endpoint && this._findSameProviderModel(entry.endpoint.modelProvider, result.candidate_models, knownEndpoints))
-				?? knownEndpoints.find(e => e.model === result.candidate_models[0]);
+			// Trust the router's ranked candidate list directly.
+			// Same-provider preference is intentionally NOT applied here — the router
+			// already accounts for available models and re-runs after /compact, so
+			// overriding its pick with same-provider negates cost-saving decisions.
+			// Same-provider is still used in _selectDefaultModel (the non-router fallback).
+			const selectedModel = this._findFirstAvailableModel(result.candidate_models, knownEndpoints);
 
 			if (!selectedModel) {
+				this._logService.warn(`[AutomodeService] None of the router's candidate_models matched knownEndpoints: [${result.candidate_models.join(', ')}]`);
 				return { lastRoutedPrompt: prompt, fallbackReason: 'noMatchingEndpoint' };
 			}
 
