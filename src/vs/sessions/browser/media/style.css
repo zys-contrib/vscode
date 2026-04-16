@@ -137,6 +137,15 @@
 	margin-top: 4px;
 }
 
+.agent-sessions-workbench .part.editor .multiDiffEntry .header-content .actions {
+	opacity: 0;
+}
+
+.agent-sessions-workbench .part.editor .multiDiffEntry .header:hover .header-content .actions,
+.agent-sessions-workbench .part.editor .multiDiffEntry .header:focus-within .header-content .actions {
+	opacity: 1;
+}
+
 .agent-sessions-workbench .part.editor .multiDiffEntry .editorParent {
 	border-bottom: none;
 }
