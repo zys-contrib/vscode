@@ -283,13 +283,17 @@ export class AutomodeService extends Disposable implements IAutomodeService {
 			// Models API returns it). Sending unresolvable models to the router
 			// causes it to recommend models the client must silently discard.
 			const knownModelIds = new Set(knownEndpoints.map(e => e.model));
-			const routableModels = token.available_models.filter(m => knownModelIds.has(m));
+			const routableModels: string[] = [];
+			const droppedModels: string[] = [];
+			for (const m of token.available_models) {
+				(knownModelIds.has(m) ? routableModels : droppedModels).push(m);
+			}
 			if (!routableModels.length) {
 				this._logService.warn(`[AutomodeService] No available_models matched knownEndpoints. available_models=[${token.available_models.join(', ')}], knownEndpoints=[${knownEndpoints.map(e => e.model).join(', ')}]`);
 				return { lastRoutedPrompt: prompt, fallbackReason: 'noMatchingEndpoint' };
 			}
-			if (routableModels.length < token.available_models.length) {
-				this._logService.info(`[AutomodeService] Filtered ${token.available_models.length - routableModels.length} unresolvable model(s) before routing: [${token.available_models.filter(m => !knownModelIds.has(m)).join(', ')}]`);
+			if (droppedModels.length) {
+				this._logService.info(`[AutomodeService] Filtered ${droppedModels.length} unresolvable model(s) before routing: [${droppedModels.join(', ')}]`);
 			}
 
 			const result = await this._routerDecisionFetcher.getRouterDecision(prompt, token.session_token, routableModels, undefined, contextSignals, conversationId, chatRequest?.id, routingMethod, hasImage(chatRequest));

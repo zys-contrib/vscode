@@ -1118,7 +1118,7 @@ describe('AutomodeService', () => {
 			expect(result.model).toBe('gpt-4.1');
 		});
 
-		it('should fall back to default when all available_models are unknown to knownEndpoints', async () => {
+		it('should throw when all available_models are unknown to knownEndpoints', async () => {
 			enableRouter();
 			const gpt4oEndpoint = createEndpoint('gpt-4o', 'OpenAI');
 
@@ -1142,8 +1142,11 @@ describe('AutomodeService', () => {
 				sessionId: 'session-all-unknown'
 			};
 
-			const result = await automodeService.resolveAutoModeEndpoint(chatRequest as ChatRequest, [gpt4oEndpoint]);
-			expect(result.model).toBe('gpt-4o');
+			// When all available_models are unknown, the router is skipped (no routable models),
+			// and _selectDefaultModel also fails since none of the available_models match knownEndpoints
+			await expect(
+				automodeService.resolveAutoModeEndpoint(chatRequest as ChatRequest, [gpt4oEndpoint])
+			).rejects.toThrow('no available model found');
 			expect(mockLogService.warn).toHaveBeenCalledWith(
 				expect.stringContaining('No available_models matched knownEndpoints')
 			);
