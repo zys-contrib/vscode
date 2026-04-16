@@ -21,40 +21,40 @@ import { ACTIVITY_BAR_BADGE_BACKGROUND, ACTIVITY_BAR_BADGE_FOREGROUND, PANEL_BOR
 // Shell background (used by the gradient system)
 // ============================================================================
 
-export const sessionsBackground = registerColor(
-	'sessions.background',
+export const agentsBackground = registerColor(
+	'agents.background',
 	{ dark: editorBackground, light: SIDE_BAR_BACKGROUND, hcDark: editorBackground, hcLight: editorBackground },
-	localize('sessions.background', 'Background color of the agent sessions window shell and gradient base.')
+	localize('agents.background', 'Background color of the agent sessions window shell and gradient base.')
 );
 
 // ============================================================================
 // Panels (chat panel, auxiliary bar, terminal panel)
 // ============================================================================
 
-export const sessionsPanelBackground = registerColor(
-	'sessionsPanel.background',
+export const agentsPanelBackground = registerColor(
+	'agentsPanel.background',
 	{ dark: SIDE_BAR_BACKGROUND, light: editorBackground, hcDark: SIDE_BAR_BACKGROUND, hcLight: SIDE_BAR_BACKGROUND },
-	localize('sessionsPanel.background', 'Background color of the card panels (chat, files, terminal) in the agent sessions window.')
+	localize('agentsPanel.background', 'Background color of the card panels (chat, files, terminal) in the agent sessions window.')
 );
 
-export const sessionsPanelForeground = registerColor(
-	'sessionsPanel.foreground', SIDE_BAR_FOREGROUND,
-	localize('sessionsPanel.foreground', 'Foreground color of the card panels (chat, files, terminal) in the agent sessions window.')
+export const agentsPanelForeground = registerColor(
+	'agentsPanel.foreground', SIDE_BAR_FOREGROUND,
+	localize('agentsPanel.foreground', 'Foreground color of the card panels (chat, files, terminal) in the agent sessions window.')
 );
 
-export const sessionsPanelBorder = registerColor(
-	'sessionsPanel.border',
+export const agentsPanelBorder = registerColor(
+	'agentsPanel.border',
 	{ dark: PANEL_BORDER, light: editorWidgetBorder, hcDark: contrastBorder, hcLight: contrastBorder },
-	localize('sessionsPanel.border', 'Border color of the card panels (chat, files, terminal) in the agent sessions window.')
+	localize('agentsPanel.border', 'Border color of the card panels (chat, files, terminal) in the agent sessions window.')
 );
 
 // ============================================================================
 // Gradient background tint
 // ============================================================================
 
-export const sessionsGradientTintColor = registerColor(
-	'sessionsGradient.tintColor', buttonBackground,
-	localize('sessionsGradient.tintColor', 'Tint color used in the background gradient of the agent sessions window shell.')
+export const agentsGradientTintColor = registerColor(
+	'agentsGradient.tintColor', buttonBackground,
+	localize('agentsGradient.tintColor', 'Tint color used in the background gradient of the agent sessions window shell.')
 );
 
 // ============================================================================
@@ -85,50 +85,50 @@ export const sessionsUpdateButtonDownloadedBackground = registerColor(
 // Chat input
 // ============================================================================
 
-export const sessionsChatInputBackground = registerColor(
-	'sessionsChatInput.background', inputBackground,
-	localize('sessionsChatInput.background', 'Background color of the chat input field in the agent sessions window.')
+export const agentsChatInputBackground = registerColor(
+	'agentsChatInput.background', inputBackground,
+	localize('agentsChatInput.background', 'Background color of the chat input field in the agent sessions window.')
 );
 
-export const sessionsChatInputForeground = registerColor(
-	'sessionsChatInput.foreground', inputForeground,
-	localize('sessionsChatInput.foreground', 'Foreground color of the chat input field in the agent sessions window.')
+export const agentsChatInputForeground = registerColor(
+	'agentsChatInput.foreground', inputForeground,
+	localize('agentsChatInput.foreground', 'Foreground color of the chat input field in the agent sessions window.')
 );
 
-export const sessionsChatInputBorder = registerColor(
-	'sessionsChatInput.border', inputBorder,
-	localize('sessionsChatInput.border', 'Border color of the chat input field in the agent sessions window.')
+export const agentsChatInputBorder = registerColor(
+	'agentsChatInput.border', inputBorder,
+	localize('agentsChatInput.border', 'Border color of the chat input field in the agent sessions window.')
 );
 
-export const sessionsChatInputPlaceholderForeground = registerColor(
-	'sessionsChatInput.placeholderForeground', inputPlaceholderForeground,
-	localize('sessionsChatInput.placeholderForeground', 'Placeholder text color in the chat input field in the agent sessions window.')
+export const agentsChatInputPlaceholderForeground = registerColor(
+	'agentsChatInput.placeholderForeground', inputPlaceholderForeground,
+	localize('agentsChatInput.placeholderForeground', 'Placeholder text color in the chat input field in the agent sessions window.')
 );
 
 // ============================================================================
 // Badge
 // ============================================================================
 
-export const sessionsBadgeBackground = registerColor(
-	'sessionsBadge.background', ACTIVITY_BAR_BADGE_BACKGROUND,
-	localize('sessionsBadge.background', 'Background color of badges in the agent sessions window.')
+export const agentsBadgeBackground = registerColor(
+	'agentsBadge.background', ACTIVITY_BAR_BADGE_BACKGROUND,
+	localize('agentsBadge.background', 'Background color of badges in the agent sessions window.')
 );
 
-export const sessionsBadgeForeground = registerColor(
-	'sessionsBadge.foreground', ACTIVITY_BAR_BADGE_FOREGROUND,
-	localize('sessionsBadge.foreground', 'Foreground color of badges in the agent sessions window.')
+export const agentsBadgeForeground = registerColor(
+	'agentsBadge.foreground', ACTIVITY_BAR_BADGE_FOREGROUND,
+	localize('agentsBadge.foreground', 'Foreground color of badges in the agent sessions window.')
 );
 
 // ============================================================================
 // Unread session indicator
 // ============================================================================
 
-export const sessionsUnreadBadgeBackground = registerColor(
-	'sessionsUnreadBadge.background', ACTIVITY_BAR_BADGE_BACKGROUND,
-	localize('sessionsUnreadBadge.background', 'Background color of the unread sessions count badge on the sidebar toggle.')
+export const agentsUnreadBadgeBackground = registerColor(
+	'agentsUnreadBadge.background', ACTIVITY_BAR_BADGE_BACKGROUND,
+	localize('agentsUnreadBadge.background', 'Background color of the unread sessions count badge on the sidebar toggle.')
 );
 
-export const sessionsUnreadBadgeForeground = registerColor(
-	'sessionsUnreadBadge.foreground', ACTIVITY_BAR_BADGE_FOREGROUND,
-	localize('sessionsUnreadBadge.foreground', 'Foreground color of the unread sessions count badge on the sidebar toggle.')
+export const agentsUnreadBadgeForeground = registerColor(
+	'agentsUnreadBadge.foreground', ACTIVITY_BAR_BADGE_FOREGROUND,
+	localize('agentsUnreadBadge.foreground', 'Foreground color of the unread sessions count badge on the sidebar toggle.')
 );

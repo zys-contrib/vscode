@@ -273,19 +273,19 @@
 		"minimapSlider.hoverBackground": "#83848566",
 		"minimapSlider.activeBackground": "#83848599",
 
-		"sessions.background": "#121314",
-		"sessionsPanel.background": "#191A1B",
-		"sessionsPanel.foreground": "#bfbfbf",
-		"sessionsPanel.border": "#2A2B2CFF",
-		"sessionsGradient.tintColor": "#297AA0",
-		"sessionsChatInput.background": "#202122",
-		"sessionsChatInput.foreground": "#bfbfbf",
-		"sessionsChatInput.border": "#333536",
-		"sessionsChatInput.placeholderForeground": "#555555",
-		"sessionsBadge.background": "#3994BC",
-		"sessionsBadge.foreground": "#FFFFFF",
-		"sessionsUnreadBadge.background": "#3994BC",
-		"sessionsUnreadBadge.foreground": "#FFFFFF"
+		"agents.background": "#121314",
+		"agentsPanel.background": "#191A1B",
+		"agentsPanel.foreground": "#bfbfbf",
+		"agentsPanel.border": "#2A2B2CFF",
+		"agentsGradient.tintColor": "#297AA0",
+		"agentsChatInput.background": "#202122",
+		"agentsChatInput.foreground": "#bfbfbf",
+		"agentsChatInput.border": "#333536",
+		"agentsChatInput.placeholderForeground": "#555555",
+		"agentsBadge.background": "#3994BC",
+		"agentsBadge.foreground": "#FFFFFF",
+		"agentsUnreadBadge.background": "#3994BC",
+		"agentsUnreadBadge.foreground": "#FFFFFF"
 	},
 	"tokenColors": [
 		{
