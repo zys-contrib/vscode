@@ -150,6 +150,10 @@
 	border-bottom: none;
 }
 
+.agent-sessions-workbench .part.editor .title.tabs {
+	background-color: transparent !important;
+}
+
 .agent-sessions-workbench:not(.nosidebar) .part.chatbar {
 	margin-left: 0;
 }
