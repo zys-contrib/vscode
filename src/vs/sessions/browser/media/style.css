@@ -152,6 +152,33 @@
 
 .agent-sessions-workbench .part.editor .title.tabs {
 	background-color: transparent !important;
+	--editor-group-tab-height: 26px !important;
+}
+
+/* Editor tabs: match chat composite bar tab style */
+.agent-sessions-workbench .part.editor .tabs-container > .tab {
+	background-color: transparent !important;
+	border-right: none !important;
+	border-radius: 4px;
+	font-size: 12px;
+	font-weight: 500;
+	box-shadow: none !important;
+	padding: 0 0 0 4px !important;
+}
+
+.agent-sessions-workbench .part.editor .tabs-and-actions-container {
+	--tabs-border-bottom-color: transparent !important;
+	align-items: center;
+	padding: 4px;
+}
+
+.agent-sessions-workbench .part.editor .tabs-container > .tab.active {
+	background-color: color-mix(in srgb, var(--vscode-foreground) 5%, transparent) !important;
+}
+
+.agent-sessions-workbench .part.editor .tabs-container > .tab .tab-border-top-container,
+.agent-sessions-workbench .part.editor .tabs-container > .tab .tab-border-bottom-container {
+	display: none;
 }
 
 .agent-sessions-workbench:not(.nosidebar) .part.chatbar {
