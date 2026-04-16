@@ -121,6 +121,24 @@
 	overflow: hidden;
 }
 
+.agent-sessions-workbench .part.editor:not(.modal-editor-part)::after {
+	box-shadow: none;
+}
+
+.agent-sessions-workbench .part.editor .multiDiffEntry {
+	padding: 0 8px;
+	box-sizing: border-box;
+}
+
+.agent-sessions-workbench .part.editor .multiDiffEntry .header-content {
+	border-radius: 6px;
+	border: none;
+}
+
+.agent-sessions-workbench .part.editor .multiDiffEntry .editorParent {
+	border-bottom: none;
+}
+
 .agent-sessions-workbench:not(.nosidebar) .part.chatbar {
 	margin-left: 0;
 }
