@@ -47,7 +47,7 @@
 }
 
 .new-chat-input-area:focus-within {
-	border-color: var(--vscode-focusBorder);
+	border-color: var(--vscode-agentsChatInput-focusBorder, var(--vscode-focusBorder));
 }
 
 .new-chat-input-area .monaco-editor .ghost-text-decoration {

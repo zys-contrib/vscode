@@ -36,7 +36,7 @@
 }
 
 .new-chat-in-session .new-chat-input-area:focus-within {
-	border-color: var(--vscode-focusBorder) !important;
+	border-color: var(--vscode-agentsChatInput-focusBorder, var(--vscode-focusBorder)) !important;
 }
 
 .new-chat-in-session .sessions-chat-editor {

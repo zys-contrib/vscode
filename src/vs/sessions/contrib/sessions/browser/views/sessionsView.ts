@@ -27,6 +27,8 @@ import { AICustomizationShortcutsWidget } from '../aiCustomizationShortcutsWidge
 import { Action2, MenuId, registerAction2 } from '../../../../../platform/actions/common/actions.js';
 import { Button } from '../../../../../base/browser/ui/button/button.js';
 import { defaultButtonStyles } from '../../../../../platform/theme/browser/defaultStyles.js';
+import { asCssVariable } from '../../../../../platform/theme/common/colorRegistry.js';
+import { agentsNewSessionButtonBackground, agentsNewSessionButtonBorder, agentsNewSessionButtonForeground, agentsNewSessionButtonHoverBackground } from '../../../../common/theme.js';
 import { IStorageService, StorageScope, StorageTarget } from '../../../../../platform/storage/common/storage.js';
 import { ITelemetryService } from '../../../../../platform/telemetry/common/telemetry.js';
 import { IHostService } from '../../../../../workbench/services/host/browser/host.js';
@@ -156,7 +158,10 @@ export class SessionsView extends ViewPane {
 		// Compact New Session Button
 		const newSessionButton = this._register(new Button(headerActions, {
 			...defaultButtonStyles,
-			buttonSecondaryBorder: '',
+			buttonSecondaryBackground: asCssVariable(agentsNewSessionButtonBackground),
+			buttonSecondaryForeground: asCssVariable(agentsNewSessionButtonForeground),
+			buttonSecondaryHoverBackground: asCssVariable(agentsNewSessionButtonHoverBackground),
+			buttonSecondaryBorder: asCssVariable(agentsNewSessionButtonBorder),
 			secondary: true,
 			supportIcons: true,
 		}));

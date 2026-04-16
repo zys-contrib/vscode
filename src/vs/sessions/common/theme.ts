@@ -12,9 +12,9 @@
 
 import { localize } from '../../nls.js';
 import { registerColor, transparent } from '../../platform/theme/common/colorUtils.js';
-import { contrastBorder } from '../../platform/theme/common/colorRegistry.js';
-import { editorWidgetBorder, editorBackground } from '../../platform/theme/common/colors/editorColors.js';
-import { buttonBackground, inputBackground, inputBorder, inputForeground, inputPlaceholderForeground } from '../../platform/theme/common/colors/inputColors.js';
+import { contrastBorder, focusBorder } from '../../platform/theme/common/colorRegistry.js';
+import { editorWidgetBorder, editorBackground, toolbarHoverBackground } from '../../platform/theme/common/colors/editorColors.js';
+import { buttonBackground, buttonBorder, inputBackground, inputBorder, inputForeground, inputPlaceholderForeground } from '../../platform/theme/common/colors/inputColors.js';
 import { ACTIVITY_BAR_BADGE_BACKGROUND, ACTIVITY_BAR_BADGE_FOREGROUND, PANEL_BORDER, SIDE_BAR_BACKGROUND, SIDE_BAR_FOREGROUND } from '../../workbench/common/theme.js';
 
 // ============================================================================
@@ -100,9 +100,38 @@ export const agentsChatInputBorder = registerColor(
 	localize('agentsChatInput.border', 'Border color of the chat input field in the agent sessions window.')
 );
 
+export const agentsChatInputFocusBorder = registerColor(
+	'agentsChatInput.focusBorder', focusBorder,
+	localize('agentsChatInput.focusBorder', 'Border color of the chat input field when focused in the agent sessions window.')
+);
+
 export const agentsChatInputPlaceholderForeground = registerColor(
 	'agentsChatInput.placeholderForeground', inputPlaceholderForeground,
 	localize('agentsChatInput.placeholderForeground', 'Placeholder text color in the chat input field in the agent sessions window.')
+);
+
+// ============================================================================
+// New session button
+// ============================================================================
+
+export const agentsNewSessionButtonBackground = registerColor(
+	'agentsNewSessionButton.background', '#00000000',
+	localize('agentsNewSessionButton.background', 'Background color of the New Session button in the agent sessions sidebar.')
+);
+
+export const agentsNewSessionButtonForeground = registerColor(
+	'agentsNewSessionButton.foreground', SIDE_BAR_FOREGROUND,
+	localize('agentsNewSessionButton.foreground', 'Foreground color of the New Session button in the agent sessions sidebar.')
+);
+
+export const agentsNewSessionButtonBorder = registerColor(
+	'agentsNewSessionButton.border', buttonBorder,
+	localize('agentsNewSessionButton.border', 'Border color of the New Session button in the agent sessions sidebar.')
+);
+
+export const agentsNewSessionButtonHoverBackground = registerColor(
+	'agentsNewSessionButton.hoverBackground', toolbarHoverBackground,
+	localize('agentsNewSessionButton.hoverBackground', 'Background color of the New Session button when hovered in the agent sessions sidebar.')
 );
 
 // ============================================================================
