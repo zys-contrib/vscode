@@ -148,7 +148,7 @@
 }
 
 .agent-sessions-workbench .part.editor .multiDiffEntry .header:hover .header-content {
-	background: color-mix(in srgb, var(--vscode-sideBarSectionHeader-background) 80%, var(--vscode-foreground) 5%);
+	background: color-mix(in srgb, var(--vscode-sideBarSectionHeader-background) 95%, var(--vscode-foreground));
 }
 
 .agent-sessions-workbench .part.editor .multiDiffEntry .header-content .actions {
@@ -188,10 +188,6 @@
 	color: var(--vscode-gitDecoration-addedResourceForeground);
 }
 
-.agent-sessions-workbench .part.editor .multiDiffEntry .header-content .status.modified {
-	color: var(--vscode-gitDecoration-modifiedResourceForeground);
-}
-
 .agent-sessions-workbench .part.editor .multiDiffEntry .header-content .status.deleted {
 	color: var(--vscode-gitDecoration-deletedResourceForeground);
 }
@@ -214,6 +210,7 @@
 	font-weight: 500;
 	box-shadow: none !important;
 	padding: 0 0 0 4px !important;
+	--tab-border-top-color: transparent !important;
 }
 
 .agent-sessions-workbench .part.editor .tabs-and-actions-container {
@@ -229,10 +226,6 @@
 .agent-sessions-workbench .part.editor .tabs-container > .tab .tab-border-top-container,
 .agent-sessions-workbench .part.editor .tabs-container > .tab .tab-border-bottom-container {
 	display: none !important;
-}
-
-.agent-sessions-workbench .part.editor .tabs-container > .tab {
-	--tab-border-top-color: transparent !important;
 }
 
 .agent-sessions-workbench:not(.nosidebar) .part.chatbar {
