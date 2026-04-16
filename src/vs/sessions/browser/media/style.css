@@ -133,6 +133,8 @@
 .agent-sessions-workbench .part.editor .multiDiffEntry .header-content {
 	border-radius: 6px;
 	border: none;
+	background: var(--vscode-sideBarSectionHeader-background);
+	margin-top: 4px;
 }
 
 .agent-sessions-workbench .part.editor .multiDiffEntry .editorParent {

@@ -2,7 +2,7 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-import { h } from '../../../../base/browser/dom.js';
+import { addDisposableListener, EventType, h } from '../../../../base/browser/dom.js';
 import { Button } from '../../../../base/browser/ui/button/button.js';
 import { Codicon } from '../../../../base/common/codicons.js';
 import { Disposable, DisposableStore } from '../../../../base/common/lifecycle.js';
@@ -125,7 +125,7 @@ export class DiffEditorItemTemplate extends Disposable implements IPooledObject<
 			? this._register(this._workbenchUIElementFactory.createResourceLabel(this._elements.secondaryPath))
 			: undefined;
 		this._dataStore = this._register(new DisposableStore());
-		this._headerHeight = 40;
+		this._headerHeight = 36;
 		this._lastScrollTop = -1;
 		this._isSettingScrollTop = false;
 
@@ -136,6 +136,15 @@ export class DiffEditorItemTemplate extends Disposable implements IPooledObject<
 			btn.icon = this._collapsed.read(reader) ? Codicon.chevronRight : Codicon.chevronDown;
 		}));
 		this._register(btn.onDidClick(() => {
+			this._viewModel.get()?.collapsed.set(!this._collapsed.get(), undefined);
+		}));
+
+		this._elements.header.style.cursor = 'pointer';
+		this._register(addDisposableListener(this._elements.header, EventType.CLICK, (e) => {
+			// Don't toggle if clicking on actions or the collapse button itself (already handled)
+			if ((e.target as HTMLElement).closest('.actions') || (e.target as HTMLElement).closest('.collapse-button')) {
+				return;
+			}
 			this._viewModel.get()?.collapsed.set(!this._collapsed.get(), undefined);
 		}));
 
