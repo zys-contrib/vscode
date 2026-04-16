@@ -868,6 +868,13 @@ export namespace ConfigKey {
 		/** Enable WebSocket transport for Responses API requests. When enabled, uses a persistent WebSocket connection per conversation instead of individual HTTP requests. */
 		export const ResponsesApiWebSocketEnabled = defineTeamInternalSetting<boolean>('chat.advanced.responsesApi.webSocket.enabled', ConfigType.ExperimentBased, false);
 		export const DebugSimulateWebSocketResponse = defineTeamInternalSetting<string>('chat.advanced.debug.simulateWebSocketResponse', ConfigType.Simple, '');
+
+		/** Enable local session search index — tracks sessions locally and enables chronicle commands.*/
+		export const SessionSearchLocalIndexEnabled = defineTeamInternalSetting<boolean>('chat.advanced.sessionSearch.localIndex.enabled', ConfigType.ExperimentBased, false, vBoolean());
+		/** Enable cloud sync of session data to cloud. */
+		export const SessionSearchCloudSyncEnabled = defineTeamInternalSetting<boolean>('chat.advanced.sessionSearch.cloudSync.enabled', ConfigType.Simple, false, vBoolean());
+		/** Repository patterns to exclude from cloud sync (exact owner/repo or glob patterns like my-org/*). */
+		export const SessionSearchCloudSyncExcludeRepositories = defineTeamInternalSetting<string[]>('chat.advanced.sessionSearch.cloudSync.excludeRepositories', ConfigType.Simple, []);
 	}
 
 	/**
