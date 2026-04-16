@@ -135,6 +135,12 @@
 	border: none;
 	background: var(--vscode-sideBarSectionHeader-background);
 	margin-top: 4px;
+	align-items: center;
+}
+
+.agent-sessions-workbench .part.editor .multiDiffEntry .header-content .file-path .title {
+	font-size: 13px;
+	line-height: 22px;
 }
 
 .agent-sessions-workbench .part.editor .multiDiffEntry .header {
@@ -157,6 +163,10 @@
 
 .agent-sessions-workbench .part.editor .multiDiffEntry .editorParent {
 	border-bottom: none;
+}
+
+.agent-sessions-workbench .part.editor .diff-hidden-lines .center {
+	box-shadow: none;
 }
 
 .agent-sessions-workbench .part.editor .multiDiffEntry .header-content .status {
@@ -214,7 +224,11 @@
 
 .agent-sessions-workbench .part.editor .tabs-container > .tab .tab-border-top-container,
 .agent-sessions-workbench .part.editor .tabs-container > .tab .tab-border-bottom-container {
-	display: none;
+	display: none !important;
+}
+
+.agent-sessions-workbench .part.editor .tabs-container > .tab {
+	--tab-border-top-color: transparent !important;
 }
 
 .agent-sessions-workbench:not(.nosidebar) .part.chatbar {
