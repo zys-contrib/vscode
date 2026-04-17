@@ -424,11 +424,11 @@ export class CopilotAgent extends Disposable implements IAgent {
 
 		const sessionId = config?.session ? AgentSession.id(config.session) : generateUuid();
 		const sessionUri = AgentSession.uri(this.id, sessionId);
-		const shellManager = this._instantiationService.createInstance(ShellManager, sessionUri);
 		const activeClient = this._activeClients.get(sessionUri);
 		const snapshot = activeClient ? await activeClient.snapshot() : undefined;
-		const sessionConfig = this._buildSessionConfig(snapshot, shellManager);
 		const workingDirectory = await this._resolveSessionWorkingDirectory(config, sessionId);
+		const shellManager = this._instantiationService.createInstance(ShellManager, sessionUri, workingDirectory);
+		const sessionConfig = this._buildSessionConfig(snapshot, shellManager);
 
 		const factory: SessionWrapperFactory = async callbacks => {
 			const raw = await client.createSession({
@@ -444,7 +444,7 @@ export class CopilotAgent extends Disposable implements IAgent {
 
 		let agentSession: CopilotAgentSession;
 		try {
-			agentSession = this._createAgentSession(factory, workingDirectory, sessionId, shellManager, snapshot);
+			agentSession = this._createAgentSession(factory, sessionId, shellManager, snapshot);
 			await agentSession.initializeSession();
 		} catch (error) {
 			await this._removeCreatedWorktree(sessionId);
@@ -714,7 +714,7 @@ export class CopilotAgent extends Disposable implements IAgent {
 	 * and returns it. The caller must call {@link CopilotAgentSession.initializeSession}
 	 * to wire up the SDK session.
 	 */
-	private _createAgentSession(wrapperFactory: SessionWrapperFactory, _workingDirectory: URI | undefined, sessionId: string, shellManager: ShellManager, snapshot?: IActiveClientSnapshot): CopilotAgentSession {
+	private _createAgentSession(wrapperFactory: SessionWrapperFactory, sessionId: string, shellManager: ShellManager, snapshot?: IActiveClientSnapshot): CopilotAgentSession {
 		const sessionUri = AgentSession.uri(this.id, sessionId);
 
 		const agentSession = this._instantiationService.createInstance(
@@ -789,7 +789,7 @@ export class CopilotAgent extends Disposable implements IAgent {
 			throw new Error(`workingDirectory is required to resume Copilot session '${sessionId}'`);
 		}
 
-		const shellManager = this._instantiationService.createInstance(ShellManager, sessionUri);
+		const shellManager = this._instantiationService.createInstance(ShellManager, sessionUri, workingDirectory);
 		const sessionConfig = this._buildSessionConfig(snapshot, shellManager);
 
 		const factory: SessionWrapperFactory = async callbacks => {
@@ -822,7 +822,7 @@ export class CopilotAgent extends Disposable implements IAgent {
 			}
 		};
 
-		const agentSession = this._createAgentSession(factory, workingDirectory, sessionId, shellManager, snapshot);
+		const agentSession = this._createAgentSession(factory, sessionId, shellManager, snapshot);
 		await agentSession.initializeSession();
 
 		return agentSession;
