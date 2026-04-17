@@ -578,7 +578,7 @@ export function fileEditsToExternalEdits(tc: IToolCallState): IToolCallFileEdit[
  * confirmation UI. Shared between completed tool edits and pending write
  * confirmations.
  */
-export function mapFileEdits(items: readonly IFileEdit[], undoStopId: string): IToolCallFileEdit[] {
+function mapFileEdits(items: readonly IFileEdit[], undoStopId: string): IToolCallFileEdit[] {
 	const result: IToolCallFileEdit[] = [];
 	for (const edit of items) {
 		const isCreate = !edit.before && !!edit.after;
