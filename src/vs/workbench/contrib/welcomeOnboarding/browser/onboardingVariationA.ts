@@ -181,7 +181,6 @@ export class OnboardingVariationA extends Disposable implements IOnboardingServi
 		this.closeButton.type = 'button';
 		this.closeButton.setAttribute('aria-label', localize('onboarding.close', "Close"));
 		this.closeButton.appendChild(renderIcon(Codicon.close));
-		this.footerFocusableElements.push(this.closeButton);
 
 		// Header with progress
 		const header = append(this.card, $('.onboarding-a-header'));
@@ -1144,7 +1143,7 @@ export class OnboardingVariationA extends Disposable implements IOnboardingServi
 	}
 
 	private _getFocusableElements(): HTMLElement[] {
-		return [...this.stepFocusableElements, ...this.footerFocusableElements].filter(element => this._isTabbable(element));
+		return [...(this.closeButton ? [this.closeButton] : []), ...this.stepFocusableElements, ...this.footerFocusableElements].filter(element => this._isTabbable(element));
 	}
 
 	private _focusCurrentStepElement(): void {
