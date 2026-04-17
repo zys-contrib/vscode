@@ -402,7 +402,7 @@ export class AgentHostSessionHandler extends Disposable implements IChatSessionC
 				const sessionState = this._getSessionState(resolvedSession.toString());
 				if (sessionState) {
 					const modelId = this._toLanguageModelId(sessionResource, sessionState.summary.model?.id);
-					history.push(...turnsToHistory(resolvedSession, sessionState.turns, this._config.agentId, modelId));
+					history.push(...turnsToHistory(resolvedSession, sessionState.turns, this._config.agentId, this._config.connectionAuthority, modelId));
 
 					// Enrich history with inner tool calls from subagent
 					// child sessions. Subscribes to each child session so
@@ -1079,7 +1079,7 @@ export class AgentHostSessionHandler extends Disposable implements IChatSessionC
 				? tc.invocationMessage
 				: new MarkdownString(tc.invocationMessage.markdown);
 			this._reviveTerminalIfNeeded(existing, tc, ctx.backendSession);
-			updateRunningToolSpecificData(existing, tc);
+			updateRunningToolSpecificData(existing, tc, this._config.connectionAuthority);
 
 			// If this is a client-provided tool call owned by us, execute it.
 			if (tc.status === ToolCallStatus.Running
@@ -1095,7 +1095,7 @@ export class AgentHostSessionHandler extends Disposable implements IChatSessionC
 			// Running was skipped due to throttling and terminal content
 			// only appears at Completed time.
 			this._reviveTerminalIfNeeded(existing, tc, ctx.backendSession);
-			fileEdits = finalizeToolInvocation(existing, tc, ctx.backendSession);
+			fileEdits = finalizeToolInvocation(existing, tc, ctx.backendSession, this._config.connectionAuthority);
 		}
 
 		return { invocation: existing, fileEdits };
@@ -1562,7 +1562,7 @@ export class AgentHostSessionHandler extends Disposable implements IChatSessionC
 									if (tc.status === ToolCallStatus.Completed || tc.status === ToolCallStatus.Cancelled) {
 										const completedTc = tc as ICompletedToolCall;
 										const fileEditParts = completedToolCallToEditParts(completedTc);
-										const serialized = completedToolCallToSerialized(completedTc, toolCallId, URI.parse(childSessionUri));
+										const serialized = completedToolCallToSerialized(completedTc, toolCallId, URI.parse(childSessionUri), this._config.connectionAuthority);
 										if (fileEditParts.length > 0) {
 											serialized.presentation = ToolInvocationPresentation.Hidden;
 										}
@@ -1630,11 +1630,11 @@ export class AgentHostSessionHandler extends Disposable implements IChatSessionC
 							this._awaitToolConfirmation(confirmInvocation, tc.toolCallId, URI.parse(childSessionUri), turnId, childCts.token);
 						}
 					} else if (tc.status === ToolCallStatus.Running) {
-						updateRunningToolSpecificData(existing, tc);
+						updateRunningToolSpecificData(existing, tc, this._config.connectionAuthority);
 					}
 
 					if (existing && (tc.status === ToolCallStatus.Completed || tc.status === ToolCallStatus.Cancelled) && !IChatToolInvocation.isComplete(existing)) {
-						finalizeToolInvocation(existing, tc, URI.parse(childSessionUri));
+						finalizeToolInvocation(existing, tc, URI.parse(childSessionUri), this._config.connectionAuthority);
 					}
 				}
 			}
