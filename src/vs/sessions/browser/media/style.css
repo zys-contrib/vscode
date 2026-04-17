@@ -138,6 +138,10 @@
 	align-items: center;
 }
 
+.agent-sessions-workbench .part.editor .multiDiffEntry .header:not(.collapsed) .header-content {
+	border-bottom: none;
+}
+
 .agent-sessions-workbench .part.editor .multiDiffEntry .header-content .file-path .title {
 	font-size: 13px;
 	line-height: 22px;
@@ -145,13 +149,16 @@
 
 .agent-sessions-workbench .part.editor .multiDiffEntry .header {
 	cursor: pointer;
-	border-radius: 6px;
-	margin-top: 4px;
-	background: transparent;
 }
 
+.agent-sessions-workbench .part.editor .multiDiffEntry .header:focus,
 .agent-sessions-workbench .part.editor .multiDiffEntry .header:focus-visible {
-	outline: 1px solid var(--vscode-focusBorder);
+	outline: none;
+}
+
+.agent-sessions-workbench .part.editor .multiDiffEntry .header:focus .header-content,
+.agent-sessions-workbench .part.editor .multiDiffEntry .header:focus-visible .header-content {
+	box-shadow: inset 0 0 0 1px var(--vscode-focusBorder);
 }
 
 .agent-sessions-workbench .part.editor .multiDiffEntry .header:hover .header-content {
