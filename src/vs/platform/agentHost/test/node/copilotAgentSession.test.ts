@@ -601,7 +601,7 @@ suite('CopilotAgentSession', () => {
 		});
 
 		test('permission request consumes pending auto-ready for client tools', async () => {
-			const { session, mockSession, progressEvents } = await createAgentSession(disposables, { clientSnapshot: snapshot });
+			const { session, mockSession, progressEvents, waitForProgress } = await createAgentSession(disposables, { clientSnapshot: snapshot });
 
 			// SDK emits tool.execution_start — tool_start fires immediately
 			mockSession.fire('tool.execution_start', {
@@ -623,6 +623,7 @@ suite('CopilotAgentSession', () => {
 			});
 
 			// tool_ready from permission flow should have fired (with confirmationTitle)
+			await waitForProgress(e => e.type === 'tool_ready');
 			const toolReadys = progressEvents.filter(e => e.type === 'tool_ready');
 			assert.strictEqual(toolReadys.length, 1);
 			if (toolReadys[0].type === 'tool_ready') {
@@ -727,7 +728,7 @@ suite('CopilotAgentSession', () => {
 		});
 
 		test('tool_start stores pending auto-ready data for client tools', async () => {
-			const { session, mockSession, progressEvents } = await createAgentSession(disposables, { clientSnapshot: snapshot });
+			const { session, mockSession, progressEvents, waitForProgress } = await createAgentSession(disposables, { clientSnapshot: snapshot });
 
 			mockSession.fire('tool.execution_start', {
 				toolCallId: 'tc-ready-data',
@@ -749,6 +750,7 @@ suite('CopilotAgentSession', () => {
 				toolName: 'my_tool',
 			});
 
+			await waitForProgress(e => e.type === 'tool_ready');
 			const toolReadys = progressEvents.filter(e => e.type === 'tool_ready');
 			assert.strictEqual(toolReadys.length, 1);
 			if (toolReadys[0].type === 'tool_ready') {
