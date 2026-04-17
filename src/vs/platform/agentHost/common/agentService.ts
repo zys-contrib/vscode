@@ -70,7 +70,7 @@ export interface IAgentSessionMetadata {
 	readonly workingDirectory?: URI;
 	readonly isRead?: boolean;
 	readonly isDone?: boolean;
-	readonly diffs?: readonly { readonly uri: string; readonly added?: number; readonly removed?: number }[];
+	readonly diffs?: readonly IFileEdit[];
 }
 
 export interface IAgentSessionProjectInfo {
