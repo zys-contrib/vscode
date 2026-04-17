@@ -9,12 +9,13 @@ import { Disposable } from '../../../../../../base/common/lifecycle.js';
 import { URI } from '../../../../../../base/common/uri.js';
 import { toAgentHostUri } from '../../../../../../platform/agentHost/common/agentHostUri.js';
 import { AgentSession, type IAgentConnection } from '../../../../../../platform/agentHost/common/agentService.js';
-import { SessionStatus, type ISessionFileDiff, type ISessionSummary } from '../../../../../../platform/agentHost/common/state/sessionState.js';
+import { SessionStatus, type ISessionSummary } from '../../../../../../platform/agentHost/common/state/sessionState.js';
+import type { ISessionFileDiff } from '../../../../../../platform/agentHost/common/state/protocol/state.js';
 import { IProductService } from '../../../../../../platform/product/common/productService.js';
 import { ChatSessionStatus, IChatSessionFileChange2, IChatSessionItem, IChatSessionItemController, IChatSessionItemsDelta } from '../../../common/chatSessionsService.js';
 import { getAgentHostIcon } from '../agentSessions.js';
 
-function mapDiffsToChanges(diffs: readonly ISessionFileDiff[] | readonly { readonly uri: string; readonly added?: number; readonly removed?: number }[] | undefined, connectionAuthority: string): readonly IChatSessionFileChange2[] | undefined {
+function mapDiffsToChanges(diffs: readonly ISessionFileDiff[] | undefined, connectionAuthority: string): readonly IChatSessionFileChange2[] | undefined {
 	if (!diffs || diffs.length === 0) {
 		return undefined;
 	}
@@ -149,7 +150,7 @@ export class AgentHostSessionListController extends Disposable implements IChatS
 		this._onDidChangeChatSessionItems.fire({ addedOrUpdated: this._items });
 	}
 
-	private _makeItemFromSummary(rawId: string, summary: ISessionSummary, diffs: ISessionFileDiff[] | undefined): IChatSessionItem {
+	private _makeItemFromSummary(rawId: string, summary: ISessionSummary, diffs: readonly ISessionFileDiff[] | undefined): IChatSessionItem {
 		const workingDir = typeof summary.workingDirectory === 'string' ? URI.parse(summary.workingDirectory) : summary.workingDirectory;
 		return this._makeItem(rawId, {
 			title: summary.title,

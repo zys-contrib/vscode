@@ -436,7 +436,7 @@ export class AgentHostSessionHandler extends Disposable implements IChatSessionC
 							parts: [],
 							participant: this._config.agentId,
 						});
-						initialProgress = activeTurnToProgress(resolvedSession, sessionState.activeTurn);
+						initialProgress = activeTurnToProgress(resolvedSession, sessionState.activeTurn, this._config.connectionAuthority);
 						this._logService.info(`[AgentHost] Reconnecting to active turn ${activeTurnId} for session ${resolvedSession.toString()}`);
 					}
 				}
@@ -1068,7 +1068,7 @@ export class AgentHostSessionHandler extends Disposable implements IChatSessionC
 			const existingState = existing.state.get();
 			if (existingState.type !== IChatToolInvocation.StateKind.WaitingForConfirmation) {
 				existing.didExecuteTool(undefined);
-				const confirmInvocation = toolCallStateToInvocation(tc, undefined, ctx.backendSession);
+				const confirmInvocation = toolCallStateToInvocation(tc, undefined, ctx.backendSession, this._config.connectionAuthority);
 				ctx.activeToolInvocations.set(toolCallId, confirmInvocation);
 				ctx.progress([confirmInvocation]);
 				this._awaitToolConfirmation(confirmInvocation, toolCallId, ctx.backendSession, ctx.turnId, ctx.cancellationToken);
@@ -1298,7 +1298,7 @@ export class AgentHostSessionHandler extends Disposable implements IChatSessionC
 						let existing = ctx.activeToolInvocations.get(tc.toolCallId);
 
 						if (!existing) {
-							existing = toolCallStateToInvocation(tc, undefined, ctx.backendSession);
+							existing = toolCallStateToInvocation(tc, undefined, ctx.backendSession, this._config.connectionAuthority);
 							ctx.activeToolInvocations.set(tc.toolCallId, existing);
 							ctx.progress([existing]);
 
@@ -1613,7 +1613,7 @@ export class AgentHostSessionHandler extends Disposable implements IChatSessionC
 					let existing = activeChildToolInvocations.get(tc.toolCallId);
 
 					if (!existing) {
-						existing = toolCallStateToInvocation(tc, parentToolCallId, URI.parse(childSessionUri));
+						existing = toolCallStateToInvocation(tc, parentToolCallId, URI.parse(childSessionUri), this._config.connectionAuthority);
 						activeChildToolInvocations.set(tc.toolCallId, existing);
 						emitProgress([existing]);
 
@@ -1624,7 +1624,7 @@ export class AgentHostSessionHandler extends Disposable implements IChatSessionC
 						const existingState = existing.state.get();
 						if (existingState.type !== IChatToolInvocation.StateKind.WaitingForConfirmation) {
 							existing.didExecuteTool(undefined);
-							const confirmInvocation = toolCallStateToInvocation(tc, parentToolCallId, URI.parse(childSessionUri));
+							const confirmInvocation = toolCallStateToInvocation(tc, parentToolCallId, URI.parse(childSessionUri), this._config.connectionAuthority);
 							activeChildToolInvocations.set(tc.toolCallId, confirmInvocation);
 							emitProgress([confirmInvocation]);
 							this._awaitToolConfirmation(confirmInvocation, tc.toolCallId, URI.parse(childSessionUri), turnId, childCts.token);

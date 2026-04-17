@@ -9,7 +9,7 @@ import { IAuthorizationProtectedResourceMetadata } from '../../../base/common/oa
 import { URI } from '../../../base/common/uri.js';
 import { createDecorator } from '../../instantiation/common/instantiation.js';
 import type { ISyncedCustomization } from './agentPluginManager.js';
-import { IProtectedResourceMetadata, type IToolDefinition } from './state/protocol/state.js';
+import { IProtectedResourceMetadata, type IFileEdit, type IToolDefinition } from './state/protocol/state.js';
 import type { IActionEnvelope, INotification, ISessionAction, ITerminalAction } from './state/sessionActions.js';
 import type { IAgentSubscription } from './state/agentSubscription.js';
 import type { ICreateTerminalParams, IResolveSessionConfigResult, ISessionConfigCompletionsResult } from './state/protocol/commands.js';
@@ -298,6 +298,8 @@ export interface IAgentToolReadyEvent extends IAgentProgressEventBase {
 	readonly permissionKind?: 'shell' | 'write' | 'mcp' | 'read' | 'url' | 'custom-tool';
 	/** File path associated with the permission request. */
 	readonly permissionPath?: string;
+	/** File edits this tool call will perform, for preview before confirmation. */
+	readonly edits?: { items: IFileEdit[] };
 }
 
 /** Streaming reasoning/thinking content from the assistant. */

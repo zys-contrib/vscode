@@ -5,6 +5,7 @@
 
 import assert from 'assert';
 import type { CopilotSession, SessionEvent, SessionEventPayload, SessionEventType, TypedSessionEventHandler } from '@github/copilot-sdk';
+import { DeferredPromise } from '../../../../base/common/async.js';
 import { Emitter } from '../../../../base/common/event.js';
 import { DisposableStore } from '../../../../base/common/lifecycle.js';
 import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../base/test/common/utils.js';
@@ -67,10 +68,31 @@ async function createAgentSession(disposables: DisposableStore): Promise<{
 	session: CopilotAgentSession;
 	mockSession: MockCopilotSession;
 	progressEvents: IAgentProgressEvent[];
+	waitForProgress: (predicate: (event: IAgentProgressEvent) => boolean) => Promise<IAgentProgressEvent>;
 }> {
 	const progressEmitter = disposables.add(new Emitter<IAgentProgressEvent>());
 	const progressEvents: IAgentProgressEvent[] = [];
-	disposables.add(progressEmitter.event(e => progressEvents.push(e)));
+	const waiters: { predicate: (event: IAgentProgressEvent) => boolean; deferred: DeferredPromise<IAgentProgressEvent> }[] = [];
+	disposables.add(progressEmitter.event(e => {
+		progressEvents.push(e);
+		for (let i = waiters.length - 1; i >= 0; i--) {
+			if (waiters[i].predicate(e)) {
+				const { deferred } = waiters[i];
+				waiters.splice(i, 1);
+				deferred.complete(e);
+			}
+		}
+	}));
+
+	const waitForProgress = (predicate: (event: IAgentProgressEvent) => boolean): Promise<IAgentProgressEvent> => {
+		const existing = progressEvents.find(predicate);
+		if (existing) {
+			return Promise.resolve(existing);
+		}
+		const deferred = new DeferredPromise<IAgentProgressEvent>();
+		waiters.push({ predicate, deferred });
+		return deferred.p;
+	};
 
 	const sessionUri = AgentSession.uri('copilot', 'test-session-1');
 	const mockSession = new MockCopilotSession();
@@ -97,7 +119,7 @@ async function createAgentSession(disposables: DisposableStore): Promise<{
 
 	await session.initializeSession();
 
-	return { session, mockSession, progressEvents };
+	return { session, mockSession, progressEvents, waitForProgress };
 }
 
 // ---- Tests ------------------------------------------------------------------
@@ -114,15 +136,15 @@ suite('CopilotAgentSession', () => {
 	suite('permission handling', () => {
 
 		test('read permission fires tool_ready (deferred to side effects)', async () => {
-			const { session, progressEvents } = await createAgentSession(disposables);
+			const { session, progressEvents, waitForProgress } = await createAgentSession(disposables);
 			const resultPromise = session.handlePermissionRequest({
 				kind: 'read',
 				path: '/workspace/src/file.ts',
 				toolCallId: 'tc-1',
 			});
 
+			await waitForProgress(e => e.type === 'tool_ready');
 			assert.strictEqual(progressEvents.length, 1);
-			assert.strictEqual(progressEvents[0].type, 'tool_ready');
 
 			assert.ok(session.respondToPermissionRequest('tc-1', true));
 			const result = await resultPromise;
@@ -130,15 +152,15 @@ suite('CopilotAgentSession', () => {
 		});
 
 		test('write permission fires tool_ready (deferred to side effects)', async () => {
-			const { session, progressEvents } = await createAgentSession(disposables);
+			const { session, progressEvents, waitForProgress } = await createAgentSession(disposables);
 			const resultPromise = session.handlePermissionRequest({
 				kind: 'write',
 				fileName: '/workspace/src/file.ts',
 				toolCallId: 'tc-1',
 			});
 
+			await waitForProgress(e => e.type === 'tool_ready');
 			assert.strictEqual(progressEvents.length, 1);
-			assert.strictEqual(progressEvents[0].type, 'tool_ready');
 
 			assert.ok(session.respondToPermissionRequest('tc-1', true));
 			const result = await resultPromise;
@@ -146,7 +168,7 @@ suite('CopilotAgentSession', () => {
 		});
 
 		test('write permission outside working directory fires tool_ready', async () => {
-			const { session, progressEvents } = await createAgentSession(disposables);
+			const { session, progressEvents, waitForProgress } = await createAgentSession(disposables);
 
 			const resultPromise = session.handlePermissionRequest({
 				kind: 'write',
@@ -154,8 +176,8 @@ suite('CopilotAgentSession', () => {
 				toolCallId: 'tc-write-outside',
 			});
 
+			await waitForProgress(e => e.type === 'tool_ready');
 			assert.strictEqual(progressEvents.length, 1);
-			assert.strictEqual(progressEvents[0].type, 'tool_ready');
 
 			assert.ok(session.respondToPermissionRequest('tc-write-outside', true));
 			const result = await resultPromise;
@@ -163,7 +185,7 @@ suite('CopilotAgentSession', () => {
 		});
 
 		test('read permission outside working directory fires tool_ready', async () => {
-			const { session, progressEvents } = await createAgentSession(disposables);
+			const { session, progressEvents, waitForProgress } = await createAgentSession(disposables);
 
 			// Kick off permission request but don't await — it will block
 			const resultPromise = session.handlePermissionRequest({
@@ -173,8 +195,8 @@ suite('CopilotAgentSession', () => {
 			});
 
 			// Should have fired a tool_ready event
+			await waitForProgress(e => e.type === 'tool_ready');
 			assert.strictEqual(progressEvents.length, 1);
-			assert.strictEqual(progressEvents[0].type, 'tool_ready');
 
 			// Respond to it
 			assert.ok(session.respondToPermissionRequest('tc-2', true));
@@ -189,12 +211,13 @@ suite('CopilotAgentSession', () => {
 		});
 
 		test('denied-interactively when user denies', async () => {
-			const { session, progressEvents } = await createAgentSession(disposables);
+			const { session, progressEvents, waitForProgress } = await createAgentSession(disposables);
 			const resultPromise = session.handlePermissionRequest({
 				kind: 'shell',
 				toolCallId: 'tc-3',
 			});
 
+			await waitForProgress(e => e.type === 'tool_ready');
 			assert.strictEqual(progressEvents.length, 1);
 			session.respondToPermissionRequest('tc-3', false);
 			const result = await resultPromise;

@@ -145,6 +145,7 @@ export class AgentEventMapper {
 					invocationMessage: e.invocationMessage,
 					toolInput: e.toolInput,
 					confirmationTitle: e.confirmationTitle,
+					edits: e.edits,
 				} satisfies IToolCallReadyAction;
 			}
 
