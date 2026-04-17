@@ -139,17 +139,37 @@ export class DiffEditorItemTemplate extends Disposable implements IPooledObject<
 			this._viewModel.get()?.collapsed.set(!this._collapsed.get(), undefined);
 		}));
 
+		// Make the header clickable to toggle collapse/expand
+		this._elements.header.tabIndex = 0;
+		this._elements.header.setAttribute('role', 'button');
+
 		this._register(addDisposableListener(this._elements.header, EventType.CLICK, (e) => {
 			// Don't toggle if clicking on actions or the collapse button itself (already handled)
-			const target = e.target as Element;
+			const target = e.target;
+			if (!(target instanceof Element)) {
+				return;
+			}
 			if (target.closest('.actions') || target.closest('.collapse-button')) {
 				return;
 			}
 			this._viewModel.get()?.collapsed.set(!this._collapsed.get(), undefined);
 		}));
 
+		this._register(addDisposableListener(this._elements.header, EventType.KEY_DOWN, (e) => {
+			if (e.key === 'Enter' || e.key === ' ') {
+				const target = e.target;
+				if (target instanceof Element && (target.closest('.actions') || target.closest('.collapse-button'))) {
+					return;
+				}
+				e.preventDefault();
+				this._viewModel.get()?.collapsed.set(!this._collapsed.get(), undefined);
+			}
+		}));
+
 		this._register(autorun(reader => {
-			this._elements.editor.style.display = this._collapsed.read(reader) ? 'none' : 'block';
+			const collapsed = this._collapsed.read(reader);
+			this._elements.editor.style.display = collapsed ? 'none' : 'block';
+			this._elements.header.setAttribute('aria-expanded', String(!collapsed));
 		}));
 
 		this._register(this.editor.getModifiedEditor().onDidLayoutChange(e => {

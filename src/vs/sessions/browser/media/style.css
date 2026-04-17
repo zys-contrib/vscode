@@ -134,7 +134,7 @@
 	border-radius: 6px;
 	border: none;
 	background: var(--vscode-sideBarSectionHeader-background);
-	margin-top: 4px;
+	margin: 0;
 	align-items: center;
 }
 
@@ -145,6 +145,13 @@
 
 .agent-sessions-workbench .part.editor .multiDiffEntry .header {
 	cursor: pointer;
+	border-radius: 6px;
+	margin-top: 4px;
+	background: transparent;
+}
+
+.agent-sessions-workbench .part.editor .multiDiffEntry .header:focus-visible {
+	outline: 1px solid var(--vscode-focusBorder);
 }
 
 .agent-sessions-workbench .part.editor .multiDiffEntry .header:hover .header-content {
@@ -153,12 +160,14 @@
 
 .agent-sessions-workbench .part.editor .multiDiffEntry .header-content .actions {
 	opacity: 0;
+	pointer-events: none;
 	padding: 0 0 0 8px;
 }
 
 .agent-sessions-workbench .part.editor .multiDiffEntry .header:hover .header-content .actions,
 .agent-sessions-workbench .part.editor .multiDiffEntry .header:focus-within .header-content .actions {
 	opacity: 1;
+	pointer-events: auto;
 }
 
 .agent-sessions-workbench .part.editor .multiDiffEntry .collapse-button a {
