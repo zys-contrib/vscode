@@ -93,14 +93,12 @@ class MockAgentHostService extends mock<IAgentHostService>() {
 				createdAt: Date.now(),
 				modifiedAt: Date.now(),
 			};
-			const initial: ISessionState = { ...createSessionState(summary), lifecycle: SessionLifecycle.Ready };
-			const action: ISessionAction = {
-				type: 'session/activeClientChanged' as const,
-				session: session.toString(),
+			const state: ISessionState = {
+				...createSessionState(summary),
+				lifecycle: SessionLifecycle.Ready,
 				activeClient: config.activeClient,
-			} as ISessionAction;
-			const withClient = sessionReducer(initial, action as Parameters<typeof sessionReducer>[1], () => { });
-			this.sessionStates.set(session.toString(), withClient);
+			};
+			this.sessionStates.set(session.toString(), state);
 		}
 		return session;
 	}

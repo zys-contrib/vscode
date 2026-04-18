@@ -265,6 +265,7 @@ export class AgentService extends Disposable implements IAgentService {
 			const state = this._stateManager.createSession(summary);
 			state.config = sessionConfig;
 			state.turns = sourceTurns;
+			state.activeClient = config.activeClient;
 		} else {
 			// Create empty state for new sessions
 			const summary: ISessionSummary = {
@@ -280,6 +281,7 @@ export class AgentService extends Disposable implements IAgentService {
 			};
 			const state = this._stateManager.createSession(summary);
 			state.config = sessionConfig;
+			state.activeClient = config?.activeClient;
 		}
 		this._stateManager.dispatchServerAction({ type: ActionType.SessionReady, session: session.toString() });
 

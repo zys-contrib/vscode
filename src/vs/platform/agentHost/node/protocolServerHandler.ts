@@ -12,7 +12,6 @@ import { ILogService } from '../../log/common/log.js';
 import { AHPFileSystemProvider } from '../common/agentHostFileSystemProvider.js';
 import { AgentSession, type IAgentService } from '../common/agentService.js';
 import type { ICommandMap } from '../common/state/protocol/messages.js';
-import { ActionType } from '../common/state/protocol/actions.js';
 import { IActionEnvelope, INotification, isSessionAction, isTerminalAction, type ISessionAction } from '../common/state/sessionActions.js';
 import { MIN_PROTOCOL_VERSION, PROTOCOL_VERSION } from '../common/state/sessionCapabilities.js';
 import {
@@ -24,6 +23,7 @@ import {
 	isJsonRpcNotification,
 	isJsonRpcRequest,
 	JSON_RPC_INTERNAL_ERROR,
+	JsonRpcErrorCodes,
 	ProtocolError,
 	type IAhpServerNotification,
 	type IInitializeParams,
@@ -350,6 +350,11 @@ export class ProtocolServerHandler extends Disposable {
 				}
 				fork = { session: URI.parse(params.fork.session), turnIndex, turnId: params.fork.turnId };
 			}
+			// If the client eagerly claimed the active client role, validate
+			// the clientId matches the connection before forwarding.
+			if (params.activeClient && params.activeClient.clientId !== _client.clientId) {
+				throw new ProtocolError(JsonRpcErrorCodes.InvalidParams, `createSession.activeClient.clientId must match the connection's clientId`);
+			}
 			try {
 				createdSession = await this._agentService.createSession({
 					provider: params.provider,
@@ -358,6 +363,7 @@ export class ProtocolServerHandler extends Disposable {
 					session: URI.parse(params.session),
 					fork,
 					config: params.config,
+					activeClient: params.activeClient,
 				});
 			} catch (err) {
 				if (err instanceof ProtocolError) {
@@ -368,19 +374,6 @@ export class ProtocolServerHandler extends Disposable {
 			// Verify the provider honored the client-chosen session URI per the protocol contract
 			if (createdSession.toString() !== URI.parse(params.session).toString()) {
 				this._logService.warn(`[ProtocolServer] createSession: provider returned URI ${createdSession.toString()} but client requested ${params.session}`);
-			}
-			// If the client eagerly claimed the active client role, dispatch
-			// `session/activeClientChanged` now so the claim is atomic with
-			// creation.
-			if (params.activeClient) {
-				if (params.activeClient.clientId !== _client.clientId) {
-					throw new ProtocolError(JSON_RPC_INTERNAL_ERROR, `createSession.activeClient.clientId must match the connection's clientId`);
-				}
-				this._agentService.dispatchAction({
-					type: ActionType.SessionActiveClientChanged,
-					session: createdSession.toString(),
-					activeClient: params.activeClient,
-				}, _client.clientId, 0);
 			}
 			return null;
 		},

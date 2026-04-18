@@ -247,6 +247,36 @@ suite('AgentService (node dispatcher)', () => {
 
 			assert.deepStrictEqual(service.stateManager.getSessionState(session.toString())?.config?.values, config);
 		});
+
+		test('seeds activeClient into the initial session state when provided', async () => {
+			service.registerProvider(copilotAgent);
+
+			const envelopes: IActionEnvelope[] = [];
+			disposables.add(service.onDidAction(env => envelopes.push(env)));
+
+			const activeClient = {
+				clientId: 'client-eager',
+				tools: [{ name: 't1', description: 'd', inputSchema: { type: 'object' } }],
+				customizations: [{ uri: 'file:///plugin-a', displayName: 'A' }],
+			};
+			const session = await service.createSession({ provider: 'copilot', activeClient });
+
+			assert.deepStrictEqual({
+				activeClient: service.stateManager.getSessionState(session.toString())?.activeClient,
+				dispatchedActiveClientChanged: envelopes.some(e => e.action.type === ActionType.SessionActiveClientChanged),
+			}, {
+				activeClient,
+				dispatchedActiveClientChanged: false,
+			});
+		});
+
+		test('omits activeClient from the initial session state when not provided', async () => {
+			service.registerProvider(copilotAgent);
+
+			const session = await service.createSession({ provider: 'copilot' });
+
+			assert.strictEqual(service.stateManager.getSessionState(session.toString())?.activeClient, undefined);
+		});
 	});
 
 	// ---- authenticate ---------------------------------------------------
