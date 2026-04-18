@@ -449,6 +449,13 @@ export class CopilotAgent extends Disposable implements IAgent {
 
 		const sessionId = config?.session ? AgentSession.id(config.session) : generateUuid();
 		const sessionUri = AgentSession.uri(this.id, sessionId);
+		if (config?.activeClient) {
+			const ac = this._getOrCreateActiveClient(sessionUri);
+			ac.updateTools(config.activeClient.clientId, config.activeClient.tools);
+			if (config.activeClient.customizations?.length) {
+				await this._plugins.sync(config.activeClient.clientId, config.activeClient.customizations);
+			}
+		}
 		const activeClient = this._activeClients.get(sessionUri);
 		const snapshot = activeClient ? await activeClient.snapshot() : undefined;
 		const workingDirectory = await this._resolveSessionWorkingDirectory(config, sessionId);

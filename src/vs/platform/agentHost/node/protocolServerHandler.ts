@@ -12,6 +12,7 @@ import { ILogService } from '../../log/common/log.js';
 import { AHPFileSystemProvider } from '../common/agentHostFileSystemProvider.js';
 import { AgentSession, type IAgentService } from '../common/agentService.js';
 import type { ICommandMap } from '../common/state/protocol/messages.js';
+import { ActionType } from '../common/state/protocol/actions.js';
 import { IActionEnvelope, INotification, isSessionAction, isTerminalAction, type ISessionAction } from '../common/state/sessionActions.js';
 import { MIN_PROTOCOL_VERSION, PROTOCOL_VERSION } from '../common/state/sessionCapabilities.js';
 import {
@@ -367,6 +368,19 @@ export class ProtocolServerHandler extends Disposable {
 			// Verify the provider honored the client-chosen session URI per the protocol contract
 			if (createdSession.toString() !== URI.parse(params.session).toString()) {
 				this._logService.warn(`[ProtocolServer] createSession: provider returned URI ${createdSession.toString()} but client requested ${params.session}`);
+			}
+			// If the client eagerly claimed the active client role, dispatch
+			// `session/activeClientChanged` now so the claim is atomic with
+			// creation.
+			if (params.activeClient) {
+				if (params.activeClient.clientId !== _client.clientId) {
+					throw new ProtocolError(JSON_RPC_INTERNAL_ERROR, `createSession.activeClient.clientId must match the connection's clientId`);
+				}
+				this._agentService.dispatchAction({
+					type: ActionType.SessionActiveClientChanged,
+					session: createdSession.toString(),
+					activeClient: params.activeClient,
+				}, _client.clientId, 0);
 			}
 			return null;
 		},

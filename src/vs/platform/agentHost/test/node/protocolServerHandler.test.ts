@@ -577,4 +577,77 @@ suite('ProtocolServerHandler', () => {
 		transport2.simulateClose();
 		assert.deepStrictEqual(counts, [1, 1, 0]);
 	});
+
+	// ---- createSession activeClient -------------------------------------
+
+	suite('createSession activeClient', () => {
+
+		test('forwards activeClient as SessionActiveClientChanged', async () => {
+			const newSession = URI.parse('copilot:///eager-session').toString();
+			// Pre-create the session so the client can subscribe at handshake
+			// time. MockAgentService.createSession below is idempotent against
+			// state-manager duplicates.
+			stateManager.createSession(makeSessionSummary(newSession));
+
+			const transport = connectClient('client-1', [newSession]);
+			transport.sent.length = 0;
+
+			const responsePromise = waitForResponse(transport, 2);
+			transport.simulateMessage(request(2, 'createSession', {
+				session: newSession,
+				provider: 'copilot',
+				activeClient: {
+					clientId: 'client-1',
+					tools: [{ name: 't1', description: 'd', inputSchema: { type: 'object' } }],
+					customizations: [{ uri: 'file:///plugin-a', displayName: 'A' }],
+				},
+			}));
+			await responsePromise;
+
+			const activeClientMsgs = findNotifications(transport.sent, 'action').filter(m => {
+				const envelope = m.params as unknown as { action: { type: string } };
+				return envelope.action.type === ActionType.SessionActiveClientChanged;
+			});
+			assert.strictEqual(activeClientMsgs.length, 1, 'should emit exactly one SessionActiveClientChanged');
+			const envelope = activeClientMsgs[0].params as unknown as { action: { session: string; activeClient: { clientId: string; tools: { name: string }[]; customizations?: { uri: string }[] } } };
+			assert.deepStrictEqual({
+				session: envelope.action.session,
+				clientId: envelope.action.activeClient.clientId,
+				toolName: envelope.action.activeClient.tools[0].name,
+				customizationUri: envelope.action.activeClient.customizations?.[0].uri,
+			}, {
+				session: newSession,
+				clientId: 'client-1',
+				toolName: 't1',
+				customizationUri: 'file:///plugin-a',
+			});
+		});
+
+		test('rejects createSession when activeClient.clientId mismatches', async () => {
+			const newSession = URI.parse('copilot:///mismatch-session').toString();
+			stateManager.createSession(makeSessionSummary(newSession));
+
+			const transport = connectClient('client-1', [newSession]);
+			transport.sent.length = 0;
+
+			const responsePromise = waitForResponse(transport, 2);
+			transport.simulateMessage(request(2, 'createSession', {
+				session: newSession,
+				provider: 'copilot',
+				activeClient: {
+					clientId: 'other-client',
+					tools: [],
+				},
+			}));
+			const resp = await responsePromise as { result?: unknown; error?: { code: number; message: string } };
+
+			assert.ok(resp.error, 'response should be an error');
+			assert.strictEqual(resp.result, undefined);
+			const activeClientMsgs = findNotifications(transport.sent, 'action').filter(m => {
+				const envelope = m.params as unknown as { action: { type: string } };
+				return envelope.action.type === ActionType.SessionActiveClientChanged;
+			});
+			assert.strictEqual(activeClientMsgs.length, 0, 'no activeClient notification should have been emitted');
+		});
+	});
 });
