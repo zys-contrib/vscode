@@ -93,6 +93,7 @@
 
 .new-chat-widget-container .new-chat-bottom-container .new-chat-controls-container {
 	display: flex;
+	gap: 4px;
 }
 
 .new-chat-widget-container .new-chat-bottom-container .new-chat-repo-config-container {
@@ -100,6 +101,11 @@
 	align-items: center;
 	gap: 2px;
 	min-width: 0;
+}
+
+/* Spacing between action items inside the repo-config toolbar (e.g. Worktree, branch) */
+.new-chat-widget-container .monaco-action-bar .actions-container {
+	gap: 4px;
 }
 
 /* Match VS Code chat-secondary-toolbar sizing for action items in the bottom row
