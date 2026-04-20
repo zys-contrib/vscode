@@ -22,7 +22,7 @@ import { InstantiationType, registerSingleton } from '../../../../platform/insta
 const LAST_SELECTED_SESSION_KEY = 'agentSessions.lastSelectedSession';
 const ACTIVE_PROVIDER_KEY = 'sessions.activeProviderId';
 
-export class SessionsManagementService extends Disposable implements ISessionsManagementService {
+class SessionsManagementService extends Disposable implements ISessionsManagementService {
 
 	declare readonly _serviceBrand: undefined;
 
@@ -267,10 +267,7 @@ export class SessionsManagementService extends Disposable implements ISessionsMa
 				throw new Error(`No session types available for provider '${providerId}'`);
 			}
 		}
-		this.logService.info(`[SessionsManagementService] createNewSession providerId='${providerId}' repositoryUri='${repositoryUri.toString()}' sessionTypeId='${sessionTypeId}'`);
-
 		const session = provider.createNewSession(repositoryUri, sessionTypeId);
-		this.logService.info(`[SessionsManagementService] createNewSession created session sessionId='${session.sessionId}' sessionType='${session.sessionType}' resourceScheme='${session.resource.scheme}' providerId='${session.providerId}'`);
 		this.setActiveSession(session);
 		return session;
 	}
