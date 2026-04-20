@@ -23,7 +23,7 @@
 	box-sizing: border-box;
 	overflow: hidden;
 	padding: 16px 16px 20px 16px;
-	/* Establishes a size container so the @container (max-width: 320px) query below
+	/* Establishes a size container so the @container (max-width: 330px) query below
 	 * can collapse picker labels to icon-only when the new-chat area is narrow. */
 	container-type: size;
 	position: relative;
