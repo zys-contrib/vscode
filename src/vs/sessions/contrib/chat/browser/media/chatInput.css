@@ -97,11 +97,21 @@
 
 .sessions-chat-config-toolbar .monaco-toolbar {
 	height: auto;
+	min-width: 0;
+	overflow: hidden;
+}
+
+.sessions-chat-config-toolbar .monaco-action-bar,
+.sessions-chat-config-toolbar .monaco-action-bar .actions-container {
+	min-width: 0;
+	overflow: hidden;
 }
 
 .sessions-chat-config-toolbar .monaco-action-bar .action-item {
 	display: flex;
 	align-items: center;
+	min-width: 48px;
+	overflow: hidden;
 }
 
 .sessions-chat-config-toolbar .action-label {
@@ -116,7 +126,7 @@
 	touch-action: manipulation;
 	color: var(--vscode-icon-foreground);
 	white-space: nowrap;
-	min-width: 0;
+	min-width: 38px;
 	overflow: hidden;
 }
 
@@ -128,6 +138,14 @@
 .sessions-chat-config-toolbar .action-label,
 .sessions-chat-config-toolbar .action-label .chat-input-picker-label {
 	font-size: 12px;
+}
+
+/* Allow long labels (e.g. the model picker name) to ellipsize when space is tight */
+.sessions-chat-config-toolbar .action-label .chat-input-picker-label {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	min-width: 0;
 }
 
 .sessions-chat-config-toolbar .action-label .codicon {
