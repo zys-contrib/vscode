@@ -999,36 +999,36 @@ export class OnboardingVariationA extends Disposable implements IOnboardingServi
 		chatLabel.textContent = localize('onboarding.sessions.group.chat', "In the Chat view");
 		const chatGrid = append(chatGroup, $('.onboarding-a-sessions-grid.onboarding-a-sessions-grid-3'));
 
-		this._createFeatureCard(chatGrid, Codicon.comment,
-			localize('onboarding.sessions.askMode', "Ask mode"),
-			localize('onboarding.sessions.askMode.desc', "Ask questions about your code or concepts and get answers with references \u2014 no changes to your files."));
+		this._createFeatureCard(chatGrid, Codicon.listOrdered,
+			localize('onboarding.sessions.planMode', "Plan"),
+			localize('onboarding.sessions.planMode.desc', "Produce a structured implementation plan before any code changes, then hand it off to an implementation agent to execute."));
 
 		this._createFeatureCard(chatGrid, Codicon.commentDiscussion,
-			localize('onboarding.sessions.agentMode', "Agent mode"),
-			localize('onboarding.sessions.agentMode.desc', "Describe a task and Copilot edits files, runs commands, and verifies the result. You review and approve each change."));
+			localize('onboarding.sessions.agentMode', "Agent"),
+			localize('onboarding.sessions.agentMode.desc', "Describe a goal. The agent plans the approach, edits files, runs commands, and self-corrects \u2014 you review and approve along the way."));
 
-		this._createFeatureCard(chatGrid, Codicon.listOrdered,
-			localize('onboarding.sessions.planMode', "Plan mode"),
-			localize('onboarding.sessions.planMode.desc', "Break a task into a step-by-step plan before any code changes. Review and refine it, then hand it off to be executed."));
+		this._createFeatureCard(chatGrid, Codicon.comment,
+			localize('onboarding.sessions.askMode', "Ask"),
+			localize('onboarding.sessions.askMode.desc', "Ask questions about your code or technical concepts and get answers grounded in your codebase \u2014 no file changes."));
 
 		// Group 2: everything else
 		const moreGroup = append(features, $('.onboarding-a-sessions-group'));
 		const moreLabel = append(moreGroup, $('div.onboarding-a-sessions-group-label'));
-		moreLabel.textContent = localize('onboarding.sessions.group.more', "And beyond");
+		moreLabel.textContent = localize('onboarding.sessions.group.more', "Beyond the Chat view");
 		const moreGrid = append(moreGroup, $('.onboarding-a-sessions-grid.onboarding-a-sessions-grid-2'));
 
 		this._createFeatureCard(moreGrid, Codicon.rocket,
-			localize('onboarding.sessions.runAnywhere', "Run anywhere"),
-			localize('onboarding.sessions.runAnywhere.desc', "Run agents locally for interactive work, in the background with Copilot CLI, or in the cloud to open a pull request your team can review."));
+			localize('onboarding.sessions.runAnywhere', "Run agents anywhere"),
+			localize('onboarding.sessions.runAnywhere.desc', "Run agents locally for interactive work, in the background with Copilot CLI, or in the cloud with cloud agents that open a pull request your team can review."));
 
 		const inlineDesc = this._createFeatureCard(moreGrid, Codicon.sparkle,
-			localize('onboarding.sessions.inline', "In the editor"));
+			localize('onboarding.sessions.inline', "AI assistance as you type"));
 		inlineDesc.append(
-			localize('onboarding.sessions.inline.desc1', "Completions and next-edit predictions appear as you type \u2014 press "),
+			localize('onboarding.sessions.inline.desc1', "Inline suggestions and next edit predictions appear as you code \u2014 press "),
 			this._createKbd(localize('onboarding.sessions.inline.tab', "Tab")),
 			localize('onboarding.sessions.inline.desc2', " to accept. Press "),
 			this._createKbd(isMacintosh ? '\u2318I' : 'Ctrl+I'),
-			localize('onboarding.sessions.inline.desc3', " for inline chat to make targeted edits without leaving the file."),
+			localize('onboarding.sessions.inline.desc3', " to open inline chat for targeted edits without leaving the editor."),
 		);
 
 		// Tutorial link at bottom of content, above footer
