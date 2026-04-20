@@ -62,7 +62,7 @@
 
 /* Height constraints are driven by MIN_EDITOR_HEIGHT / MAX_EDITOR_HEIGHT in newChatViewPane.ts */
 .sessions-chat-editor {
-	padding: 0 8px 6px 10px;
+	padding: 6px 6px 0 6px;
 	flex-shrink: 1;
 }
 
@@ -77,8 +77,8 @@
 .sessions-chat-toolbar {
 	display: flex;
 	align-items: center;
-	padding: 0 6px 6px 6px;
-	gap: 4px;
+	padding: 4px 6px 6px 6px;
+	gap: 6px;
 	color: var(--vscode-icon-foreground);
 }
 
@@ -108,11 +108,10 @@
 	display: flex;
 	align-items: center;
 	height: 16px;
-	padding: 3px 3px 3px 6px;
+	padding: 3px 1px 3px 7px;
 	background-color: transparent;
 	border: none;
 	border-radius: 4px;
-	font-size: 13px;
 	cursor: pointer;
 	touch-action: manipulation;
 	color: var(--vscode-icon-foreground);
@@ -126,14 +125,20 @@
 	color: var(--vscode-foreground);
 }
 
+.sessions-chat-config-toolbar .action-label,
+.sessions-chat-config-toolbar .action-label .chat-input-picker-label {
+	font-size: 12px;
+}
+
 .sessions-chat-config-toolbar .action-label .codicon {
-	font-size: 14px;
+	font-size: 12px !important;
 	flex-shrink: 0;
 }
 
 .sessions-chat-config-toolbar .action-label .codicon-chevron-down {
-	font-size: 12px;
-	margin-left: 6px;
+	font-size: 10px !important;
+	margin-left: 4px;
+	opacity: 0.75;
 }
 
 /* Send button - wraps a Button widget */
@@ -166,7 +171,7 @@
 }
 
 .sessions-chat-send-button .monaco-button .codicon {
-	font-size: 16px;
+	font-size: 14px;
 }
 
 /* Loading spinner in toolbar */
@@ -231,7 +236,7 @@
 }
 
 .sessions-chat-attach-button .codicon {
-	font-size: 16px;
+	font-size: 14px;
 }
 
 /* Attached context container */
