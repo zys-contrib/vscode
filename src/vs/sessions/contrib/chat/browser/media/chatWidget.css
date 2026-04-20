@@ -129,7 +129,7 @@
 .new-chat-widget-container .new-chat-bottom-container .monaco-action-bar .action-item,
 .new-chat-widget-container .new-chat-bottom-container .sessions-chat-picker-slot .action-label,
 .new-chat-widget-container .new-chat-bottom-container .monaco-action-bar .action-item .action-label {
-	min-width: 38px;
+	min-width: 30px;
 	overflow: hidden;
 }
 

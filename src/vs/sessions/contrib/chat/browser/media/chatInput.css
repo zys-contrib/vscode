@@ -110,8 +110,14 @@
 .sessions-chat-config-toolbar .monaco-action-bar .action-item {
 	display: flex;
 	align-items: center;
-	min-width: 48px;
+	min-width: 30px;
 	overflow: hidden;
+}
+
+/* Prevent the mode picker from shrinking so the model picker label
+ * ellipsizes first rather than the mode picker collapsing to icon-only. */
+.sessions-chat-config-toolbar .monaco-action-bar .action-item:has(.sessions-chat-dropdown-label) {
+	flex-shrink: 0;
 }
 
 .sessions-chat-config-toolbar .action-label {
@@ -126,7 +132,7 @@
 	touch-action: manipulation;
 	color: var(--vscode-icon-foreground);
 	white-space: nowrap;
-	min-width: 38px;
+	min-width: 30px;
 	overflow: hidden;
 }
 
