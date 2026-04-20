@@ -15,7 +15,7 @@ import { URI } from '../../../../base/common/uri.js';
 import { localize } from '../../../../nls.js';
 import { agentHostUri } from '../../../../platform/agentHost/common/agentHostFileSystemProvider.js';
 import { AGENT_HOST_SCHEME, agentHostAuthority, toAgentHostUri } from '../../../../platform/agentHost/common/agentHostUri.js';
-import { AgentSession, type IAgentConnection, type IAgentSessionMetadata } from '../../../../platform/agentHost/common/agentService.js';
+import { type IAgentConnection, type IAgentSessionMetadata } from '../../../../platform/agentHost/common/agentService.js';
 import { RemoteAgentHostConnectionStatus } from '../../../../platform/agentHost/common/remoteAgentHostService.js';
 import { IFileDialogService } from '../../../../platform/dialogs/common/dialogs.js';
 import { INotificationService } from '../../../../platform/notification/common/notification.js';
@@ -23,35 +23,10 @@ import { IChatWidgetService } from '../../../../workbench/contrib/chat/browser/c
 import { IChatService } from '../../../../workbench/contrib/chat/common/chatService/chatService.js';
 import { IChatSessionsService } from '../../../../workbench/contrib/chat/common/chatSessionsService.js';
 import { ILanguageModelsService } from '../../../../workbench/contrib/chat/common/languageModels.js';
-import { AgentHostSessionAdapter, BaseAgentHostSessionsProvider } from '../../agentHost/browser/baseAgentHostSessionsProvider.js';
+import { BaseAgentHostSessionsProvider } from '../../agentHost/browser/baseAgentHostSessionsProvider.js';
 import { buildAgentHostSessionWorkspace } from '../../../common/agentHostSessionWorkspace.js';
-import { COPILOT_CLI_SESSION_TYPE, ISession, ISessionType, ISessionWorkspace, ISessionWorkspaceBrowseAction } from '../../../services/sessions/common/session.js';
+import { ISession, ISessionType, ISessionWorkspace, ISessionWorkspaceBrowseAction } from '../../../services/sessions/common/session.js';
 import { remoteAgentHostSessionTypeId } from '../common/remoteAgentHostSessionType.js';
-
-/** The default agent provider name used by agent hosts when no explicit provider is specified. */
-const DEFAULT_AGENT_HOST_PROVIDER = 'copilot';
-
-/**
- * Maps well-known agent host provider names to the local platform session type
- * they should be associated with. Agent providers not in this map keep the
- * unique per-connection ID as their logical session type.
- */
-const WELL_KNOWN_AGENT_SESSION_TYPES: ReadonlyMap<string, string> = new Map([
-	[DEFAULT_AGENT_HOST_PROVIDER, COPILOT_CLI_SESSION_TYPE],
-]);
-
-function wellKnownSessionType(agentProvider: string): string | undefined {
-	return WELL_KNOWN_AGENT_SESSION_TYPES.get(agentProvider);
-}
-
-function wellKnownAgentProvider(sessionType: string): string | undefined {
-	for (const [provider, type] of WELL_KNOWN_AGENT_SESSION_TYPES) {
-		if (type === sessionType) {
-			return provider;
-		}
-	}
-	return undefined;
-}
 
 function toLocalProjectUri(uri: URI, connectionAuthority: string): URI {
 	return uri.scheme === Schemas.file ? toAgentHostUri(uri, connectionAuthority) : uri;
@@ -93,13 +68,6 @@ export class RemoteAgentHostSessionsProvider extends BaseAgentHostSessionsProvid
 
 	private _outputChannelId: string | undefined;
 	get outputChannelId(): string | undefined { return this._outputChannelId; }
-
-	/**
-	 * Maps logical session type id → unique per-connection resource scheme.
-	 * Copilot agents map to `COPILOT_CLI_SESSION_TYPE` as the logical type
-	 * but keep the unique per-connection id as the resource scheme.
-	 */
-	private readonly _sessionTypeToResourceScheme = new Map<string, string>();
 
 	private readonly _connectionStatus = observableValue<RemoteAgentHostConnectionStatus>('connectionStatus', RemoteAgentHostConnectionStatus.Disconnected);
 	readonly connectionStatus: IObservable<RemoteAgentHostConnectionStatus> = this._connectionStatus;
@@ -154,25 +122,16 @@ export class RemoteAgentHostSessionsProvider extends BaseAgentHostSessionsProvid
 
 	protected get authenticationPending(): IObservable<boolean> { return this._authenticationPending; }
 
-	protected createAdapter(meta: IAgentSessionMetadata): AgentHostSessionAdapter {
-		const provider = AgentSession.provider(meta.session) ?? DEFAULT_AGENT_HOST_PROVIDER;
-		const resourceScheme = remoteAgentHostSessionTypeId(this._connectionAuthority, provider);
-		const logicalType = this._logicalSessionTypeForProvider(provider);
-		return new AgentHostSessionAdapter(meta, this.id, resourceScheme, logicalType, {
-			icon: this.icon,
+	protected _adapterOptions() {
+		return {
 			description: new MarkdownString().appendText(this.label),
-			loading: this._authenticationPending,
-			buildWorkspace: (project, workingDirectory) => RemoteAgentHostSessionsProvider.buildWorkspace(project, workingDirectory, this.label),
-			mapDiffUri: uri => toAgentHostUri(uri, this._connectionAuthority),
-		});
+			buildWorkspace: (project: IAgentSessionMetadata['project'], workingDirectory: URI | undefined) =>
+				RemoteAgentHostSessionsProvider.buildWorkspace(project, workingDirectory, this.label),
+		};
 	}
 
-	protected resourceSchemeForSessionType(sessionTypeId: string): string {
-		return this._sessionTypeToResourceScheme.get(sessionTypeId) ?? sessionTypeId;
-	}
-
-	protected agentProviderFromSessionType(sessionType: string): string {
-		return wellKnownAgentProvider(sessionType) ?? sessionType.substring(`remote-${this._connectionAuthority}-`.length);
+	protected resourceSchemeForProvider(provider: string): string {
+		return remoteAgentHostSessionTypeId(this._connectionAuthority, provider);
 	}
 
 	protected override mapWorkingDirectoryUri(uri: URI): URI {
@@ -275,7 +234,6 @@ export class RemoteAgentHostSessionsProvider extends BaseAgentHostSessionsProvid
 
 		if (this._sessionTypes.length > 0) {
 			this._sessionTypes = [];
-			this._sessionTypeToResourceScheme.clear();
 			this._onDidChangeSessionTypes.fire();
 		}
 
@@ -294,50 +252,8 @@ export class RemoteAgentHostSessionsProvider extends BaseAgentHostSessionsProvid
 
 	// -- Session-type sync ---------------------------------------------------
 
-	/**
-	 * Reconcile `_sessionTypes` against the agents advertised by the host's
-	 * root state. Adds new types, removes types whose agents disappeared, and
-	 * fires {@link onDidChangeSessionTypes} if anything actually changed.
-	 *
-	 * Each entry's label is formatted as `<agent display name> [<host label>]`.
-	 */
-	private _syncSessionTypesFromRootState(rootState: { agents: ReadonlyArray<{ provider: string; displayName?: string }> }): void {
-		const nextMap = new Map<string, string>();
-		const next = rootState.agents.map((agent): ISessionType => {
-			const resourceScheme = remoteAgentHostSessionTypeId(this._connectionAuthority, agent.provider);
-			const logicalType = this._logicalSessionTypeForProvider(agent.provider);
-			nextMap.set(logicalType, resourceScheme);
-			return {
-				id: logicalType,
-				label: this._formatSessionTypeLabel(agent.displayName?.trim() || agent.provider),
-				icon: Codicon.remote,
-			};
-		});
-
-		const prev = this._sessionTypes;
-		if (prev.length === next.length && prev.every((t, i) => t.id === next[i].id && t.label === next[i].label)) {
-			return;
-		}
-		this._sessionTypes = next;
-		this._sessionTypeToResourceScheme.clear();
-		for (const [key, value] of nextMap) {
-			this._sessionTypeToResourceScheme.set(key, value);
-		}
-		this._onDidChangeSessionTypes.fire();
-	}
-
-	private _formatSessionTypeLabel(agentLabel: string): string {
+	protected _formatSessionTypeLabel(agentLabel: string): string {
 		return `${agentLabel} [${this.label}]`;
-	}
-
-	/**
-	 * Returns the logical session type for a given agent provider.
-	 * Well-known providers (see {@link WELL_KNOWN_AGENT_SESSION_TYPES}) map
-	 * to the corresponding platform session type. Other agents keep the
-	 * unique per-connection ID.
-	 */
-	private _logicalSessionTypeForProvider(provider: string): string {
-		return wellKnownSessionType(provider) ?? remoteAgentHostSessionTypeId(this._connectionAuthority, provider);
 	}
 
 	// -- Workspaces ----------------------------------------------------------

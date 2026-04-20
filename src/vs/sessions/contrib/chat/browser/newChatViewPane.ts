@@ -105,6 +105,7 @@ class NewChatWidget extends Disposable {
 	}
 
 	private _createNewSession(selection: IWorkspaceSelection, sessionTypeId: string | undefined): void {
+		this.logService.info(`[NewChatViewPane] _createNewSession providerId='${selection.providerId}' workspaceUri='${selection.workspace.repositories[0].uri.toString()}' sessionTypeId(from picker)='${sessionTypeId}'`);
 		this.sessionsManagementService.createNewSession(selection.providerId, selection.workspace.repositories[0].uri, sessionTypeId);
 	}
 
