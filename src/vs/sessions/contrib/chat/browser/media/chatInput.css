@@ -148,21 +148,38 @@
 	min-width: 0;
 }
 
-.sessions-chat-config-toolbar .action-label .codicon {
-	font-size: 12px !important;
+.sessions-chat-config-toolbar .monaco-action-bar .action-item .action-label > .codicon {
+	font-size: 12px;
 	flex-shrink: 0;
+	/* Override the base .monaco-action-bar .action-item .codicon { width:16px; height:16px }
+	 * so the leading icon sizes naturally to its font-size, matching the bottom-row pickers. */
+	width: auto;
+	height: auto;
 }
 
-.sessions-chat-config-toolbar .action-label .codicon-chevron-down {
-	font-size: 10px !important;
+.sessions-chat-config-toolbar .monaco-action-bar .action-item .action-label > .codicon-chevron-down {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 10px;
 	margin-left: 4px;
-	opacity: 0.75;
+	line-height: 1;
+	/* Restore the 16x16 codicon box for the chevron so it has equal padding on both sides,
+	 * matching the bottom-row picker chevrons. */
+	width: 16px;
+	height: 16px;
+}
+
+/* Spacing between action items inside the chat input config toolbar (mode + model picker) */
+.sessions-chat-config-toolbar .monaco-action-bar .actions-container {
+	gap: 4px;
 }
 
 /* Send button - wraps a Button widget */
 .sessions-chat-send-button {
 	display: flex;
 	align-items: center;
+	flex-shrink: 0;
 }
 
 .sessions-chat-send-button .monaco-button {
@@ -236,6 +253,7 @@
 	justify-content: center;
 	width: 22px;
 	height: 22px;
+	flex-shrink: 0;
 	border-radius: 4px;
 	cursor: pointer;
 	color: var(--vscode-icon-foreground);
