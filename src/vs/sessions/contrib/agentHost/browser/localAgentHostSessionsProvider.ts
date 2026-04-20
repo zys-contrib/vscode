@@ -5,7 +5,7 @@
 
 import { Codicon } from '../../../../base/common/codicons.js';
 import { MarkdownString } from '../../../../base/common/htmlContent.js';
-import { IObservable } from '../../../../base/common/observable.js';
+import { autorun, IObservable } from '../../../../base/common/observable.js';
 import { basename } from '../../../../base/common/resources.js';
 import { ThemeIcon } from '../../../../base/common/themables.js';
 import { URI } from '../../../../base/common/uri.js';
@@ -68,6 +68,23 @@ export class LocalAgentHostSessionsProvider extends BaseAgentHostSessionsProvide
 		}
 		this._register(this._agentHostService.rootState.onDidChange(rootState => {
 			this._syncSessionTypesFromRootState(rootState);
+		}));
+
+		// Eagerly populate the session cache once authentication has settled.
+		// Without this, the sidebar would only call `getSessions()` after some
+		// other event (e.g. a `notify/sessionAdded` after the user sends a
+		// message) forced a refresh. We wait for `authenticationPending` to
+		// settle because the underlying agent (e.g. CopilotAgent) throws
+		// `AHP_AUTH_REQUIRED` from `listSessions()` until its auth token is
+		// resolved. The `authenticationPending` observable is sticky (once
+		// it goes false it stays false), so this autorun fires
+		// `_refreshSessions()` at most once for the eager-load case.
+		this._register(autorun(reader => {
+			if (this._agentHostService.authenticationPending.read(reader)) {
+				return;
+			}
+			this._cacheInitialized = true;
+			this._refreshSessions();
 		}));
 	}
 
