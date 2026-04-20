@@ -161,7 +161,7 @@
 .new-chat-widget-container .new-chat-bottom-container .action-label {
 	height: 16px;
 	padding: 3px 1px 3px 7px;
-	font-size: 12px;
+	font-size: 11px;
 	color: var(--vscode-icon-foreground);
 }
 
@@ -240,7 +240,7 @@
 }
 
 .sessions-chat-dropdown-label {
-	margin-left: 2px;
+	margin-left: 6px;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -334,12 +334,10 @@
 	align-items: center;
 	justify-content: center;
 	font-size: 10px;
-	margin-left: 4px;
+	margin-left: 2px;
 	line-height: 1;
-	/* Match the 16x16 codicon box that the action-bar gives the regular chat
-	 * picker's chevron, so the small chevron icon has equal padding on both sides. */
-	width: 16px;
-	height: 16px;
+	width: 12px;
+	height: 12px;
 }
 
 .sessions-chat-picker-slot .action-label .chat-session-option-label {
