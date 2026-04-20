@@ -46,6 +46,7 @@ export const enum TerminalSettingId {
 	TabsShowActions = 'terminal.integrated.tabs.showActions',
 	TabsLocation = 'terminal.integrated.tabs.location',
 	TabsFocusMode = 'terminal.integrated.tabs.focusMode',
+	TabsAllowAgentCliTitle = 'terminal.integrated.tabs.allowAgentCliTitle',
 	MacOptionIsMeta = 'terminal.integrated.macOptionIsMeta',
 	MacOptionClickForcesSelection = 'terminal.integrated.macOptionClickForcesSelection',
 	AltClickMovesCursor = 'terminal.integrated.altClickMovesCursor',
@@ -150,6 +151,10 @@ export const enum WindowsShellType {
 }
 
 export const enum GeneralShellType {
+	Claude = 'claude',
+	Codex = 'codex',
+	Copilot = 'copilot',
+	Gemini = 'gemini',
 	PowerShell = 'pwsh',
 	Python = 'python',
 	Julia = 'julia',
@@ -671,6 +676,13 @@ export interface IShellLaunchConfig {
 	 * This allows extensions to control shell integration for terminals they create.
 	 */
 	shellIntegrationNonce?: string;
+
+	/**
+	 * A title template string that supports the same variables as the
+	 * `terminal.integrated.tabs.title` setting. When set, this overrides the config-based
+	 * title template for this terminal instance.
+	 */
+	titleTemplate?: string;
 }
 
 export interface ITerminalTabAction {
@@ -686,6 +698,7 @@ export interface ICreateContributedTerminalProfileOptions {
 	color?: string;
 	location?: TerminalLocation | { viewColumn: number; preserveState?: boolean } | { splitActiveTerminal: boolean };
 	cwd?: string | URI;
+	titleTemplate?: string;
 }
 
 export enum TerminalLocation {
@@ -711,8 +724,10 @@ export interface IShellLaunchConfigDto {
 	reconnectionProperties?: IReconnectionProperties;
 	type?: 'Task' | 'Local';
 	isFeatureTerminal?: boolean;
+	forceShellIntegration?: boolean;
 	tabActions?: ITerminalTabAction[];
 	shellIntegrationEnvironmentReporting?: boolean;
+	titleTemplate?: string;
 }
 
 /**
@@ -962,6 +977,7 @@ export interface ITerminalProfileContribution {
 	id: string;
 	icon?: URI | { light: URI; dark: URI } | string;
 	color?: string;
+	titleTemplate?: string;
 }
 
 export interface IExtensionTerminalProfile extends ITerminalProfileContribution {
@@ -1048,6 +1064,10 @@ export const enum ShellIntegrationInjectionFailureReason {
 	 * For zsh, we failed to create a temp directory for the shell integration script.
 	 */
 	FailedToCreateTmpDir = 'failedToCreateTmpDir',
+}
+
+export const enum ShellIntegrationTimeoutOverride {
+	DisableForTests = -2
 }
 
 export enum TerminalExitReason {

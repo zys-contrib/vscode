@@ -7,20 +7,21 @@ import { Emitter, Event } from '../../../../base/common/event.js';
 import { Disposable } from '../../../../base/common/lifecycle.js';
 import { URI } from '../../../../base/common/uri.js';
 import { IRange } from '../../../../editor/common/core/range.js';
-import { Comment, CommentThread, CommentThreadCollapsibleState, CommentThreadState, CommentInput } from '../../../../editor/common/languages.js';
-import { createDecorator, ServicesAccessor } from '../../../../platform/instantiation/common/instantiation.js';
-import { ICommentController, ICommentInfo, ICommentService, INotebookCommentInfo } from '../../../../workbench/contrib/comments/browser/commentService.js';
-import { CancellationToken } from '../../../../base/common/cancellation.js';
+import { createDecorator } from '../../../../platform/instantiation/common/instantiation.js';
 import { generateUuid } from '../../../../base/common/uuid.js';
-import { registerAction2, Action2, MenuId } from '../../../../platform/actions/common/actions.js';
-import { ContextKeyExpr } from '../../../../platform/contextkey/common/contextkey.js';
-import { Codicon } from '../../../../base/common/codicons.js';
-import { localize } from '../../../../nls.js';
 import { isEqual } from '../../../../base/common/resources.js';
 import { IChatEditingService } from '../../../../workbench/contrib/chat/common/editing/chatEditingService.js';
-import { IAgentSessionsService } from '../../../../workbench/contrib/chat/browser/agentSessions/agentSessionsService.js';
-import { agentSessionContainsResource, editingEntriesContainResource } from '../../../../workbench/contrib/chat/browser/sessionResourceMatching.js';
-import { IChatWidget, IChatWidgetService } from '../../../../workbench/contrib/chat/browser/chat.js';
+import { IChatSessionFileChange, IChatSessionFileChange2, isIChatSessionFileChange2 } from '../../../../workbench/contrib/chat/common/chatSessionsService.js';
+import { ISessionsManagementService } from '../../../services/sessions/common/sessionsManagement.js';
+import { editingEntriesContainResource } from '../../../../workbench/contrib/chat/browser/sessionResourceMatching.js';
+import { changeMatchesResource, IAgentFeedbackContext } from './agentFeedbackEditorUtils.js';
+import { IEditorService } from '../../../../workbench/services/editor/common/editorService.js';
+import { IChatWidgetService } from '../../../../workbench/contrib/chat/browser/chat.js';
+import { ICommandService } from '../../../../platform/commands/common/commands.js';
+import { ILogService } from '../../../../platform/log/common/log.js';
+import { ICodeReviewSuggestion } from '../../codeReview/browser/codeReviewService.js';
+import { ITelemetryService } from '../../../../platform/telemetry/common/telemetry.js';
+import { logChangesViewReviewCommentAdded } from '../../../common/sessionsTelemetry.js';
 
 // --- Types --------------------------------------------------------------------
 
@@ -30,6 +31,15 @@ export interface IAgentFeedback {
 	readonly resourceUri: URI;
 	readonly range: IRange;
 	readonly sessionResource: URI;
+	readonly suggestion?: ICodeReviewSuggestion;
+	readonly codeSelection?: string;
+	readonly diffHunks?: string;
+	/** When this feedback was converted from a PR review comment, the original thread ID. */
+	readonly sourcePRReviewCommentId?: string;
+}
+
+export interface INavigableSessionComment {
+	readonly id: string;
 }
 
 export interface IAgentFeedbackChangeEvent {
@@ -55,12 +65,17 @@ export interface IAgentFeedbackService {
 	/**
 	 * Add a feedback item for the given session.
 	 */
-	addFeedback(sessionResource: URI, resourceUri: URI, range: IRange, text: string): IAgentFeedback;
+	addFeedback(sessionResource: URI, resourceUri: URI, range: IRange, text: string, suggestion?: ICodeReviewSuggestion, context?: IAgentFeedbackContext, sourcePRReviewCommentId?: string): IAgentFeedback;
 
 	/**
 	 * Remove a single feedback item.
 	 */
 	removeFeedback(sessionResource: URI, feedbackId: string): void;
+
+	/**
+	 * Update the text of an existing feedback item.
+	 */
+	updateFeedback(sessionResource: URI, feedbackId: string, newText: string): void;
 
 	/**
 	 * Get all feedback items for a session.
@@ -73,26 +88,41 @@ export interface IAgentFeedbackService {
 	getMostRecentSessionForResource(resourceUri: URI): URI | undefined;
 
 	/**
+	 * Set the navigation anchor to a specific feedback item, open its editor, and fire a navigation event.
+	 */
+	revealFeedback(sessionResource: URI, feedbackId: string): Promise<void>;
+
+	/**
+	 * Open an editor for the given session comment (feedback or code-review) at its range
+	 * and set it as the navigation anchor.
+	 */
+	revealSessionComment(sessionResource: URI, commentId: string, resourceUri: URI, range: IRange): Promise<void>;
+
+	/**
 	 * Navigate to next/previous feedback item in a session.
 	 */
 	getNextFeedback(sessionResource: URI, next: boolean): IAgentFeedback | undefined;
+	getNextNavigableItem<T extends INavigableSessionComment>(sessionResource: URI, items: readonly T[], next: boolean): T | undefined;
+	setNavigationAnchor(sessionResource: URI, itemId: string | undefined): void;
 
 	/**
 	 * Get the current navigation bearings for a session.
 	 */
-	getNavigationBearing(sessionResource: URI): IAgentFeedbackNavigationBearing;
+	getNavigationBearing(sessionResource: URI, items?: readonly INavigableSessionComment[]): IAgentFeedbackNavigationBearing;
 
 	/**
 	 * Clear all feedback items for a session (e.g., after sending).
 	 */
 	clearFeedback(sessionResource: URI): void;
+
+	/**
+	 * Add a feedback item and then submit the feedback. Waits for the
+	 * attachment to be updated in the chat widget before submitting.
+	 */
+	addFeedbackAndSubmit(sessionResource: URI, resourceUri: URI, range: IRange, text: string, suggestion?: ICodeReviewSuggestion, context?: IAgentFeedbackContext, sourcePRReviewCommentId?: string): Promise<void>;
 }
 
 // --- Implementation -----------------------------------------------------------
-
-const AGENT_FEEDBACK_OWNER = 'agentFeedbackController';
-const AGENT_FEEDBACK_CONTEXT_VALUE = 'agentFeedback';
-const AGENT_FEEDBACK_ATTACHMENT_ID_PREFIX = 'agentFeedback:';
 
 export class AgentFeedbackService extends Disposable implements IAgentFeedbackService {
 
@@ -109,125 +139,19 @@ export class AgentFeedbackService extends Disposable implements IAgentFeedbackSe
 	private _sessionUpdatedSequence = 0;
 	private readonly _navigationAnchorBySession = new Map<string, string>();
 
-	private _controllerRegistered = false;
-	private _nextThreadHandle = 1;
-
 	constructor(
-		@ICommentService private readonly _commentService: ICommentService,
 		@IChatEditingService private readonly _chatEditingService: IChatEditingService,
-		@IAgentSessionsService private readonly _agentSessionsService: IAgentSessionsService,
+		@ISessionsManagementService private readonly _sessionsManagementService: ISessionsManagementService,
+		@IEditorService private readonly _editorService: IEditorService,
 		@IChatWidgetService private readonly _chatWidgetService: IChatWidgetService,
+		@ICommandService private readonly _commandService: ICommandService,
+		@ILogService private readonly _logService: ILogService,
+		@ITelemetryService private readonly _telemetryService: ITelemetryService,
 	) {
 		super();
-
-		this._registerChatWidgetListeners();
 	}
 
-	private _registerChatWidgetListeners(): void {
-		for (const widget of this._chatWidgetService.getAllWidgets()) {
-			this._registerWidgetListeners(widget);
-		}
-
-		this._store.add(this._chatWidgetService.onDidAddWidget(widget => {
-			this._registerWidgetListeners(widget);
-		}));
-	}
-
-	private _registerWidgetListeners(widget: IChatWidget): void {
-		this._store.add(widget.attachmentModel.onDidChange(e => {
-			for (const deletedId of e.deleted) {
-				if (!deletedId.startsWith(AGENT_FEEDBACK_ATTACHMENT_ID_PREFIX)) {
-					continue;
-				}
-
-				const sessionResourceString = deletedId.slice(AGENT_FEEDBACK_ATTACHMENT_ID_PREFIX.length);
-				if (!sessionResourceString) {
-					continue;
-				}
-
-				const sessionResource = URI.parse(sessionResourceString);
-				if (this.getFeedback(sessionResource).length > 0) {
-					this.clearFeedback(sessionResource);
-				}
-			}
-		}));
-	}
-
-	private _ensureController(): void {
-		if (this._controllerRegistered) {
-			return;
-		}
-		this._controllerRegistered = true;
-
-		const self = this;
-
-		const controller: ICommentController = {
-			id: AGENT_FEEDBACK_OWNER,
-			label: 'Agent Feedback',
-			features: {},
-			contextValue: AGENT_FEEDBACK_CONTEXT_VALUE,
-			owner: AGENT_FEEDBACK_OWNER,
-			activeComment: undefined,
-			createCommentThreadTemplate: async () => { },
-			updateCommentThreadTemplate: async () => { },
-			deleteCommentThreadMain: () => { },
-			toggleReaction: async () => { },
-			getDocumentComments: async (resource: URI, _token: CancellationToken): Promise<ICommentInfo<IRange>> => {
-				// Return threads for this resource from all sessions
-				const threads: CommentThread<IRange>[] = [];
-				for (const [, sessionFeedback] of self._feedbackBySession) {
-					for (const f of sessionFeedback) {
-						if (f.resourceUri.toString() === resource.toString()) {
-							threads.push(self._createThread(f));
-						}
-					}
-				}
-				return {
-					threads,
-					commentingRanges: { ranges: [], resource, fileComments: false },
-					uniqueOwner: AGENT_FEEDBACK_OWNER,
-				};
-			},
-			getNotebookComments: async (_resource: URI, _token: CancellationToken): Promise<INotebookCommentInfo> => {
-				return { threads: [], uniqueOwner: AGENT_FEEDBACK_OWNER };
-			},
-			setActiveCommentAndThread: async () => { },
-		};
-
-		this._commentService.registerCommentController(AGENT_FEEDBACK_OWNER, controller);
-		this._store.add({ dispose: () => this._commentService.unregisterCommentController(AGENT_FEEDBACK_OWNER) });
-
-		// Register delete action for our feedback threads
-		this._store.add(registerAction2(class extends Action2 {
-			constructor() {
-				super({
-					id: 'agentFeedback.deleteThread',
-					title: localize('agentFeedback.delete', "Delete Feedback"),
-					icon: Codicon.trash,
-					menu: {
-						id: MenuId.CommentThreadTitle,
-						when: ContextKeyExpr.equals('commentController', AGENT_FEEDBACK_CONTEXT_VALUE),
-						group: 'navigation',
-					}
-				});
-			}
-			run(accessor: ServicesAccessor, ...args: unknown[]): void {
-				const agentFeedbackService = accessor.get(IAgentFeedbackService);
-				const arg = args[0] as { thread?: { threadId?: string }; threadId?: string } | undefined;
-				const thread = arg?.thread ?? arg;
-				if (thread?.threadId) {
-					const sessionResource = self._findSessionForFeedback(thread.threadId);
-					if (sessionResource) {
-						agentFeedbackService.removeFeedback(sessionResource, thread.threadId);
-					}
-				}
-			}
-		}));
-	}
-
-	addFeedback(sessionResource: URI, resourceUri: URI, range: IRange, text: string): IAgentFeedback {
-		this._ensureController();
-
+	addFeedback(sessionResource: URI, resourceUri: URI, range: IRange, text: string, suggestion?: ICodeReviewSuggestion, context?: IAgentFeedbackContext, sourcePRReviewCommentId?: string): IAgentFeedback {
 		const key = sessionResource.toString();
 		let feedbackItems = this._feedbackBySession.get(key);
 		if (!feedbackItems) {
@@ -241,13 +165,50 @@ export class AgentFeedbackService extends Disposable implements IAgentFeedbackSe
 			resourceUri,
 			range,
 			sessionResource,
+			suggestion,
+			codeSelection: context?.codeSelection,
+			diffHunks: context?.diffHunks,
+			sourcePRReviewCommentId,
 		};
-		feedbackItems.push(feedback);
+
+		// Insert at the correct sorted position.
+		// Files are grouped by recency: first feedback for a new file appears after
+		// all existing files. Within a file, items are sorted by startLineNumber.
+		const resourceStr = resourceUri.toString();
+		const hasExistingForFile = feedbackItems.some(f => f.resourceUri.toString() === resourceStr);
+
+		if (!hasExistingForFile) {
+			// New file — append at the end
+			feedbackItems.push(feedback);
+		} else {
+			// Find insertion point: after the last item for a different file that
+			// precedes this file's block, then within this file's block by line number.
+			let insertIdx = feedbackItems.length;
+			for (let i = 0; i < feedbackItems.length; i++) {
+				if (feedbackItems[i].resourceUri.toString() === resourceStr
+					&& feedbackItems[i].range.startLineNumber > range.startLineNumber) {
+					insertIdx = i;
+					break;
+				}
+				// If we passed the last item for this file without finding a larger
+				// line number, insert right after the file's block.
+				if (feedbackItems[i].resourceUri.toString() === resourceStr) {
+					insertIdx = i + 1;
+				}
+			}
+			feedbackItems.splice(insertIdx, 0, feedback);
+		}
+
 		this._sessionUpdatedOrder.set(key, ++this._sessionUpdatedSequence);
 		this._onDidChangeNavigation.fire(sessionResource);
 
-		this._syncThreads(sessionResource);
 		this._onDidChangeFeedback.fire({ sessionResource, feedbackItems });
+
+		logChangesViewReviewCommentAdded(this._telemetryService, {
+			hasExistingFeedback: hasExistingForFile,
+			hasSuggestion: !!suggestion,
+			isFromPRReview: !!sourcePRReviewCommentId,
+		});
 
 		return feedback;
 	}
@@ -261,9 +222,7 @@ export class AgentFeedbackService extends Disposable implements IAgentFeedbackSe
 
 		const idx = feedbackItems.findIndex(f => f.id === feedbackId);
 		if (idx >= 0) {
-			const removed = feedbackItems[idx];
 			feedbackItems.splice(idx, 1);
-			this._activeThreadIds.delete(feedbackId);
 			if (this._navigationAnchorBySession.get(key) === feedbackId) {
 				this._navigationAnchorBySession.delete(key);
 				this._onDidChangeNavigation.fire(sessionResource);
@@ -274,32 +233,27 @@ export class AgentFeedbackService extends Disposable implements IAgentFeedbackSe
 				this._sessionUpdatedOrder.delete(key);
 			}
 
-			// Fire updateComments with the thread in removed[] so the editor
-			// controller's onDidUpdateCommentThreads handler removes the zone widget
-			const thread = this._createThread(removed);
-			thread.isDisposed = true;
-			this._commentService.updateComments(AGENT_FEEDBACK_OWNER, {
-				added: [],
-				removed: [thread],
-				changed: [],
-				pending: [],
-			});
-
 			this._onDidChangeFeedback.fire({ sessionResource, feedbackItems });
 		}
 	}
 
-	/**
-	 * Find which session a feedback item belongs to by its ID.
-	 */
-	_findSessionForFeedback(feedbackId: string): URI | undefined {
-		for (const [, feedbackItems] of this._feedbackBySession) {
-			const item = feedbackItems.find(f => f.id === feedbackId);
-			if (item) {
-				return item.sessionResource;
-			}
+	updateFeedback(sessionResource: URI, feedbackId: string, newText: string): void {
+		const key = sessionResource.toString();
+		const feedbackItems = this._feedbackBySession.get(key);
+		if (!feedbackItems) {
+			return;
 		}
-		return undefined;
+
+		const idx = feedbackItems.findIndex(f => f.id === feedbackId);
+		if (idx >= 0) {
+			const existing = feedbackItems[idx];
+			feedbackItems[idx] = {
+				...existing,
+				text: newText,
+			};
+			this._sessionUpdatedOrder.set(key, ++this._sessionUpdatedSequence);
+			this._onDidChangeFeedback.fire({ sessionResource, feedbackItems });
+		}
 	}
 
 	getFeedback(sessionResource: URI): readonly IAgentFeedback[] {
@@ -345,70 +299,156 @@ export class AgentFeedbackService extends Disposable implements IAgentFeedbackSe
 			}
 		}
 
-		for (const session of this._agentSessionsService.model.sessions) {
-			if (!isEqual(session.resource, sessionResource)) {
-				continue;
-			}
+		const session = this._sessionsManagementService.getSession(sessionResource);
+		if (!session) {
+			return false;
+		}
 
-			if (agentSessionContainsResource(session, resourceUri)) {
-				return true;
-			}
+		const changes = session.changes.get();
+		if (changes.some(change => changeMatchesResource(change, resourceUri))) {
+			return true;
 		}
 
 		return false;
 	}
 
-	getNextFeedback(sessionResource: URI, next: boolean): IAgentFeedback | undefined {
+	async revealFeedback(sessionResource: URI, feedbackId: string): Promise<void> {
 		const key = sessionResource.toString();
 		const feedbackItems = this._feedbackBySession.get(key);
-		if (!feedbackItems?.length) {
+		const feedback = feedbackItems?.find(f => f.id === feedbackId);
+		if (!feedback) {
+			return;
+		}
+		await this.revealSessionComment(sessionResource, feedbackId, feedback.resourceUri, feedback.range);
+	}
+
+	async revealSessionComment(sessionResource: URI, commentId: string, resourceUri: URI, range: IRange): Promise<void> {
+		const selection = { startLineNumber: range.startLineNumber, startColumn: range.startColumn };
+		const sessionData = this._sessionsManagementService.getSession(sessionResource);
+		const sessionChange = this._getSessionChange(resourceUri, sessionData?.changes.get());
+
+		if (sessionChange?.isDeletion && sessionChange.originalUri) {
+			await this._editorService.openEditor({
+				resource: sessionChange.originalUri,
+				options: {
+					modal: {},
+					preserveFocus: false,
+					revealIfVisible: true,
+					selection,
+				}
+			});
+		} else if (sessionChange?.originalUri) {
+			await this._editorService.openEditor({
+				original: { resource: sessionChange.originalUri },
+				modified: { resource: sessionChange.modifiedUri },
+				options: {
+					modal: {},
+					preserveFocus: false,
+					revealIfVisible: true,
+					selection,
+				}
+			});
+		} else {
+			await this._editorService.openEditor({
+				resource: sessionChange?.modifiedUri ?? resourceUri,
+				options: {
+					modal: {},
+					preserveFocus: false,
+					revealIfVisible: true,
+					selection,
+				}
+			});
+		}
+
+		this.setNavigationAnchor(sessionResource, commentId);
+	}
+
+	private _getSessionChange(resourceUri: URI, changes: readonly IChatSessionFileChange[] | readonly IChatSessionFileChange2[] | {
+		readonly files: number;
+		readonly insertions: number;
+		readonly deletions: number;
+	} | undefined): { originalUri?: URI; modifiedUri: URI; isDeletion: boolean } | undefined {
+		if (!(changes instanceof Array)) {
+			return undefined;
+		}
+
+		const matchingChange = changes.find(change => this._changeContainsResource(change, resourceUri));
+		if (!matchingChange) {
+			return undefined;
+		}
+
+		if (isIChatSessionFileChange2(matchingChange)) {
+			return {
+				originalUri: matchingChange.originalUri,
+				modifiedUri: matchingChange.modifiedUri ?? matchingChange.uri,
+				isDeletion: matchingChange.modifiedUri === undefined,
+			};
+		}
+
+		return {
+			originalUri: matchingChange.originalUri,
+			modifiedUri: matchingChange.modifiedUri,
+			isDeletion: false,
+		};
+	}
+
+	private _changeContainsResource(change: IChatSessionFileChange | IChatSessionFileChange2, resourceUri: URI): boolean {
+		if (isIChatSessionFileChange2(change)) {
+			return change.uri.fsPath === resourceUri.fsPath
+				|| change.originalUri?.fsPath === resourceUri.fsPath
+				|| change.modifiedUri?.fsPath === resourceUri.fsPath;
+		}
+
+		return change.modifiedUri.fsPath === resourceUri.fsPath
+			|| change.originalUri?.fsPath === resourceUri.fsPath;
+	}
+
+	getNextFeedback(sessionResource: URI, next: boolean): IAgentFeedback | undefined {
+		return this.getNextNavigableItem(sessionResource, this.getFeedback(sessionResource), next);
+	}
+
+	getNextNavigableItem<T extends INavigableSessionComment>(sessionResource: URI, items: readonly T[], next: boolean): T | undefined {
+		const key = sessionResource.toString();
+		if (!items.length) {
 			this._navigationAnchorBySession.delete(key);
 			return undefined;
 		}
 
 		const anchorId = this._navigationAnchorBySession.get(key);
-		let anchorIndex = anchorId ? feedbackItems.findIndex(item => item.id === anchorId) : -1;
+		let anchorIndex = anchorId ? items.findIndex(item => item.id === anchorId) : -1;
 
 		if (anchorIndex < 0 && !next) {
 			anchorIndex = 0;
 		}
 
 		const nextIndex = next
-			? (anchorIndex + 1) % feedbackItems.length
-			: (anchorIndex - 1 + feedbackItems.length) % feedbackItems.length;
+			? (anchorIndex + 1) % items.length
+			: (anchorIndex - 1 + items.length) % items.length;
 
-		const feedback = feedbackItems[nextIndex];
-		this._navigationAnchorBySession.set(key, feedback.id);
-		this._onDidChangeNavigation.fire(sessionResource);
-		return feedback;
+		const item = items[nextIndex];
+		this.setNavigationAnchor(sessionResource, item.id);
+		return item;
 	}
 
-	getNavigationBearing(sessionResource: URI): IAgentFeedbackNavigationBearing {
+	setNavigationAnchor(sessionResource: URI, itemId: string | undefined): void {
 		const key = sessionResource.toString();
-		const feedbackItems = this._feedbackBySession.get(key) ?? [];
+		if (itemId) {
+			this._navigationAnchorBySession.set(key, itemId);
+		} else {
+			this._navigationAnchorBySession.delete(key);
+		}
+		this._onDidChangeNavigation.fire(sessionResource);
+	}
+
+	getNavigationBearing(sessionResource: URI, items: readonly INavigableSessionComment[] = this._feedbackBySession.get(sessionResource.toString()) ?? []): IAgentFeedbackNavigationBearing {
+		const key = sessionResource.toString();
 		const anchorId = this._navigationAnchorBySession.get(key);
-		const activeIdx = anchorId ? feedbackItems.findIndex(item => item.id === anchorId) : -1;
-		return { activeIdx, totalCount: feedbackItems.length };
+		const activeIdx = anchorId ? items.findIndex(item => item.id === anchorId) : -1;
+		return { activeIdx, totalCount: items.length };
 	}
 
 	clearFeedback(sessionResource: URI): void {
 		const key = sessionResource.toString();
-		const feedbackItems = this._feedbackBySession.get(key);
-		if (feedbackItems && feedbackItems.length > 0) {
-			const removedThreads = feedbackItems.map(f => {
-				this._activeThreadIds.delete(f.id);
-				const thread = this._createThread(f);
-				thread.isDisposed = true;
-				return thread;
-			});
-
-			this._commentService.updateComments(AGENT_FEEDBACK_OWNER, {
-				added: [],
-				removed: removedThreads,
-				changed: [],
-				pending: [],
-			});
-		}
 		this._feedbackBySession.delete(key);
 		this._sessionUpdatedOrder.delete(key);
 		this._navigationAnchorBySession.delete(key);
@@ -416,155 +456,29 @@ export class AgentFeedbackService extends Disposable implements IAgentFeedbackSe
 		this._onDidChangeFeedback.fire({ sessionResource, feedbackItems: [] });
 	}
 
-	/** Threads currently known to the comment service, keyed by feedback id */
-	private readonly _activeThreadIds = new Set<string>();
+	async addFeedbackAndSubmit(sessionResource: URI, resourceUri: URI, range: IRange, text: string, suggestion?: ICodeReviewSuggestion, context?: IAgentFeedbackContext, sourcePRReviewCommentId?: string): Promise<void> {
+		this.addFeedback(sessionResource, resourceUri, range, text, suggestion, context, sourcePRReviewCommentId);
 
-	/**
-	 * Sync feedback threads to the ICommentService using updateComments for
-	 * incremental add/remove, which the editor controller listens to.
-	 */
-	private _syncThreads(_sessionResource: URI): void {
-		// Collect all current feedback IDs
-		const currentIds = new Set<string>();
-		const allFeedback: IAgentFeedback[] = [];
-		for (const [, sessionFeedback] of this._feedbackBySession) {
-			for (const f of sessionFeedback) {
-				currentIds.add(f.id);
-				allFeedback.push(f);
+		// Wait for the attachment contribution to update the chat widget's attachment model
+		const widget = this._chatWidgetService.getWidgetBySessionResource(sessionResource);
+		if (widget) {
+			const attachmentId = 'agentFeedback:' + sessionResource.toString();
+			const hasAttachment = () => widget.attachmentModel.attachments.some(a => a.id === attachmentId);
+
+			if (!hasAttachment()) {
+				await Event.toPromise(
+					Event.filter(widget.attachmentModel.onDidChange, () => hasAttachment())
+				);
 			}
+		} else {
+			this._logService.error('[AgentFeedback] addFeedbackAndSubmit: no chat widget found for session, feedback may not be submitted correctly', sessionResource.toString());
+			await new Promise(resolve => setTimeout(resolve, 100));
 		}
 
-		// Determine added and removed
-		const added: CommentThread<IRange>[] = [];
-		const removed: CommentThread<IRange>[] = [];
-
-		for (const f of allFeedback) {
-			if (!this._activeThreadIds.has(f.id)) {
-				added.push(this._createThread(f));
-			}
+		try {
+			await this._commandService.executeCommand('agentFeedbackEditor.action.submit');
+		} catch (err) {
+			this._logService.error('[AgentFeedback] Failed to execute submit feedback command', err);
 		}
-
-		for (const id of this._activeThreadIds) {
-			if (!currentIds.has(id)) {
-				// Create a minimal thread just for removal (needs threadId and resource)
-				removed.push(this._createRemovedThread(id));
-			}
-		}
-
-		// Update tracking
-		this._activeThreadIds.clear();
-		for (const id of currentIds) {
-			this._activeThreadIds.add(id);
-		}
-
-		if (added.length || removed.length) {
-			this._commentService.updateComments(AGENT_FEEDBACK_OWNER, {
-				added,
-				removed,
-				changed: [],
-				pending: [],
-			});
-		}
-	}
-
-	private _createRemovedThread(feedbackId: string): CommentThread<IRange> {
-		const noopEvent = Event.None;
-		return {
-			isDocumentCommentThread(): this is CommentThread<IRange> { return true; },
-			commentThreadHandle: -1,
-			controllerHandle: 0,
-			threadId: feedbackId,
-			resource: null,
-			range: undefined,
-			label: undefined,
-			contextValue: undefined,
-			comments: undefined,
-			onDidChangeComments: noopEvent,
-			collapsibleState: CommentThreadCollapsibleState.Collapsed,
-			initialCollapsibleState: CommentThreadCollapsibleState.Collapsed,
-			onDidChangeInitialCollapsibleState: noopEvent,
-			state: undefined,
-			applicability: undefined,
-			canReply: false,
-			input: undefined,
-			onDidChangeInput: noopEvent,
-			onDidChangeLabel: noopEvent,
-			onDidChangeCollapsibleState: noopEvent,
-			onDidChangeState: noopEvent,
-			onDidChangeCanReply: noopEvent,
-			isDisposed: true,
-			isTemplate: false,
-		};
-	}
-
-	private _createThread(feedback: IAgentFeedback): CommentThread<IRange> {
-		const handle = this._nextThreadHandle++;
-
-		const threadComment: Comment = {
-			uniqueIdInThread: 1,
-			body: feedback.text,
-			userName: 'You',
-		};
-
-		return new AgentFeedbackThread(handle, feedback.id, feedback.resourceUri.toString(), feedback.range, [threadComment]);
-	}
-}
-
-/**
- * A CommentThread implementation with proper emitters so the editor
- * comment controller can react to state changes (collapse/expand).
- */
-class AgentFeedbackThread implements CommentThread<IRange> {
-
-	private readonly _onDidChangeComments = new Emitter<readonly Comment[] | undefined>();
-	readonly onDidChangeComments = this._onDidChangeComments.event;
-
-	private readonly _onDidChangeCollapsibleState = new Emitter<CommentThreadCollapsibleState | undefined>();
-	readonly onDidChangeCollapsibleState = this._onDidChangeCollapsibleState.event;
-
-	private readonly _onDidChangeInitialCollapsibleState = new Emitter<CommentThreadCollapsibleState | undefined>();
-	readonly onDidChangeInitialCollapsibleState = this._onDidChangeInitialCollapsibleState.event;
-
-	private readonly _onDidChangeInput = new Emitter<CommentInput | undefined>();
-	readonly onDidChangeInput = this._onDidChangeInput.event;
-
-	private readonly _onDidChangeLabel = new Emitter<string | undefined>();
-	readonly onDidChangeLabel = this._onDidChangeLabel.event;
-
-	private readonly _onDidChangeState = new Emitter<CommentThreadState | undefined>();
-	readonly onDidChangeState = this._onDidChangeState.event;
-
-	private readonly _onDidChangeCanReply = new Emitter<boolean>();
-	readonly onDidChangeCanReply = this._onDidChangeCanReply.event;
-
-	readonly controllerHandle = 0;
-	readonly label = undefined;
-	readonly contextValue = undefined;
-	readonly applicability = undefined;
-	readonly input = undefined;
-	readonly isTemplate = false;
-
-	private _collapsibleState = CommentThreadCollapsibleState.Collapsed;
-	get collapsibleState(): CommentThreadCollapsibleState { return this._collapsibleState; }
-	set collapsibleState(value: CommentThreadCollapsibleState) {
-		this._collapsibleState = value;
-		this._onDidChangeCollapsibleState.fire(value);
-	}
-
-	readonly initialCollapsibleState = CommentThreadCollapsibleState.Collapsed;
-	readonly state = CommentThreadState.Unresolved;
-	readonly canReply = false;
-	isDisposed = false;
-
-	constructor(
-		readonly commentThreadHandle: number,
-		readonly threadId: string,
-		readonly resource: string,
-		readonly range: IRange,
-		readonly comments: readonly Comment[],
-	) { }
-
-	isDocumentCommentThread(): this is CommentThread<IRange> {
-		return true;
 	}
 }

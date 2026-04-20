@@ -10,15 +10,18 @@ import { IContextKeyService } from '../../../platform/contextkey/common/contextk
 import { IContextMenuService } from '../../../platform/contextview/browser/contextView.js';
 import { IInstantiationService } from '../../../platform/instantiation/common/instantiation.js';
 import { INativeHostService } from '../../../platform/native/common/native.js';
+import { IProductService } from '../../../platform/product/common/productService.js';
 import { IStorageService } from '../../../platform/storage/common/storage.js';
 import { IThemeService } from '../../../platform/theme/common/themeService.js';
 import { useWindowControlsOverlay } from '../../../platform/window/common/window.js';
+import { IsWindowAlwaysOnTopContext } from '../../../workbench/common/contextkeys.js';
 import { IHostService } from '../../../workbench/services/host/browser/host.js';
 import { IWorkbenchLayoutService, Parts } from '../../../workbench/services/layout/browser/layoutService.js';
 import { IAuxiliaryTitlebarPart } from '../../../workbench/browser/parts/titlebar/titlebarPart.js';
 import { IEditorGroupsContainer } from '../../../workbench/services/editor/common/editorGroupsService.js';
 import { CodeWindow, mainWindow } from '../../../base/browser/window.js';
 import { TitlebarPart, TitleService } from '../../browser/parts/titlebarPart.js';
+import { isMacintosh } from '../../../base/common/platform.js';
 
 export class NativeTitlebarPart extends TitlebarPart {
 
@@ -36,9 +39,42 @@ export class NativeTitlebarPart extends TitlebarPart {
 		@IWorkbenchLayoutService layoutService: IWorkbenchLayoutService,
 		@IContextKeyService contextKeyService: IContextKeyService,
 		@IHostService hostService: IHostService,
+		@IProductService private readonly productService: IProductService,
 		@INativeHostService private readonly nativeHostService: INativeHostService,
 	) {
 		super(id, targetWindow, contextMenuService, configurationService, instantiationService, themeService, storageService, layoutService, contextKeyService, hostService);
+
+		this.handleWindowsAlwaysOnTop(targetWindow.vscodeWindowId, contextKeyService);
+	}
+
+	protected override createContentArea(parent: HTMLElement): HTMLElement {
+
+		// Workaround for macOS/Electron bug where the window does not
+		// appear in the "Windows" menu if the first `document.title`
+		// matches the BrowserWindow's initial title.
+		// See: https://github.com/microsoft/vscode/issues/191288
+		if (isMacintosh) {
+			const window = getWindow(this.element);
+			const nativeTitle = this.productService.nameLong;
+			if (!window.document.title || window.document.title === nativeTitle) {
+				window.document.title = `${nativeTitle} \u200b`;
+			}
+			window.document.title = nativeTitle;
+		}
+
+		return super.createContentArea(parent);
+	}
+
+	private async handleWindowsAlwaysOnTop(targetWindowId: number, contextKeyService: IContextKeyService): Promise<void> {
+		const isWindowAlwaysOnTopContext = IsWindowAlwaysOnTopContext.bindTo(contextKeyService);
+
+		this._register(this.nativeHostService.onDidChangeWindowAlwaysOnTop(({ windowId, alwaysOnTop }) => {
+			if (windowId === targetWindowId) {
+				isWindowAlwaysOnTopContext.set(alwaysOnTop);
+			}
+		}));
+
+		isWindowAlwaysOnTopContext.set(await this.nativeHostService.isWindowAlwaysOnTop({ targetWindowId }));
 	}
 
 	override updateStyles(): void {
@@ -51,6 +87,10 @@ export class NativeTitlebarPart extends TitlebarPart {
 					this.cachedWindowControlStyles.bgColor !== this.element.style.backgroundColor ||
 					this.cachedWindowControlStyles.fgColor !== this.element.style.color
 				) {
+					this.cachedWindowControlStyles = {
+						bgColor: this.element.style.backgroundColor,
+						fgColor: this.element.style.color
+					};
 					this.nativeHostService.updateWindowControls({
 						targetWindowId: getWindowId(getWindow(this.element)),
 						backgroundColor: this.element.style.backgroundColor,
@@ -88,9 +128,10 @@ class MainNativeTitlebarPart extends NativeTitlebarPart {
 		@IWorkbenchLayoutService layoutService: IWorkbenchLayoutService,
 		@IContextKeyService contextKeyService: IContextKeyService,
 		@IHostService hostService: IHostService,
+		@IProductService productService: IProductService,
 		@INativeHostService nativeHostService: INativeHostService,
 	) {
-		super(Parts.TITLEBAR_PART, mainWindow, contextMenuService, configurationService, instantiationService, themeService, storageService, layoutService, contextKeyService, hostService, nativeHostService);
+		super(Parts.TITLEBAR_PART, mainWindow, contextMenuService, configurationService, instantiationService, themeService, storageService, layoutService, contextKeyService, hostService, productService, nativeHostService);
 	}
 }
 
@@ -102,7 +143,6 @@ class AuxiliaryNativeTitlebarPart extends NativeTitlebarPart implements IAuxilia
 
 	constructor(
 		readonly container: HTMLElement,
-		editorGroupsContainer: IEditorGroupsContainer,
 		private readonly mainTitlebar: TitlebarPart,
 		@IContextMenuService contextMenuService: IContextMenuService,
 		@IConfigurationService configurationService: IConfigurationService,
@@ -112,10 +152,11 @@ class AuxiliaryNativeTitlebarPart extends NativeTitlebarPart implements IAuxilia
 		@IWorkbenchLayoutService layoutService: IWorkbenchLayoutService,
 		@IContextKeyService contextKeyService: IContextKeyService,
 		@IHostService hostService: IHostService,
+		@IProductService productService: IProductService,
 		@INativeHostService nativeHostService: INativeHostService,
 	) {
 		const id = AuxiliaryNativeTitlebarPart.COUNTER++;
-		super(`workbench.parts.auxiliaryTitle.${id}`, getWindow(container), contextMenuService, configurationService, instantiationService, themeService, storageService, layoutService, contextKeyService, hostService, nativeHostService);
+		super(`workbench.parts.auxiliaryTitle.${id}`, getWindow(container), contextMenuService, configurationService, instantiationService, themeService, storageService, layoutService, contextKeyService, hostService, productService, nativeHostService);
 	}
 
 	override get preventZoom(): boolean {
@@ -129,7 +170,7 @@ export class NativeTitleService extends TitleService {
 		return this.instantiationService.createInstance(MainNativeTitlebarPart);
 	}
 
-	protected override doCreateAuxiliaryTitlebarPart(container: HTMLElement, editorGroupsContainer: IEditorGroupsContainer, instantiationService: IInstantiationService): AuxiliaryNativeTitlebarPart {
-		return instantiationService.createInstance(AuxiliaryNativeTitlebarPart, container, editorGroupsContainer, this.mainPart);
+	protected override doCreateAuxiliaryTitlebarPart(container: HTMLElement, _editorGroupsContainer: IEditorGroupsContainer, instantiationService: IInstantiationService): AuxiliaryNativeTitlebarPart {
+		return instantiationService.createInstance(AuxiliaryNativeTitlebarPart, container, this.mainPart);
 	}
 }

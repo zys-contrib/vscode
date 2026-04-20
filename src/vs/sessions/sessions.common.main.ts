@@ -6,9 +6,16 @@
 //#region --- editor/workbench core
 
 import '../editor/editor.all.js';
+import { getColorRegistry } from '../platform/theme/common/colorUtils.js';
+import { PANEL_BACKGROUND } from '../workbench/common/theme.js';
+import { TERMINAL_BACKGROUND_COLOR } from '../workbench/contrib/terminal/common/terminalColorRegistry.js';
 
 import '../workbench/api/browser/extensionHost.contribution.js';
 import '../workbench/browser/workbench.contribution.js';
+import { agentsPanelBackground } from './common/theme.js';
+
+getColorRegistry().updateDefaultColor(PANEL_BACKGROUND, agentsPanelBackground);
+getColorRegistry().updateDefaultColor(TERMINAL_BACKGROUND_COLOR, agentsPanelBackground);
 
 //#endregion
 
@@ -19,6 +26,7 @@ import '../workbench/browser/actions/textInputActions.js';
 import '../workbench/browser/actions/developerActions.js';
 import '../workbench/browser/actions/helpActions.js';
 import '../workbench/browser/actions/listCommands.js';
+// import '../workbench/browser/actions/layoutActions.js';
 import '../workbench/browser/actions/navigationActions.js';
 import '../workbench/browser/actions/windowActions.js';
 import '../workbench/browser/actions/workspaceActions.js';
@@ -41,7 +49,8 @@ import '../workbench/api/browser/viewsExtensionPoint.js';
 //#region --- workbench parts
 
 import '../workbench/browser/parts/editor/editor.contribution.js';
-import '../workbench/browser/parts/editor/editorParts.js';
+// import '../workbench/browser/parts/editor/editorParts.js';
+// import '../workbench/browser/parts/paneCompositePartService.js';
 import '../workbench/browser/parts/banner/bannerPart.js';
 import '../workbench/browser/parts/statusbar/statusbarPart.js';
 
@@ -210,6 +219,7 @@ import '../workbench/contrib/chat/browser/chat.contribution.js';
 import '../workbench/contrib/mcp/browser/mcp.contribution.js';
 import '../workbench/contrib/chat/browser/chatSessions/chatSessions.contribution.js';
 import '../workbench/contrib/chat/browser/contextContrib/chatContext.contribution.js';
+import '../workbench/contrib/imageCarousel/browser/imageCarousel.contribution.js';
 
 // Interactive
 import '../workbench/contrib/interactive/browser/interactive.contribution.js';
@@ -247,6 +257,9 @@ import '../workbench/contrib/searchEditor/browser/searchEditor.contribution.js';
 
 // Sash
 import '../workbench/contrib/sash/browser/sash.contribution.js';
+
+// Git
+import '../workbench/contrib/git/browser/git.contributions.js';
 
 // SCM
 import '../workbench/contrib/scm/browser/scm.contribution.js';
@@ -435,5 +448,41 @@ import '../workbench/contrib/editTelemetry/browser/editTelemetry.contribution.js
 
 // Opener
 import '../workbench/contrib/opener/browser/opener.contribution.js';
+
+//#endregion
+
+//#region --- sessions contributions
+
+import './browser/paneCompositePartService.js';
+import './browser/parts/editorParts.js';
+import './browser/layoutActions.js';
+
+import './contrib/accountMenu/browser/account.contribution.js';
+import './contrib/aiCustomizationTreeView/browser/aiCustomizationTreeView.contribution.js';
+import './contrib/chat/browser/chat.contribution.js';
+import './contrib/chat/browser/agentHostSessionConfigPicker.js';
+import './contrib/chat/browser/customizationsDebugLog.contribution.js';
+import './contrib/copilotChatSessions/browser/copilotChatSessions.contribution.js';
+import './contrib/sessions/browser/sessions.contribution.js';
+import './contrib/sessions/browser/views/sessionsListModelService.js';
+import './contrib/sessions/browser/customizationsToolbar.contribution.js';
+import './contrib/changes/browser/changesView.contribution.js';
+import './contrib/layout/browser/layout.contribution.js';
+import './contrib/codeReview/browser/codeReview.contributions.js';
+import './contrib/files/browser/files.contribution.js';
+import './contrib/github/browser/github.contribution.js';
+import './contrib/applyCommitsToParentRepo/browser/applyChangesToParentRepo.js';
+import './contrib/fileTreeView/browser/fileTreeView.contribution.js'; // view registration disabled; filesystem provider still needed
+import './contrib/configuration/browser/configuration.contribution.js';
+import './contrib/workingSet/browser/workingSet.contribution.js';
+
+import './contrib/terminal/browser/sessionsTerminalContribution.js';
+import './contrib/logs/browser/logs.contribution.js';
+import './contrib/chatDebug/browser/chatDebug.contribution.js';
+import './contrib/workspace/browser/workspace.contribution.js';
+import './contrib/welcome/browser/welcome.contribution.js';
+import './contrib/policyBlocked/browser/policyBlocked.contribution.js';
+
+import './services/sessions/browser/sessionsManagementService.js';
 
 //#endregion

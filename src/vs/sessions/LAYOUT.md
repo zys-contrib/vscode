@@ -19,28 +19,18 @@ The Agent Sessions Workbench (`Workbench` in `sessions/browser/workbench.ts`) pr
 ### 2.1 Visual Representation
 
 ```
-┌─────────┬───────────────────────────────────────────────────────┐
-│         │                    Titlebar                           │
-│         ├────────────────────────────────────┬──────────────────┤
-│ Sidebar │              Chat Bar              │  Auxiliary Bar   │
-│         ├────────────────────────────────────┴──────────────────┤
-│         │                      Panel                            │
-└─────────┴───────────────────────────────────────────────────────┘
+┌─────────┬────────────────────────────────────────────────────────────────────┐
+│         │                            Titlebar                                │
+│         ├───────────────────────────┬────────────────┬───────────────────────┤
+│ Sidebar │         Chat Bar          │ Editor (hid.) │     Auxiliary Bar     │
+│         ├───────────────────────────┴────────────────┴───────────────────────┤
+│         │                              Panel                                 │
+└─────────┴────────────────────────────────────────────────────────────────────┘
 
-         ┌───────────────────────────────────────┐
-         │     ╔═══════════════════════════╗     │
-         │     ║    Editor Modal Overlay   ║     │
-         │     ║  ┌─────────────────────┐  ║     │
-         │     ║  │ [header]        [X] │  ║     │
-         │     ║  ├─────────────────────┤  ║     │
-         │     ║  │                     │  ║     │
-         │     ║  │    Editor Part      │  ║     │
-         │     ║  │                     │  ║     │
-         │     ║  │                     │  ║     │
-         │     ║  └─────────────────────┘  ║     │
-         │     ╚═══════════════════════════╝     │
-         └───────────────────────────────────────┘
-               (shown when editors are open)
+Editors open via MODAL_GROUP into the standard ModalEditorPart overlay
+(created on-demand by EditorParts.createModalEditorPart). The main
+editor part is hidden by default and is only shown for explicit
+editor opens or restores that target the main editor part.
 ```
 
 ### 2.2 Parts
@@ -52,7 +42,7 @@ The Agent Sessions Workbench (`Workbench` in `sessions/browser/workbench.ts`) pr
 | Titlebar | `Parts.TITLEBAR_PART` | Top of right section | Always visible | — |
 | Sidebar | `Parts.SIDEBAR_PART` | Left, spans full height from top to bottom | Visible | `ViewContainerLocation.Sidebar` |
 | Chat Bar | `Parts.CHATBAR_PART` | Top-right section, takes remaining width | Visible | `ViewContainerLocation.ChatBar` |
-| Editor | `Parts.EDITOR_PART` | **Modal overlay** (not in grid) | Hidden | — |
+| Editor | `Parts.EDITOR_PART` | Top-right section, in the grid but hidden by default; explicit opens or restores that target the main editor part can reveal it while modal editors still open via `MODAL_GROUP` into `ModalEditorPart` overlay | Hidden | — |
 | Auxiliary Bar | `Parts.AUXILIARYBAR_PART` | Top-right section, right side | Visible | `ViewContainerLocation.AuxiliaryBar` |
 | Panel | `Parts.PANEL_PART` | Below Chat Bar and Auxiliary Bar (right section only) | Hidden | `ViewContainerLocation.Panel` |
 
@@ -93,11 +83,13 @@ The Agent Sessions titlebar includes a command center with a custom title bar wi
 
 The widget:
 - Extends `BaseActionViewItem` and renders a clickable label showing the active session title
-- Shows kind icon (provider type icon), session title, repository folder name, and changes summary (+insertions -deletions)
+- Shows kind icon (provider type icon), session title, repository folder name, and the active git branch/worktree name in parentheses when available, plus the changes summary (+insertions -deletions)
+- Truncates the repository/worktree metadata with ellipsis before truncating the primary AI-generated session title when command center space is constrained
 - On click, opens the `AgentSessionsPicker` quick pick to switch between sessions
 - Gets the active session label from `IActiveSessionService.getActiveSession()` and the live model title from `IChatService`, falling back to "New Session" if no active session is found
 - Re-renders automatically when the active session changes via `autorun` on `IActiveSessionService.activeSession`, and when session data changes via `IAgentSessionsService.model.onDidChangeSessions`
 - Is registered via `SessionsTitleBarContribution` (an `IWorkbenchContribution` in `contrib/sessions/browser/sessionsTitleBarWidget.ts`) that calls `IActionViewItemService.register()` to intercept the submenu rendering
+- Uses `padding-left: 0` while the sidebar is visible, and restores `padding-left: 16px` when the sidebar is hidden via the `nosidebar` workbench class
 
 ### 3.3 Left Toolbar
 
@@ -143,12 +135,13 @@ The panel title bar includes actions for controlling the panel:
 
 ### 3.6 Account Widget
 
-The account widget has been moved from the titlebar to the **sidebar footer**. It is rendered as a custom `AccountWidget` action view item:
+The account widget is rendered in the **right side of the titlebar** as a custom `TitleBarAccountWidget` action view item:
 
 - Registered in `contrib/accountMenu/browser/account.contribution.ts`
-- Uses the `Menus.SidebarFooter` menu
-- Shows account button with sign-in/sign-out and an update button when an update is available
-- Account menu shows signed-in user label from `IDefaultAccountService` (or Sign In), Sign Out, Settings, and Check for Updates
+- Uses the `Menus.TitleBarRightLayout` menu
+- Shows the signed-in GitHub profile image when available, and falls back to the existing account codicon when it is not
+- Gives the GitHub profile image a subtle 1px circular border using the titlebar command center border tokens so the avatar stays legible against nearby chrome in both active and inactive window states
+- Opens a combined account and Copilot status hover panel with sign-in/sign-out, settings, and update actions
 
 ---
 
@@ -180,87 +173,41 @@ This structure places the sidebar at the root level spanning the full window hei
 | Sidebar | 300px width |
 | Auxiliary Bar | 300px width |
 | Chat Bar | Remaining space |
-| Editor Modal | 80% of workbench (min 400x300, max 1200x900), calculated in TypeScript |
 | Panel | 300px height |
 | Titlebar | Determined by `minimumHeight` (~30px) |
 
+The sessions sidebar can be resized down to a minimum width of 170px.
+
 ### 4.3 Editor Modal
 
-The Editor part is rendered as a **modal overlay** rather than being part of the grid. This provides a focused editing experience that hovers above the main workbench layout.
+The main editor part is created hidden (`display:none`) and remains hidden for the default sessions experience. Flows that explicitly open or restore an editor into the main editor part can reveal it, and modal editor opens do not change the visibility of an already visible main editor. Editors without an explicit main-part target still open in the `ModalEditorPart` overlay via the standard `createModalEditorPart()` mechanism.
 
-#### Modal Structure
+#### How It Works
 
-```
-EditorModal
-├── Overlay (semi-transparent backdrop)
-├── Container (centered dialog)
-│   ├── Header (32px, contains close button)
-│   └── Content (editor part fills remaining space)
-```
+The sessions configuration sets `workbench.editor.useModal` to `'all'` (in `contrib/configuration/browser/configuration.contribution.ts`). This causes `findGroup()` in `editorGroupFinder.ts` to redirect all editor opens (that do not specify an explicit preferred group) to `createModalEditorPart()`, which creates the standard workbench `ModalEditorPart` overlay on-demand.
+
+When the setting is `'all'`:
+- All editors without an explicit preferred group open in the modal editor part
+- The modal is not auto-closed when editors open without explicit `MODAL_GROUP` as preferred group
 
 #### Behavior
 
 | Trigger | Action |
 |---------|--------|
-| Editor opens (`onWillOpenEditor`) | Modal shows automatically |
-| All editors close | Modal hides automatically |
+| Any editor opens (no explicit group) | `ModalEditorPart` overlay created/reused automatically |
+| All editors closed in modal | Modal closes and is disposed |
 | Click backdrop | Close all editors, hide modal |
-| Click close button (X) | Close all editors, hide modal |
-| Press Escape key | Close all editors, hide modal |
+| Press Escape | Close all editors, hide modal |
 
-#### Modal Sizing
+#### Configuration
 
-Modal dimensions are calculated in TypeScript rather than CSS. The `EditorModal.layout()` method receives workbench dimensions and computes the modal size with constraints:
+The setting `workbench.editor.useModal` is an enum with three values:
+- `'off'`: Editors never open in a modal overlay
+- `'some'`: Certain editors (e.g. Settings, Keyboard Shortcuts) may open in a modal overlay when requested via `MODAL_GROUP`
+- `'all'`: All editors open in a modal overlay (used by agent sessions window)
 
-| Property | Value | Constant |
-|----------|-------|----------|
-| Size Percentage | 80% of workbench | `MODAL_SIZE_PERCENTAGE = 0.8` |
-| Max Width | 1200px | `MODAL_MAX_WIDTH = 1200` |
-| Max Height | 900px | `MODAL_MAX_HEIGHT = 900` |
-| Min Width | 400px | `MODAL_MIN_WIDTH = 400` |
-| Min Height | 300px | `MODAL_MIN_HEIGHT = 300` |
-| Header Height | 32px | `MODAL_HEADER_HEIGHT = 32` |
+The sessions default configuration also sets `workbench.notifications.position` to `'top-right'` so toast notifications anchor in the top-right corner of the sessions window without changing the default notification placement in the regular workbench.
 
-The calculation:
-```typescript
-modalWidth = min(MODAL_MAX_WIDTH, max(MODAL_MIN_WIDTH, workbenchWidth * MODAL_SIZE_PERCENTAGE))
-modalHeight = min(MODAL_MAX_HEIGHT, max(MODAL_MIN_HEIGHT, workbenchHeight * MODAL_SIZE_PERCENTAGE))
-contentHeight = modalHeight - MODAL_HEADER_HEIGHT
-```
-
-#### CSS Classes
-
-| Class | Applied To | Notes |
-|-------|------------|-------|
-| `editor-modal-overlay` | Overlay container | Positioned absolute, full size |
-| `editor-modal-overlay.visible` | When modal is shown | Enables pointer events |
-| `editor-modal-backdrop` | Semi-transparent backdrop | Clicking closes modal |
-| `editor-modal-container` | Centered modal dialog | Width/height set in TypeScript |
-| `editor-modal-header` | Header with close button | Fixed 32px height |
-| `editor-modal-content` | Editor content area | Width/height set in TypeScript |
-| `editor-modal-visible` | Added to `mainContainer` when modal is visible | — |
-
-#### Implementation
-
-The modal is implemented in `EditorModal` class (`parts/editorModal.ts`):
-
-```typescript
-class EditorModal extends Disposable {
-    // Events
-    readonly onDidChangeVisibility: Event<boolean>;
-
-    // State
-    get visible(): boolean;
-
-    // Methods
-    show(): void;   // Show modal using stored dimensions
-    hide(): void;   // Hide modal
-    close(): void;  // Close all editors, then hide
-    layout(workbenchWidth: number, workbenchHeight: number): void; // Store dimensions, re-layout if visible
-}
-```
-
-The `Workbench.layout()` passes the workbench dimensions to `EditorModal.layout()`, which calculates and applies the modal size with min/max constraints. Dimensions are stored so that `show()` can use them when the modal becomes visible.
 
 ---
 
@@ -302,9 +249,10 @@ setPartHidden(hidden: boolean, part: Parts): void
 - Showing a part restores the last active pane composite
 - **Panel Part:**
   - If the panel is maximized when hiding, it exits maximized state first
-- **Editor Part Auto-Visibility:**
-  - Automatically shows when an editor is about to open (`onWillOpenEditor`)
-  - Automatically hides when the last editor closes (`onDidCloseEditor` + all groups empty)
+- **Editor Part:**
+    - The main editor part is hidden by default but can be shown for explicit editor workflows that target the main editor part
+    - Modal editor opens do not change the current main editor visibility state
+  - All editors open via `MODAL_GROUP` into the `ModalEditorPart` overlay, which manages its own lifecycle
 
 ### 6.2 Part Sizing
 
@@ -386,11 +334,10 @@ Applied to `mainContainer` based on part visibility:
 | Class | Applied When |
 |-------|--------------|
 | `nosidebar` | Sidebar is hidden |
-| `nomaineditorarea` | Editor modal is hidden |
+| `nomaineditorarea` | Editor part is hidden (always applied — main editor part is permanently hidden) |
 | `noauxiliarybar` | Auxiliary bar is hidden |
 | `nochatbar` | Chat bar is hidden |
 | `nopanel` | Panel is hidden |
-| `editor-modal-visible` | Editor modal is visible |
 
 ### 8.2 Window State Classes
 
@@ -424,20 +371,19 @@ The Agent Sessions workbench uses specialized part implementations that extend t
 | Chat Bar | `ChatBarPart` | `AbstractPaneCompositePart` | `sessions/browser/parts/chatBarPart.ts` |
 | Titlebar | `TitlebarPart` / `MainTitlebarPart` | `Part` | `sessions/browser/parts/titlebarPart.ts` |
 | Project Bar | `ProjectBarPart` | `Part` | `sessions/browser/parts/projectBarPart.ts` |
-| Editor Modal | `EditorModal` | `Disposable` | `sessions/browser/parts/editorModal.ts` |
 
 ### 9.2 Key Differences from Standard Parts
 
 | Feature | Standard Parts | Agent Session Parts |
 |---------|----------------|---------------------|
-| Activity Bar integration | Full support | No activity bar; account widget in sidebar footer |
+| Activity Bar integration | Full support | No activity bar; account widget in the titlebar |
 | Composite bar position | Configurable (top/bottom/title/hidden) | Fixed: Title |
 | Composite bar visibility | Configurable | Sidebar: hidden (`shouldShowCompositeBar()` returns `false`); ChatBar: hidden; Auxiliary Bar & Panel: visible |
 | Auto-hide support | Configurable | Disabled |
 | Configuration listening | Many settings | Minimal |
 | Context menu actions | Full set | Simplified |
 | Title bar | Full support | Sidebar: `hasTitle: true` (with footer); ChatBar: `hasTitle: false`; Auxiliary Bar & Panel: `hasTitle: true` |
-| Visual margins | None | Auxiliary Bar: 8px top/bottom/right (card appearance); Panel: 8px bottom/left/right (card appearance); Sidebar: 0 (flush) |
+| Visual margins | None | Auxiliary Bar: 16px top/right, 18px bottom (card appearance); Panel: 18px bottom, 16px left/right (card appearance); Sidebar: 0 (flush) |
 
 ### 9.3 Part Creation
 
@@ -480,14 +426,18 @@ Each agent session part uses separate storage keys to avoid conflicts with regul
 
 ### 9.5 Part Borders and Card Appearance
 
-Parts manage their own border and background styling via the `updateStyles()` method. The auxiliary bar and panel use a **card appearance** with CSS variables for background and border:
+Parts manage their own border and background styling via the `updateStyles()` method. In the default light theme, the sessions workbench surface uses the off-white workbench/sidebar background while the card-like chat, auxiliary bar, and panel surfaces use the brighter editor background. Light themes also override the chat, auxiliary bar, and panel card border color in CSS to use `editorWidget.border`, giving those cards a darker outline. Dark and high-contrast mappings continue to use the existing part border tokens. The optional shell gradient treatment is gated behind the application setting `sessions.experimental.shellGradientBackground`. When that setting is disabled, the sessions shell uses the same solid sidebar/grid backgrounds and sidebar view styling as the upstream default experience. When enabled, the sessions shell adds a single root-level background layer in `browser/media/style.css` (`.agent-sessions-workbench.experimental-shell-gradient-background::before`) that sits behind the workbench parts and falls back to the normal solid shell background when `color-mix(...)` is unavailable. When supported, the layer derives its tint from the theme's primary accent signal in `button.background`. The gradient runs from the base shell color at the top-left toward a gentle, deliberately low-contrast accent tint in the bottom-right; light themes use a transparentized accent overlay to preserve a bit more of the original accent hue without letting it dominate the shell, dark themes use shallower direct mixes into the shell background, and high-contrast themes disable the gradient entirely for accessibility. Titlebar/sidebar wrappers are made transparent so that one shared layer reads continuously across the whole window chrome without clipping at part boundaries. These surfaces use a **card appearance** with CSS variables for background and border:
 
 | Part | Styling | Notes |
 |------|---------|-------|
-| Sidebar | Right border via `SIDE_BAR_BORDER` / `contrastBorder` | Flush appearance, no card styling |
-| Chat Bar | Background only, no borders | `borderWidth` returns `0` |
-| Auxiliary Bar | Card appearance via CSS variables `--part-background` / `--part-border-color` | Uses `SIDE_BAR_BACKGROUND` / `SIDE_BAR_BORDER`; transparent background on container; margins create card offset |
-| Panel | Card appearance via CSS variables `--part-background` / `--part-border-color` | Uses `PANEL_BACKGROUND` / `PANEL_BORDER`; transparent background on container; margins create card offset |
+| Sidebar | Right border via `SIDE_BAR_BORDER` / `contrastBorder` | Flush appearance; when `sessions.experimental.shellGradientBackground` is enabled, the sidebar wrappers are transparent so the shared root shell gradient reads through continuously |
+| Chat Bar | Card appearance via CSS variables `--part-background` / `--part-border-color`, with a light-theme-only CSS border-color override | Uses `sessionsChatBarBackground`; remains a solid view surface so chat content is unaffected |
+| Auxiliary Bar | Card appearance via CSS variables `--part-background` / `--part-border-color`, with a light-theme-only CSS border-color override | Uses `sessionsAuxiliaryBarBackground` / `PANEL_BORDER`; remains a solid view surface so files/changes content is unaffected |
+| Panel | Card appearance via CSS variables `--part-background` / `--part-border-color`, with a light-theme-only CSS border-color override | Uses `sessionsPanelBackground` / `PANEL_BORDER`; remains a solid view surface so terminal/debug content is unaffected |
+| Titlebar | Simplified sessions titlebar part | When `sessions.experimental.shellGradientBackground` is enabled, its wrappers are transparent so the shared root shell gradient reads through the top chrome as one continuous surface |
+
+The sessions workbench also scopes its resize sash styling in `browser/media/style.css`, rounding the sash hover indicator and orthogonal drag handles so the layout chrome matches the card surfaces.
+Both sessions chat input surfaces keep the unfocused `editorWidget.border` outline in light themes, but switch to `focusBorder` while focused so the new-chat view and the active chat input match the core workbench chat widget focus treatment.
 
 ---
 
@@ -503,7 +453,9 @@ The `AuxiliaryBarPart` provides a custom `DropdownWithPrimaryActionViewItem` for
 
 The `SidebarPart` includes a footer section (35px height) positioned below the pane composite content. The sidebar uses a custom `layout()` override that reduces the content height by `FOOTER_HEIGHT` and renders a `MenuWorkbenchToolBar` driven by `Menus.SidebarFooter`. The footer hosts the account widget (see Section 3.6).
 
-On macOS native, the sidebar title area includes a traffic light spacer (70px) to push content past the system window controls, which is hidden in fullscreen mode.
+On macOS native with custom titlebar, the sidebar title area includes a traffic light spacer (70px) to push content past the system window controls. The spacer is hidden in fullscreen mode and is not created when using native titlebar (since the OS renders traffic lights in its own title bar).
+
+The sessions appear animation applies only to the sidebar body (`.part.sidebar > .content`). The sidebar container, title area, and footer do not participate in the reveal animation, so the header region stays visually fixed while the body slides/fades in. Normal hover and pressed feedback for header/footer controls is preserved.
 
 ---
 
@@ -534,8 +486,11 @@ The Changes view is registered in `contrib/changesView/browser/changesView.contr
 The Sessions view is registered in `contrib/sessions/browser/sessions.contribution.ts`:
 
 - **Container**: Sessions container in `ViewContainerLocation.Sidebar` (default)
-- **View**: `SessionsViewId` with `AgenticSessionsViewPane`
+- **View**: `SessionsViewId` with `SessionsView` (`contrib/sessions/browser/views/sessionsView.ts`)
 - **Window visibility**: `WindowVisibility.Sessions`
+- **Primary action**: The sidebar content starts with a left-aligned secondary "New Session" button rendered as `$(plus) Session`, with an inline shortcut hint that reflects the active `workbench.action.sessions.newChat` keybinding when one is available
+- **Header layout**: The sessions list header label remains visible as the sidebar narrows and truncates with ellipsis instead of being hidden outright; the inline find widget still replaces both the label and actions while open
+- **Pinned section**: Pinned chats render in their own uppercase "Pinned" section header at the top of the list; that section reuses the standard section-header styling and only exposes the section-level "Mark All as Done" action (not workspace-specific actions like "New Session")
 
 ---
 
@@ -555,7 +510,7 @@ src/vs/sessions/
 │   ├── menus.ts                            # Agent sessions menu IDs (Menus export)
 │   ├── layoutActions.ts                    # Layout actions (toggle sidebar, secondary sidebar, panel)
 │   ├── paneCompositePartService.ts         # AgenticPaneCompositePartService
-│   ├── style.css                           # Layout-specific styles (including editor modal)
+│   ├── style.css                           # Layout-specific styles
 │   ├── widget/                             # Agent sessions chat widget
 │   │   ├── AGENTS_CHAT_WIDGET.md           # Chat widget architecture documentation
 │   │   ├── agentSessionsChatWidget.ts      # Main chat widget wrapper
@@ -570,7 +525,6 @@ src/vs/sessions/
 │       ├── panelPart.ts                    # Agent session panel
 │       ├── chatBarPart.ts                  # Chat Bar part implementation
 │       ├── projectBarPart.ts              # Project bar part (folder entries, icon customization)
-│       ├── editorModal.ts                  # Editor modal overlay implementation
 │       ├── parts.ts                        # AgenticParts enum
 │       ├── agentSessionsChatInputPart.ts   # Chat input part adapter
 │       ├── agentSessionsChatWelcomePart.ts # Chat welcome part
@@ -586,7 +540,7 @@ src/vs/sessions/
 │   ├── sessions.html
 │   └── sessions-dev.html
 ├── contrib/                                # Feature contributions
-│   ├── accountMenu/browser/                # Account menu widget for sidebar footer
+│   ├── accountMenu/browser/                # Account menu and titlebar account widget
 │   │   ├── account.contribution.ts
 │   │   └── media/
 │   ├── aiCustomizationManagement/browser/  # AI customization management editor
@@ -635,8 +589,8 @@ When modifying the Agent Sessions layout:
 1. `constructor()` — Register error handlers
 2. `startup()` — Initialize services and layout
 3. `initServices()` — Set up service collection (including `TitleService`), register singleton services, set lifecycle to `Ready`
-4. `initLayout()` — Get services, register layout listeners, register editor open/close listeners
-5. `renderWorkbench()` — Create DOM, create parts, create editor modal, set up notifications
+4. `initLayout()` — Get services, register layout listeners
+5. `renderWorkbench()` — Create DOM, create parts, create hidden editor part, set up notifications
 6. `createWorkbenchLayout()` — Build the grid structure
 7. `createWorkbenchManagement()` — (No-op in agent sessions layout)
 8. `layout()` — Perform initial layout
@@ -704,6 +658,30 @@ interface IPartVisibilityState {
 
 | Date | Change |
 |------|--------|
+| 2026-04-17 | Added a subtle 1px titlebar-token border around the sessions account widget's GitHub profile image, including the inactive-window variant, and documented the avatar chrome in the layout spec. |
+| 2026-04-16 | Softened the experimental sessions shell gradient by reducing the accent tint mix strength across the shared default, light-theme, and dark-theme variants so the primary color reads more subtly behind the workbench chrome. |
+| 2026-04-16 | Updated the layout visual representation to show the editor part in the top-right row and mark it as hidden by default. |
+| 2026-04-16 | Fixed the sessions workbench so modal editor opens no longer hide an already visible main editor part, and documented that the main editor stays hidden by default but can be revealed by explicit non-modal editor flows. |
+| 2026-04-15 | Updated the Sessions sidebar so pinned chats render in their own "Pinned" section header using the standard uppercase section styling, and that header only exposes the "Mark All as Done" section action. |
+| 2026-04-14 | Documented the sessions account control as a titlebar widget again and noted that it now prefers the signed-in GitHub profile image, falling back to the existing account codicon when the image is unavailable. |
+| 2026-04-14 | Updated the sessions-only default configuration so notification toasts default to the top-right corner via `workbench.notifications.position: 'top-right'`, without changing the regular workbench default. |
+| 2026-04-10 | Updated the sessions titlebar widget so repository/worktree metadata truncates with ellipsis before the primary AI-generated session title when the command center gets narrow. |
+| 2026-04-10 | Updated workspace/repository section headers in the Sessions sidebar to keep their uppercase titles visible via ellipsis truncation so the section toolbar actions remain reachable when names are long. |
+| 2026-04-10 | Updated the Sessions view header so the sidebar "Sessions" label stays visible and truncates with ellipsis when space is tight instead of being hidden; documented the find-widget exception in the Sessions view spec. |
+| 2026-04-10 | Updated both sessions chat input surfaces so the standalone new-chat input and the active chat widget input switch their border to `focusBorder` while focused, matching the core workbench chat widget focus treatment. |
+| 2026-04-14 | Reworked the sessions accent-tinted background into a single root-level pseudo-element behind the workbench parts, then gated it behind `sessions.experimental.shellGradientBackground` so the shell gradient is opt-in while it is being dogfooded and the default styling remains identical to the upstream non-experimental shell. |
+| 2026-04-08 | Darkened the light-theme-only chat, auxiliary bar, and panel card borders with a sessions-specific CSS `border-color` override that uses `editorWidget.border`; dark and high-contrast themes continue using the existing part border tokens. |
+| 2026-04-08 | Rounded the sessions workbench sash hover indicators and orthogonal drag handles via `browser/media/style.css` so resize handles use rounded corners instead of square edges. |
+| 2026-04-04 | Inverted the default light-theme surface mapping so the sessions window background uses the off-white workbench/sidebar surface while the chat, changes, and panel cards use the brighter editor background; dark and high-contrast mappings remain unchanged. |
+| 2026-04-03 | Updated `SessionsTitleBarWidget` to format active session titles as `{Title} · {repo name} ({git branch/worktree name})` when repository detail metadata is available, falling back to the worktree folder name when needed. |
+| 2026-04-03 | Reduced the sessions left sidebar minimum resizable width from 270px to 170px so it can shrink significantly more while keeping the default 300px width unchanged |
+| 2026-03-30 | Adjusted `.agent-sessions-titlebar-container` padding so it sits flush when the sidebar is visible and restores 16px left padding when the sidebar is hidden |
+| 2026-03-26 | Updated the sessions sidebar appear animation so only the body content (`.part.sidebar > .content`) slides/fades in during reveal while the sidebar title/header and footer remain fixed |
+| 2026-03-24 | Polished the sessions task configuration quick input modal to use stronger modal-style header chrome, increased horizontal padding in the quick input/form content, and added an explicit close action in the modal header |
+| 2026-03-25 | Updated Sessions view documentation to reflect the refactored `SessionsView` implementation in `contrib/sessions/browser/views/sessionsView.ts` and documented the left-aligned "+ Session" sidebar action with its inline keybinding hint |
+| 2026-03-24 | Updated the sessions new-chat empty state: removed the watermark, vertically centered the empty-state controls block, restyled the workspace picker as an inline `New session in {dropdown}` title row aligned to the chat input, and tuned empty-state dropdown icon/chevron and local-mode spacing for the final visual polish. |
+| 2026-03-02 | Fixed macOS sidebar traffic light spacer to only render with custom titlebar; added `!hasNativeTitlebar()` guard to `SidebarPart.createTitleArea()` so the 70px spacer is not created when using native titlebar (traffic lights are in the OS title bar, not overlapping the sidebar) |
+| 2026-02-20 | Replaced custom `EditorModal` with standard `ModalEditorPart` via `MODAL_GROUP`; main editor part created but hidden; changed `workbench.editor.useModal` from boolean to enum (`off`/`some`/`all`); sessions config uses `all`; removed `editorModal.ts` and editor modal CSS |
 | 2026-02-17 | Added `-webkit-app-region: drag` to sidebar title area so it can be used to drag the window; interactive children (actions, composite bar, labels) marked `no-drag`; CSS rules scoped to `.agent-sessions-workbench` in `parts/media/sidebarPart.css` |
 | 2026-02-13 | Documentation sync: Updated all file names, class names, and references to match current implementation. `AgenticWorkbench` → `Workbench`, `AgenticSidebarPart` → `SidebarPart`, `AgenticAuxiliaryBarPart` → `AuxiliaryBarPart`, `AgenticPanelPart` → `PanelPart`, `agenticWorkbench.ts` → `workbench.ts`, `agenticWorkbenchMenus.ts` → `menus.ts`, `agenticLayoutActions.ts` → `layoutActions.ts`, `AgenticTitleBarWidget` → `SessionsTitleBarWidget`, `AgenticTitleBarContribution` → `SessionsTitleBarContribution`. Removed references to deleted files (`sidebarRevealButton.ts`, `floatingToolbar.ts`, `agentic.contributions.ts`, `agenticTitleBarWidget.ts`). Updated pane composite architecture from `SyncDescriptor`-based to `AgenticPaneCompositePartService`. Moved account widget docs from titlebar to sidebar footer. Added documentation for sidebar footer, project bar, traffic light spacer, card appearance styling, widget directory, and new contrib structure (`accountMenu/`, `chat/`, `configuration/`, `sessions/`). Updated titlebar actions to reflect Run Script split button and Open submenu. Removed Toggle Maximize panel action (no longer registered). Updated contributions section with all current contributions and their locations. |
 | 2026-02-13 | Changed grid structure: sidebar now spans full window height at root level (HORIZONTAL root orientation); Titlebar moved inside right section; Grid is now `Sidebar \| [Titlebar / TopRight / Panel]` instead of `Titlebar / [Sidebar \| RightSection]`; Panel maximize now excludes both titlebar and sidebar; Floating toolbar positioning no longer depends on titlebar height |

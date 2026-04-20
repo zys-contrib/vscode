@@ -4,11 +4,12 @@
  *--------------------------------------------------------------------------------------------*/
 
 import assert from 'assert';
-import { Emitter } from '../../../../../../base/common/event.js';
+import { IAction } from '../../../../../../base/common/actions.js';
+import { Emitter, Event } from '../../../../../../base/common/event.js';
 import { IDisposable } from '../../../../../../base/common/lifecycle.js';
 import { observableValue } from '../../../../../../base/common/observable.js';
 import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../../../base/test/common/utils.js';
-import { ICuratedModels, ILanguageModelChatMetadata, ILanguageModelChatMetadataAndIdentifier, ILanguageModelChatProvider, ILanguageModelChatSelector, ILanguageModelsGroup, ILanguageModelsService, IUserFriendlyLanguageModel, ILanguageModelProviderDescriptor } from '../../../common/languageModels.js';
+import { IModelsControlManifest, ILanguageModelChatMetadata, ILanguageModelChatMetadataAndIdentifier, ILanguageModelChatProvider, ILanguageModelChatSelector, ILanguageModelsGroup, ILanguageModelsService, IUserFriendlyLanguageModel, ILanguageModelProviderDescriptor } from '../../../common/languageModels.js';
 import { ChatModelGroup, ChatModelsViewModel, ILanguageModelEntry, ILanguageModelProviderEntry, isLanguageModelProviderEntry, isLanguageModelGroupEntry, ILanguageModelGroupEntry } from '../../../browser/chatManagement/chatModelsViewModel.js';
 import { ExtensionIdentifier } from '../../../../../../platform/extensions/common/extensions.js';
 import { IStringDictionary } from '../../../../../../base/common/collections.js';
@@ -28,6 +29,8 @@ class MockLanguageModelsService implements ILanguageModelsService {
 
 	private readonly _onDidChangeLanguageModelVendors = new Emitter<readonly string[]>();
 	readonly onDidChangeLanguageModelVendors = this._onDidChangeLanguageModelVendors.event;
+
+	onDidChangeModelsControlManifest = Event.None;
 
 	addVendor(vendor: IUserFriendlyLanguageModel): void {
 		this.vendors.push(vendor);
@@ -121,7 +124,21 @@ class MockLanguageModelsService implements ILanguageModelsService {
 		throw new Error('Method not implemented.');
 	}
 
+	getModelConfiguration(_modelId: string): IStringDictionary<unknown> | undefined {
+		return undefined;
+	}
+
+	async setModelConfiguration(_modelId: string, _values: IStringDictionary<unknown>): Promise<void> {
+	}
+
+	getModelConfigurationActions(_modelId: string): IAction[] {
+		return [];
+	}
+
 	async configureLanguageModelsProviderGroup(vendorId: string, name?: string): Promise<void> {
+	}
+
+	async configureModel(_modelId: string): Promise<void> {
 	}
 
 	async addLanguageModelsProviderGroup(name: string, vendorId: string, configuration: IStringDictionary<unknown> | undefined): Promise<void> {
@@ -137,8 +154,9 @@ class MockLanguageModelsService implements ILanguageModelsService {
 	async migrateLanguageModelsProviderGroup(languageModelsProviderGroup: ILanguageModelsProviderGroup): Promise<void> { }
 
 	getRecentlyUsedModelIds(): string[] { return []; }
-	recordModelUsage(): void { }
-	getCuratedModels(): ICuratedModels { return { free: [], paid: [] }; }
+	addToRecentlyUsedList(): void { }
+	clearRecentlyUsedList(): void { }
+	getModelsControlManifest(): IModelsControlManifest { return { free: {}, paid: {} }; }
 	restrictedChatParticipants = observableValue('restrictedChatParticipants', Object.create(null));
 }
 
