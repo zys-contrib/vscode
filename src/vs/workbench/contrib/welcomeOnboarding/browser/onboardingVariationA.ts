@@ -979,18 +979,13 @@ export class OnboardingVariationA extends Disposable implements IOnboardingServi
 			? ['\u2318', '\u2303', 'I']  // Cmd+Control+I
 			: ['Ctrl', 'Alt', 'I'];
 		const shortcut = keys.map(k => this._createKbd(k));
-		el.append(
-			localize('onboarding.step.agentSessions.subtitle.before', "Tip: Press "),
-		);
+		el.append(localize('onboarding.step.agentSessions.subtitle.before', "Open Chat anytime with "));
 		for (let i = 0; i < shortcut.length; i++) {
 			if (i > 0) {
-				el.append(' + ');
+				el.append('+');
 			}
 			el.append(shortcut[i]);
 		}
-		el.append(
-			localize('onboarding.step.agentSessions.subtitle.after', " to open Chat"),
-		);
 	}
 
 	private _renderAgentSessionsStep(container: HTMLElement): void {
@@ -998,26 +993,42 @@ export class OnboardingVariationA extends Disposable implements IOnboardingServi
 
 		const features = append(wrapper, $('.onboarding-a-sessions-features'));
 
-		this._createFeatureCard(features, Codicon.deviceDesktop,
-			localize('onboarding.sessions.local', "Local"),
-			localize('onboarding.sessions.local.desc', "Run agents interactively in the editor with full access to your workspace, tools, and terminal. Best for hands-on work where you want to review changes as they happen."));
+		// Group 1: Chat modes — Ask / Agent / Plan
+		const chatGroup = append(features, $('.onboarding-a-sessions-group'));
+		const chatLabel = append(chatGroup, $('div.onboarding-a-sessions-group-label'));
+		chatLabel.textContent = localize('onboarding.sessions.group.chat', "In the Chat view");
+		const chatGrid = append(chatGroup, $('.onboarding-a-sessions-grid.onboarding-a-sessions-grid-3'));
 
-		this._createFeatureCard(features, Codicon.cloud,
-			localize('onboarding.sessions.cloud', "Cloud"),
-			localize('onboarding.sessions.cloud.desc', "Delegate tasks to a cloud agent that creates a branch, implements changes, and opens a pull request. The agent continues working even if you close VS Code."));
+		this._createFeatureCard(chatGrid, Codicon.comment,
+			localize('onboarding.sessions.askMode', "Ask mode"),
+			localize('onboarding.sessions.askMode.desc', "Ask questions about your code or concepts and get answers with references \u2014 no changes to your files."));
 
-		this._createFeatureCard(features, Codicon.worktree,
-			localize('onboarding.sessions.worktree', "Copilot CLI"),
-			localize('onboarding.sessions.worktree.desc', "Run agents autonomously in an isolated worktree on your machine. Work on something else while the agent builds, tests, and iterates in the background."));
+		this._createFeatureCard(chatGrid, Codicon.commentDiscussion,
+			localize('onboarding.sessions.agentMode', "Agent mode"),
+			localize('onboarding.sessions.agentMode.desc', "Describe a task and Copilot edits files, runs commands, and verifies the result. You review and approve each change."));
 
-		const inlineDesc = this._createFeatureCard(features, Codicon.sparkle,
-			localize('onboarding.sessions.inline', "Inline Suggestions"));
+		this._createFeatureCard(chatGrid, Codicon.listOrdered,
+			localize('onboarding.sessions.planMode', "Plan mode"),
+			localize('onboarding.sessions.planMode.desc', "Break a task into a step-by-step plan before any code changes. Review and refine it, then hand it off to be executed."));
+
+		// Group 2: everything else
+		const moreGroup = append(features, $('.onboarding-a-sessions-group'));
+		const moreLabel = append(moreGroup, $('div.onboarding-a-sessions-group-label'));
+		moreLabel.textContent = localize('onboarding.sessions.group.more', "And beyond");
+		const moreGrid = append(moreGroup, $('.onboarding-a-sessions-grid.onboarding-a-sessions-grid-2'));
+
+		this._createFeatureCard(moreGrid, Codicon.rocket,
+			localize('onboarding.sessions.runAnywhere', "Run anywhere"),
+			localize('onboarding.sessions.runAnywhere.desc', "Run agents locally for interactive work, in the background with Copilot CLI, or in the cloud to open a pull request your team can review."));
+
+		const inlineDesc = this._createFeatureCard(moreGrid, Codicon.sparkle,
+			localize('onboarding.sessions.inline', "In the editor"));
 		inlineDesc.append(
-			localize('onboarding.sessions.inline.desc1', "As you type, AI suggests completions and next edit predictions inline. Press "),
+			localize('onboarding.sessions.inline.desc1', "Completions and next-edit predictions appear as you type \u2014 press "),
 			this._createKbd(localize('onboarding.sessions.inline.tab', "Tab")),
-			localize('onboarding.sessions.inline.desc2', " to accept or "),
-			this._createKbd(localize('onboarding.sessions.inline.esc', "Esc")),
-			localize('onboarding.sessions.inline.desc3', " to dismiss."),
+			localize('onboarding.sessions.inline.desc2', " to accept. Press "),
+			this._createKbd(isMacintosh ? '\u2318I' : 'Ctrl+I'),
+			localize('onboarding.sessions.inline.desc3', " for inline chat to make targeted edits without leaving the file."),
 		);
 
 		// Tutorial link at bottom of content, above footer
