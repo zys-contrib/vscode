@@ -67,19 +67,19 @@ interface IDraftState {
 const RANDOM_PLACEHOLDERS = [
 	localize('sessionsChatInput.placeholder.whatAreYouBuilding', "What are you building?"),
 	localize('sessionsChatInput.placeholder.whatWillYouShipToday', "What will you ship today?"),
-	localize('sessionsChatInput.placeholder.describeWhatYouWantToBuild', "Describe what you want to build..."),
+	localize('sessionsChatInput.placeholder.describeWhatYouWantToBuild', "Describe what you want to build"),
 	localize('sessionsChatInput.placeholder.whatsYourNextMilestone', "What's your next milestone?"),
 	localize('sessionsChatInput.placeholder.whatAreYouTryingToAchieve', "What are you trying to achieve?"),
-	localize('sessionsChatInput.placeholder.pitchYourIdea', "Pitch your idea..."),
+	localize('sessionsChatInput.placeholder.pitchYourIdea', "Pitch your idea"),
 	localize('sessionsChatInput.placeholder.whatsTheGoal', "What's the goal?"),
 	localize('sessionsChatInput.placeholder.whatWillYouCreate', "What will you create?"),
 	localize('sessionsChatInput.placeholder.whatFeatureAreYouDreamingUp', "What feature are you dreaming up?"),
-	localize('sessionsChatInput.placeholder.describeTheOutcome', "Describe the outcome you want..."),
+	localize('sessionsChatInput.placeholder.describeTheOutcome', "Describe the outcome you want"),
 	localize('sessionsChatInput.placeholder.whatProblemAreYouSolving', "What problem are you solving?"),
 	localize('sessionsChatInput.placeholder.whatsNextOnYourRoadmap', "What's next on your roadmap?"),
 	localize('sessionsChatInput.placeholder.whatWouldYouLikeToAutomate', "What would you like to automate?"),
 	localize('sessionsChatInput.placeholder.whatWillYouLaunch', "What will you launch?"),
-	localize('sessionsChatInput.placeholder.describeYourMission', "Describe your mission..."),
+	localize('sessionsChatInput.placeholder.describeYourMission', "Describe your mission"),
 ];
 
 let lastPlaceholderIndex = -1;
