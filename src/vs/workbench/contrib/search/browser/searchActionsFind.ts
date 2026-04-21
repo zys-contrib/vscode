@@ -325,7 +325,7 @@ registerAction2(class FindInWorkspaceAction extends Action2 {
 	}
 	async run(accessor: ServicesAccessor) {
 		const searchConfig = accessor.get(IConfigurationService).getValue<ISearchConfiguration>().search;
-		const mode = searchConfig.mode;
+		const mode = searchConfig?.mode;
 
 		if (mode === 'view') {
 			const searchView = await openSearchView(accessor.get(IViewsService), true);
@@ -382,7 +382,7 @@ async function searchWithFolderCommand(accessor: ServicesAccessor, isFromExplore
 	const contextService = accessor.get(IWorkspaceContextService);
 	const commandService = accessor.get(ICommandService);
 	const searchConfig = accessor.get(IConfigurationService).getValue<ISearchConfiguration>().search;
-	const mode = searchConfig.mode;
+	const mode = searchConfig?.mode;
 
 	let resources: URI[];
 
@@ -434,7 +434,7 @@ async function searchWithFolderCommand(accessor: ServicesAccessor, isFromExplore
 	}
 }
 
-function getMultiSelectedSearchResources(viewer: WorkbenchCompressibleAsyncDataTree<ISearchResult, RenderableMatch, void>, currElement: RenderableMatch | undefined, sortConfig: ISearchConfigurationProperties): URI[] {
+function getMultiSelectedSearchResources(viewer: WorkbenchCompressibleAsyncDataTree<ISearchResult, RenderableMatch, void>, currElement: RenderableMatch | undefined, sortConfig: ISearchConfigurationProperties | undefined): URI[] {
 	return getElementsToOperateOn(viewer, currElement, sortConfig)
 		.map((renderableMatch) => ((isSearchTreeMatch(renderableMatch)) ? null : renderableMatch.resource))
 		.filter((renderableMatch): renderableMatch is URI => (renderableMatch !== null));
@@ -466,7 +466,7 @@ export async function findInFilesCommand(accessor: ServicesAccessor, _args: IFin
 		}
 	}
 
-	const mode = searchConfig.mode;
+	const mode = searchConfig?.mode;
 	if (mode === 'view') {
 		openSearchView(viewsService, false).then(openedView => {
 			if (openedView) {
