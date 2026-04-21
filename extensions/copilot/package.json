@@ -6284,6 +6284,7 @@
 		"watch:tsc-simulation-workbench": "tsc --noEmit --watch --project test/simulation/workbench/tsconfig.json",
 		"typecheck": "tsc --noEmit --project tsconfig.json && tsc --noEmit --project test/simulation/workbench/tsconfig.json && tsc --noEmit --project tsconfig.worker.json && tsc --noEmit --project src/extension/completions-core/vscode-node/extension/src/copilotPanel/webView/tsconfig.json",
 		"tsfmt": "npx tsfmt -r --verify",
+		"lint": "npx eslint .",
 		"test": "npm-run-all test:*",
 		"test:extension": "vscode-test",
 		"test:sanity": "vscode-test --sanity",
