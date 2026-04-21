@@ -57,7 +57,7 @@ import { Memento } from '../../../common/memento.js';
 import { IViewDescriptorService } from '../../../common/views.js';
 import { NotebookEditor } from '../../notebook/browser/notebookEditor.js';
 import { ExcludePatternInputWidget, IncludePatternInputWidget } from './patternInputWidget.js';
-import { IFindInFilesArgs } from './searchActionsFind.js';
+import { IFindInFilesArgs } from './searchActionsBase.js';
 import { searchDetailsIcon } from './searchIcons.js';
 import { renderSearchMessage } from './searchMessage.js';
 import { FileMatchRenderer, FolderMatchRenderer, MatchRenderer, SearchAccessibilityProvider, SearchDelegate, TextSearchResultRenderer } from './searchResultsView.js';
