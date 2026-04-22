@@ -205,6 +205,7 @@ import './contrib/remoteAgentHost/browser/tunnelAgentHost.contribution.js';
 
 // Local Agent Host
 import './contrib/agentHost/browser/localAgentHost.contribution.js';
+import './contrib/agentHost/browser/agentSessionSettings.contribution.js';
 
 // Tunnel Host (allow remote connections to local agent host)
 import './contrib/tunnelHost/electron-browser/tunnelHost.contribution.js';

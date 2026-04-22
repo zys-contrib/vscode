@@ -155,6 +155,7 @@ import './contrib/remoteAgentHost/browser/remoteAgentHostTerminal.contribution.j
 // Remote agent host session provider — discovers agents and registers sessions
 import './contrib/remoteAgentHost/browser/remoteAgentHost.contribution.js';
 import './contrib/remoteAgentHost/browser/remoteAgentHostActions.js';
+import './contrib/agentHost/browser/agentSessionSettings.contribution.js';
 
 // TODO: support agent feedback in web
 import './contrib/agentFeedback/browser/nullAgentFeedbackService.contribution.js';

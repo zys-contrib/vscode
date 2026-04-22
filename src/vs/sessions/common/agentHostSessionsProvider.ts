@@ -5,6 +5,7 @@
 
 import { Event } from '../../base/common/event.js';
 import { IObservable } from '../../base/common/observable.js';
+import { equals } from '../../base/common/objects.js';
 import { RemoteAgentHostConnectionStatus } from '../../platform/agentHost/common/remoteAgentHostService.js';
 import { IResolveSessionConfigResult, ISessionConfigValueItem } from '../../platform/agentHost/common/state/protocol/commands.js';
 import { ISessionsProvider } from '../services/sessions/common/sessionsProvider.js';
@@ -29,11 +30,26 @@ export interface IAgentHostSessionsProvider extends ISessionsProvider {
 	/** Returns the last resolved dynamic configuration for a session. */
 	getSessionConfig(sessionId: string): IResolveSessionConfigResult | undefined;
 	/** Sets one dynamic configuration property and re-resolves the schema. */
-	setSessionConfigValue(sessionId: string, property: string, value: string): Promise<void>;
+	setSessionConfigValue(sessionId: string, property: string, value: unknown): Promise<void>;
+	/**
+	 * Replaces the full set of running-session config values atomically.
+	 *
+	 * Dispatches a single `session/configChanged` action with replace
+	 * semantics. Only user-editable properties (`sessionMutable: true` and
+	 * not `readOnly`) are actually replaced from the caller-supplied values —
+	 * for every other property the current value is carried through, so
+	 * non-mutable / read-only properties (e.g. `isolation`, `branch`) can
+	 * never be altered through this API even if included in the input.
+	 * Unknown keys (no schema entry) are ignored.
+	 *
+	 * No-op for pre-creation (new) sessions — use {@link setSessionConfigValue}
+	 * there since the schema is still being resolved.
+	 */
+	replaceSessionConfig(sessionId: string, values: Record<string, unknown>): Promise<void>;
 	/** Returns dynamic completions for a configuration property. */
 	getSessionConfigCompletions(sessionId: string, property: string, query?: string): Promise<readonly ISessionConfigValueItem[]>;
 	/** Returns the resolved config that should be sent to createSession. */
-	getCreateSessionConfig(sessionId: string): Record<string, string> | undefined;
+	getCreateSessionConfig(sessionId: string): Record<string, unknown> | undefined;
 	/** Clears dynamic configuration state for an abandoned new session. */
 	clearSessionConfig(sessionId: string): void;
 }
@@ -50,12 +66,13 @@ export function isAgentHostProvider(provider: ISessionsProvider): provider is IA
 }
 
 /**
- * Shallow structural equality for resolved session configs. Returns true when
- * both inputs have the same value-key set with identical string values and
- * the same set of schema property keys with identical (by-identity) property
- * objects. Schema property objects are compared by identity since they
- * originate from the same protocol snapshot in the providers that use this
- * helper.
+ * Structural equality for resolved session configs. Returns true when both
+ * inputs have the same value-key set with deep-equal values and the same set
+ * of schema property keys with identical (by-identity) property objects.
+ * Schema property objects are compared by identity since they originate from
+ * the same protocol snapshot in the providers that use this helper. Values
+ * are deep-compared via {@link equals} so non-string entries (e.g. permission
+ * objects) compare correctly.
  */
 export function resolvedConfigsEqual(a: IResolveSessionConfigResult, b: IResolveSessionConfigResult): boolean {
 	const aValueKeys = Object.keys(a.values);
@@ -64,7 +81,7 @@ export function resolvedConfigsEqual(a: IResolveSessionConfigResult, b: IResolve
 		return false;
 	}
 	for (const key of aValueKeys) {
-		if (a.values[key] !== b.values[key]) {
+		if (!equals(a.values[key], b.values[key])) {
 			return false;
 		}
 	}
@@ -89,14 +106,18 @@ const AUTO_APPROVE_ENUM = ['default', 'autoApprove', 'autopilot'];
  * Used when a restored session receives a ConfigChanged action before
  * the full schema has been hydrated.
  */
-export function buildMutableConfigSchema(config: Record<string, string>): Record<string, { type: 'string'; title: string; sessionMutable: true; enum: string[] }> {
+export function buildMutableConfigSchema(config: Record<string, unknown>): Record<string, { type: 'string'; title: string; sessionMutable: true; enum: string[] }> {
 	const properties: Record<string, { type: 'string'; title: string; sessionMutable: true; enum: string[] }> = {};
 	for (const key of Object.keys(config)) {
+		const value = config[key];
+		const enumValues = key === 'autoApprove'
+			? AUTO_APPROVE_ENUM
+			: typeof value === 'string' ? [value] : [];
 		properties[key] = {
 			type: 'string',
 			title: key,
 			sessionMutable: true,
-			enum: key === 'autoApprove' ? AUTO_APPROVE_ENUM : [config[key]],
+			enum: enumValues,
 		};
 	}
 	return properties;
