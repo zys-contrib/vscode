@@ -17,7 +17,7 @@ import type { IAgentHostSessionsProvider } from '../../../../common/agentHostSes
 import { ISessionsProvidersService } from '../../../../services/sessions/browser/sessionsProvidersService.js';
 import type { ISession } from '../../../../services/sessions/common/session.js';
 import type { ISessionsProvider } from '../../../../services/sessions/common/sessionsProvider.js';
-import { agentSessionSettingsUri, AgentSessionSettingsFileSystemProvider } from '../../browser/agentSessionSettingsFileSystemProvider.js';
+import { agentSessionSettingsUri, AgentSessionSettingsFileSystemProvider, AgentSessionSettingsSchemaRegistrar } from '../../browser/agentSessionSettingsFileSystemProvider.js';
 
 const PROVIDER_ID = 'local-agent-host';
 const RESOURCE_SCHEME = 'agent-host-copilot';
@@ -56,6 +56,7 @@ suite('AgentSessionSettingsFileSystemProvider', () => {
 		const session = createSession();
 
 		const onDidChangeSessionConfigEmitter = store.add(new Emitter<string>());
+		const onDidChangeSessionsEmitter = store.add(new Emitter<{ added: readonly ISession[]; removed: readonly ISession[]; changed: readonly ISession[] }>());
 		const replaceCalls: Array<{ sessionId: string; values: Record<string, unknown> }> = [];
 
 		const sessionProvider: IMockAgentHostSessionsProvider = {
@@ -64,6 +65,8 @@ suite('AgentSessionSettingsFileSystemProvider', () => {
 			onDidChangeSessionConfigEmitter,
 			replaceCalls,
 			onDidChangeSessionConfig: onDidChangeSessionConfigEmitter.event,
+			onDidChangeSessions: onDidChangeSessionsEmitter.event,
+			getSessions: () => [session],
 			getSessionConfig: (_sessionId: string) => sessionProvider.config,
 			replaceSessionConfig: async (sessionId: string, values: Record<string, unknown>) => {
 				replaceCalls.push({ sessionId, values });
@@ -77,6 +80,7 @@ suite('AgentSessionSettingsFileSystemProvider', () => {
 			setSessionConfigValue: async () => { /* unused by writeFile */ },
 		} as unknown as IMockAgentHostSessionsProvider;
 
+		const onDidChangeProvidersEmitter = store.add(new Emitter<{ added: readonly ISessionsProvider[]; removed: readonly ISessionsProvider[] }>());
 		const providersService: ISessionsProvidersService = {
 			getProvider<T extends ISessionsProvider>(providerId: string): T | undefined {
 				if (registerProvider && providerId === PROVIDER_ID) {
@@ -84,6 +88,8 @@ suite('AgentSessionSettingsFileSystemProvider', () => {
 				}
 				return undefined;
 			},
+			getProviders: () => registerProvider ? [sessionProvider as unknown as ISessionsProvider] : [],
+			onDidChangeProviders: onDidChangeProvidersEmitter.event,
 		} as unknown as ISessionsProvidersService;
 
 		const instantiationService = store.add(new TestInstantiationService(new ServiceCollection(
@@ -91,7 +97,8 @@ suite('AgentSessionSettingsFileSystemProvider', () => {
 			[ILogService, new NullLogService()],
 		)));
 
-		const fs = store.add(instantiationService.createInstance(AgentSessionSettingsFileSystemProvider));
+		const schemaRegistrar = store.add(instantiationService.createInstance(AgentSessionSettingsSchemaRegistrar));
+		const fs = store.add(instantiationService.createInstance(AgentSessionSettingsFileSystemProvider, schemaRegistrar));
 
 		return { fs, session, uri: agentSessionSettingsUri(session), sessionProvider };
 	}
