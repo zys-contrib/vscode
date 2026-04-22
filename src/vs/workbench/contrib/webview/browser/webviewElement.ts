@@ -798,9 +798,10 @@ export class WebviewElement extends Disposable implements IWebviewElement, Webvi
 									if (!closed) {
 										closed = true;
 										try { controller.close(); } catch { /* already closed */ }
+										cancellationSub.dispose();
 									}
 								};
-								token.onCancellationRequested(close);
+								const cancellationSub = token.onCancellationRequested(close);
 
 								listenStream(result.stream, {
 									onData: (chunk) => {
