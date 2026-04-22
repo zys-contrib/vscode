@@ -698,6 +698,15 @@ export class BrowserTitlebarPart extends Part implements ITitlebarPart {
 				}
 			}
 
+			// --- Leading Global Actions (rendered before layout controls; opt-in via group '0_leading')
+			if (this.globalToolbarMenu) {
+				fillInActionBarActions(
+					this.globalToolbarMenu.getActions(),
+					actions,
+					actionGroup => actionGroup === '0_leading'
+				);
+			}
+
 			// --- Layout Actions
 			if (this.layoutToolbarMenu) {
 				fillInActionBarActions(

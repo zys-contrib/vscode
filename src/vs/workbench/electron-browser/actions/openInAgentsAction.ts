@@ -11,18 +11,24 @@ import { Disposable } from '../../../base/common/lifecycle.js';
 import { localize, localize2 } from '../../../nls.js';
 import { Action2, MenuId, registerAction2 } from '../../../platform/actions/common/actions.js';
 import { IActionViewItemService } from '../../../platform/actions/browser/actionViewItemService.js';
+import { IConfigurationRegistry, Extensions as ConfigurationExtensions } from '../../../platform/configuration/common/configurationRegistry.js';
 import { ContextKeyExpr } from '../../../platform/contextkey/common/contextkey.js';
 import { IsMacContext, IsWindowsContext } from '../../../platform/contextkey/common/contextkeys.js';
 import { IInstantiationService, ServicesAccessor } from '../../../platform/instantiation/common/instantiation.js';
 import { INativeHostService } from '../../../platform/native/common/native.js';
 import { IProductService } from '../../../platform/product/common/productService.js';
+import { Registry } from '../../../platform/registry/common/platform.js';
 import { IWorkspaceContextService, WorkbenchState } from '../../../platform/workspace/common/workspace.js';
+import { ToggleTitleBarConfigAction } from '../../browser/parts/titlebar/titlebarActions.js';
 import { IWorkbenchContribution, registerWorkbenchContribution2, WorkbenchPhase } from '../../common/contributions.js';
 import { IsAuxiliaryWindowContext, IsSessionsWindowContext } from '../../common/contextkeys.js';
+import { workbenchConfigurationNodeBase } from '../../common/configuration.js';
 
 const OpenInAgentsActionId = 'workbench.action.openInAgents';
+const OpenInAgentsEnabledSetting = 'workbench.openInAgents.enabled';
 
 const OpenInAgentsVisibility = ContextKeyExpr.and(
+	ContextKeyExpr.equals(`config.${OpenInAgentsEnabledSetting}`, true),
 	IsSessionsWindowContext.toNegated(),
 	IsAuxiliaryWindowContext.toNegated(),
 	ContextKeyExpr.or(IsMacContext, IsWindowsContext),
@@ -43,12 +49,18 @@ class OpenInAgentsAction extends Action2 {
 			f1: true,
 			precondition: OpenInAgentsVisibility,
 			menu: [{
-				// The titlebar tool bar concatenates: editor → layout → TitleBar →
-				// activity. Register on the layout menu with a very low order so we
-				// render as the leftmost item in the right-hand controls (before
-				// the layout icons).
-				id: MenuId.LayoutControlMenu,
-				group: 'navigation',
+				// Render in the global titlebar tool bar in the dedicated
+				// '0_leading' slot so we appear before the layout controls
+				// (and stay visible when layout controls are toggled off).
+				id: MenuId.TitleBar,
+				group: '0_leading',
+				order: -1000,
+				when: OpenInAgentsVisibility,
+			}, {
+				// Also surface inside the "Customize Layout..." submenu so users
+				// can toggle the entry on/off from the layout customization UI.
+				id: MenuId.LayoutControlMenuSubmenu,
+				group: '0_workbench_layout',
 				order: -1000,
 				when: OpenInAgentsVisibility,
 			}]
@@ -136,7 +148,7 @@ class OpenInAgentsContribution extends Disposable implements IWorkbenchContribut
 		@IInstantiationService instantiationService: IInstantiationService,
 	) {
 		super();
-		this._register(actionViewItemService.register(MenuId.LayoutControlMenu, OpenInAgentsActionId, (action, options) => {
+		this._register(actionViewItemService.register(MenuId.TitleBar, OpenInAgentsActionId, (action, options) => {
 			return instantiationService.createInstance(OpenInAgentsTitleBarWidget, action, options);
 		}, undefined));
 	}
@@ -144,3 +156,27 @@ class OpenInAgentsContribution extends Disposable implements IWorkbenchContribut
 
 registerAction2(OpenInAgentsAction);
 registerWorkbenchContribution2(OpenInAgentsContribution.ID, OpenInAgentsContribution, WorkbenchPhase.AfterRestored);
+
+// Toggle entry in titlebar context menu (right-click on titlebar)
+registerAction2(class ToggleOpenInAgents extends ToggleTitleBarConfigAction {
+	constructor() {
+		super(
+			OpenInAgentsEnabledSetting,
+			localize('toggle.openInAgents', 'Open in Agents'),
+			localize('toggle.openInAgentsDescription', "Toggle visibility of the Open in Agents button in title bar"),
+			6,
+		);
+	}
+});
+
+// Configuration setting backing the toggle.
+Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Configuration).registerConfiguration({
+	...workbenchConfigurationNodeBase,
+	properties: {
+		[OpenInAgentsEnabledSetting]: {
+			type: 'boolean',
+			default: true,
+			markdownDescription: localize('openInAgentsEnabled', "Controls whether the Open in Agents button is shown in the title bar."),
+		}
+	}
+});
