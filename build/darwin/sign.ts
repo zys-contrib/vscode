@@ -25,7 +25,7 @@ function hasProvisioningProfile(): boolean {
 	return fs.existsSync(mainProvisioningProfilePath);
 }
 
-function getEntitlementsForFile(filePath: string, tempDir: string): string {
+function getEntitlementsForFile(filePath: string, tempDir: string, teamId?: string): string {
 	if (filePath.includes(' Helper (GPU).app')) {
 		return path.join(baseDir, 'azure-pipelines', 'darwin', 'helper-gpu-entitlements.plist');
 	} else if (filePath.includes(' Helper (Renderer).app')) {
@@ -38,6 +38,9 @@ function getEntitlementsForFile(filePath: string, tempDir: string): string {
 		// Without a provisioning profile, keychain-access-groups entitlement
 		// will cause signing failures. Strip it from the entitlements plist.
 		return getStrippedEntitlements(entitlementsPath, tempDir);
+	}
+	if (teamId) {
+		return getExpandedEntitlements(entitlementsPath, tempDir, teamId);
 	}
 	return entitlementsPath;
 }
@@ -59,6 +62,22 @@ function getStrippedEntitlements(entitlementsPath: string, tempDir: string): str
 		fs.writeFileSync(_strippedEntitlementsPath, stripped);
 	}
 	return _strippedEntitlementsPath;
+}
+
+let expandedEntitlementsPath: string | undefined;
+
+/**
+ * Returns a path to a copy of the entitlements plist with
+ * $(TeamIdentifierPrefix) expanded to the actual team identifier.
+ */
+function getExpandedEntitlements(entitlementsPath: string, tempDir: string, teamId: string): string {
+	if (!expandedEntitlementsPath) {
+		const content = fs.readFileSync(entitlementsPath, 'utf8');
+		const expanded = content.replace(/\$\(TeamIdentifierPrefix\)/g, teamId + '.');
+		expandedEntitlementsPath = path.join(tempDir, 'app-entitlements.plist');
+		fs.writeFileSync(expandedEntitlementsPath, expanded);
+	}
+	return expandedEntitlementsPath;
 }
 
 async function retrySignOnKeychainError<T>(fn: () => Promise<T>, maxRetries: number = 3): Promise<T> {
@@ -112,6 +131,18 @@ async function main(buildDir?: string): Promise<void> {
 
 	const resolvedProvisioningProfile = hasProvisioningProfile() ? mainProvisioningProfilePath : undefined;
 
+	let teamId: string | undefined;
+	if (resolvedProvisioningProfile) {
+		const profilePlist = await spawn('security', ['cms', '-D', '-i', resolvedProvisioningProfile]);
+		const teamIdMatch = /<key>TeamIdentifier<\/key>\s*<array>\s*<string>(.*?)<\/string>/s.exec(profilePlist);
+		if (teamIdMatch) {
+			teamId = teamIdMatch[1];
+			console.log(`Extracted TeamIdentifier from provisioning profile: ${teamId}`);
+		} else {
+			console.warn('Could not extract TeamIdentifier from provisioning profile; $(TeamIdentifierPrefix) will not be expanded');
+		}
+	}
+
 	// Embed the agents provisioning profile into the embedded app bundle
 	// before signing, since @electron/osx-sign only supports one top-level profile.
 	if (product.embedded && fs.existsSync(agentsProvisioningProfilePath)) {
@@ -127,7 +158,7 @@ async function main(buildDir?: string): Promise<void> {
 		app: path.join(appRoot, appName),
 		platform: 'darwin',
 		optionsForFile: (filePath) => ({
-			entitlements: getEntitlementsForFile(filePath, tempDir),
+			entitlements: getEntitlementsForFile(filePath, tempDir, teamId),
 			hardenedRuntime: true,
 		}),
 		preAutoEntitlements: false,
