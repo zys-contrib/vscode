@@ -1023,7 +1023,7 @@ export class OnboardingVariationA extends Disposable implements IOnboardingServi
 
 		this._createFeatureCard(moreGrid, Codicon.settingsGear,
 			localize('onboarding.sessions.customize', "Customize Your Agents"),
-			localize('onboarding.sessions.customize.desc', "Tailor agents to your project with custom instructions, reusable prompts, chat modes, and MCP servers that connect them to the tools and context you rely on."));
+			localize('onboarding.sessions.customize.desc', "Tailor Copilot to your project with custom instructions and agents, skills, reusable prompts, and MCP servers that connect to the tools and context you rely on."));
 
 		// Tutorial link at bottom of content, above footer
 		const docsRow = append(wrapper, $('.onboarding-a-sessions-docs'));
