@@ -143,7 +143,7 @@ The account widget is rendered in the **right side of the titlebar** as a custom
 - Registered in `contrib/accountMenu/browser/account.contribution.ts`
 - Uses the `Menus.TitleBarRightLayout` menu
 - Shows the signed-in GitHub profile image when available, and falls back to the existing account codicon when it is not
-- Gives the GitHub profile image a subtle 1px circular border using the titlebar command center border tokens so the avatar stays legible against nearby chrome in both active and inactive window states
+- Renders the GitHub profile image at `18px × 18px` inside the `22px × 22px` titlebar widget, and gives it a subtle 1px circular border using the titlebar command center border tokens so the avatar stays legible against nearby chrome in both active and inactive window states
 - Opens a combined account and Copilot status hover panel with sign-in/sign-out, settings, and update actions
 
 ---
@@ -663,6 +663,7 @@ interface IPartVisibilityState {
 
 | Date | Change |
 |------|--------|
+| 2026-04-22 | Increased the sessions titlebar account widget's GitHub profile image from `16px × 16px` to `18px × 18px` while keeping the existing `22px × 22px` control footprint and avatar border treatment. |
 | 2026-04-22 | Added sessions-only toast offset overrides so notification toasts now use `right: 15px` in the default bottom-right placement and `left: 15px` in the bottom-left placement, matching the notification center spacing. |
 | 2026-04-22 | Added a sessions-workbench notification offset override so the shared notification controllers no longer push top-right notifications down to `42px`; sessions now reapply a fixed `40px` top offset for top-right notification center/toast placement. |
 | 2026-04-22 | Generalized the auxiliary bar snap-close prevention to trigger whenever the main editor part is visible (any editor type), so the behavior now applies automatically without maintaining an editor-type allowlist. |
