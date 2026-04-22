@@ -27,6 +27,7 @@ import { ILogService } from '../../../../../../platform/log/common/log.js';
 import { IPathService } from '../../../../../services/path/common/pathService.js';
 import { equalsIgnoreCase } from '../../../../../../base/common/strings.js';
 import { IWorkspaceTrustManagementService } from '../../../../../../platform/workspace/common/workspaceTrust.js';
+import { AGENT_HOST_SCHEME } from '../../../../../../platform/agentHost/common/agentHostUri.js';
 
 /**
  * Maximum recursion depth when traversing subdirectories for instruction files.
@@ -70,7 +71,12 @@ export class PromptFilesLocator {
 	}
 
 	protected getWorkspaceFolders(): readonly IWorkspaceFolder[] {
-		return this.workspaceService.getWorkspace().folders;
+		// Agent host workspace folders surface customizations through AHP
+		// (session state + findAgentSkills), not via filesystem scanning.
+		// Including them here would issue a `resourceList` JSON-RPC per
+		// configured location for every nonexistent `.github` / `.claude`
+		// folder on the remote.
+		return this.workspaceService.getWorkspace().folders.filter(f => f.uri.scheme !== AGENT_HOST_SCHEME);
 	}
 
 	protected getWorkspaceFolder(resource: URI): IWorkspaceFolder | undefined {
@@ -79,6 +85,22 @@ export class PromptFilesLocator {
 
 	protected onDidChangeWorkspaceFolders(): Event<void> {
 		return Event.map(this.workspaceService.onDidChangeWorkspaceFolders, () => undefined);
+	}
+
+	/**
+	 * Returns the configured prompt source folders for the given type.
+	 * Subclasses can override to filter out unsupported sources.
+	 */
+	protected getPromptSourceFolders(type: PromptsType): IPromptSourceFolder[] {
+		return PromptsConfig.promptSourceFolders(this.configService, type);
+	}
+
+	/**
+	 * Returns the default prompt source folders for the given type.
+	 * Subclasses can override to filter out unsupported sources.
+	 */
+	protected getDefaultSourceFolders(type: PromptsType): readonly IPromptSourceFolder[] {
+		return getPromptFileDefaultLocations(type);
 	}
 
 	public async getWorkspaceFolderRoots(includeParents: boolean, logger?: Logger): Promise<URI[]> {
@@ -152,7 +174,7 @@ export class PromptFilesLocator {
 			throw new Error(`Unsupported prompt file storage: ${storage}`);
 		}
 
-		const configuredLocations = PromptsConfig.promptSourceFolders(this.configService, type);
+		const configuredLocations = this.getPromptSourceFolders(type);
 		const absoluteLocations = await this.toAbsoluteLocations(type, configuredLocations.filter(loc => loc.storage === storage));
 
 		if (storage === PromptsStorage.user && (type === PromptsType.agent || type === PromptsType.instructions || type === PromptsType.prompt)) {
@@ -201,7 +223,7 @@ export class PromptFilesLocator {
 
 		const update = async () => {
 			try {
-				const configuredLocations = PromptsConfig.promptSourceFolders(this.configService, type);
+				const configuredLocations = this.getPromptSourceFolders(type);
 				parentFolders = await this.toAbsoluteLocations(type, configuredLocations, undefined);
 
 				if (token.isCancellationRequested) {
@@ -245,10 +267,10 @@ export class PromptFilesLocator {
 
 	/**
 	 * Gets the hook source folders for creating new hooks.
-	 * Returns folders from config, excluding user storage and Claude paths (which are read-only).
+	 * Returns configured hook folders, excluding Claude paths (which are read-only).
 	 */
 	public async getHookSourceFolders(): Promise<readonly URI[]> {
-		const configuredLocations = PromptsConfig.promptSourceFolders(this.configService, PromptsType.hook);
+		const configuredLocations = this.getPromptSourceFolders(PromptsType.hook);
 
 		// Ignore claude folders since they aren't first-class supported, so we don't want to create invalid formats
 		// Check for .claude as an actual path segment (starts with ".claude/" or contains "/.claude/")
@@ -283,7 +305,7 @@ export class PromptFilesLocator {
 	 * @returns List of possible unambiguous prompt file folders.
 	 */
 	public async getConfigBasedSourceFolders(type: PromptsType): Promise<readonly URI[]> {
-		const configuredLocations = PromptsConfig.promptSourceFolders(this.configService, type);
+		const configuredLocations = this.getPromptSourceFolders(type);
 		const absoluteLocations = await this.toAbsoluteLocations(type, configuredLocations);
 
 		// For anything that doesn't support glob patterns, we can return
@@ -364,8 +386,8 @@ export class PromptFilesLocator {
 	 * This merges default folders with configured locations.
 	 */
 	private async getLocalStorageFolders(type: PromptsType): Promise<readonly IResolvedPromptSourceFolder[]> {
-		const configuredLocations = PromptsConfig.promptSourceFolders(this.configService, type);
-		const defaultFolders = getPromptFileDefaultLocations(type);
+		const configuredLocations = this.getPromptSourceFolders(type);
+		const defaultFolders = this.getDefaultSourceFolders(type);
 
 		// Merge default folders with configured locations, avoiding duplicates
 		const allFolders = [
@@ -724,7 +746,7 @@ export class PromptFilesLocator {
 	 * Searches for skills in all configured locations.
 	 */
 	public async findAgentSkills(token: CancellationToken): Promise<IPromptPath[]> {
-		const configuredLocations = PromptsConfig.promptSourceFolders(this.configService, PromptsType.skill);
+		const configuredLocations = this.getPromptSourceFolders(PromptsType.skill);
 		const absoluteLocations = await this.toAbsoluteLocations(PromptsType.skill, configuredLocations);
 		const allResults: IPromptPath[] = [];
 

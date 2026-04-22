@@ -20,6 +20,7 @@ export class MockChatSessionMetadataStore implements IChatSessionMetadataStore {
 	private readonly _firstUserMessages = new Map<string, string>();
 	private readonly _customTitles = new Map<string, string>();
 	private readonly _requestDetails = new Map<string, RequestDetails[]>();
+	private readonly _sessionOrigins = new Map<string, 'vscode' | 'other'>();
 
 	async deleteSessionMetadata(sessionId: string): Promise<void> {
 		this._worktreeProperties.delete(sessionId);
@@ -28,6 +29,10 @@ export class MockChatSessionMetadataStore implements IChatSessionMetadataStore {
 		this._firstUserMessages.delete(sessionId);
 		this._customTitles.delete(sessionId);
 		this._requestDetails.delete(sessionId);
+	}
+
+	async refresh(): Promise<void> {
+		// no-op in mock — there is no on-disk state to reload.
 	}
 
 	async storeWorktreeInfo(sessionId: string, properties: ChatSessionWorktreeProperties): Promise<void> {
@@ -133,5 +138,21 @@ export class MockChatSessionMetadataStore implements IChatSessionMetadataStore {
 		if (firstMsg) {
 			this._firstUserMessages.set(targetSessionId, firstMsg);
 		}
+	}
+
+	async setSessionOrigin(sessionId: string): Promise<void> {
+		this._sessionOrigins.set(sessionId, 'vscode');
+	}
+
+	async getSessionOrigin(sessionId: string): Promise<'vscode' | 'other'> {
+		return this._sessionOrigins.get(sessionId) ?? 'vscode';
+	}
+
+	setSessionParentId(_sessionId: string, _parentSessionId: string): Promise<void> {
+		return Promise.resolve();
+	}
+
+	getSessionParentId(_sessionId: string): Promise<string | undefined> {
+		return Promise.resolve(undefined);
 	}
 }

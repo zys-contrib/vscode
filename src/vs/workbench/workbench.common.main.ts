@@ -10,6 +10,10 @@ import '../editor/editor.all.js';
 import './api/browser/extensionHost.contribution.js';
 import './browser/workbench.contribution.js';
 
+// Agent-sessions color tokens — side-effect import so they register in the
+// global color registry and appear in the color-theme JSON schema.
+import '../sessions/common/theme.js';
+
 //#endregion
 
 
@@ -256,6 +260,8 @@ import './contrib/git/browser/git.contributions.js';
 
 // SCM
 import './contrib/scm/browser/scm.contribution.js';
+import './contrib/scm/browser/quickDiff.contribution.js';
+import './contrib/scm/browser/scm.service.contribution.js';
 
 // Debug
 import './contrib/debug/browser/debug.contribution.js';
@@ -362,6 +368,9 @@ import './contrib/welcomeAgentSessions/browser/agentSessionsWelcome.contribution
 import './contrib/welcomeWalkthrough/browser/walkThrough.contribution.js';
 import './contrib/welcomeViews/common/viewsWelcome.contribution.js';
 import './contrib/welcomeViews/common/newFile.contribution.js';
+
+// Welcome Onboarding
+import './contrib/welcomeOnboarding/browser/welcomeOnboarding.contribution.js';
 
 // Call Hierarchy
 import './contrib/callHierarchy/browser/callHierarchy.contribution.js';

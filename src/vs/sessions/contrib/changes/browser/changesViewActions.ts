@@ -5,7 +5,8 @@
 
 import { Codicon } from '../../../../base/common/codicons.js';
 import { Disposable } from '../../../../base/common/lifecycle.js';
-import { localize2 } from '../../../../nls.js';
+import { localize, localize2 } from '../../../../nls.js';
+import { alert } from '../../../../base/browser/ui/aria/aria.js';
 import { Action2, IAction2Options, MenuId, registerAction2 } from '../../../../platform/actions/common/actions.js';
 import { ServicesAccessor } from '../../../../platform/instantiation/common/instantiation.js';
 import { IWorkbenchContribution, registerWorkbenchContribution2, WorkbenchPhase } from '../../../../workbench/common/contributions.js';
@@ -23,6 +24,11 @@ import { KeybindingWeight } from '../../../../platform/keybinding/common/keybind
 import { IPaneCompositePartService } from '../../../../workbench/services/panecomposite/browser/panecomposite.js';
 import { ViewContainerLocation } from '../../../../workbench/common/views.js';
 import { ChangesViewPane } from './changesView.js';
+import { SESSIONS_FILES_CONTAINER_ID } from '../../files/browser/files.contribution.js';
+import { SESSIONS_FILES_VIEW_ID } from '../../files/browser/filesView.js';
+import { URI } from '../../../../base/common/uri.js';
+import { isEqual } from '../../../../base/common/resources.js';
+import { IEditorService } from '../../../../workbench/services/editor/common/editorService.js';
 
 const openChangesViewActionOptions: IAction2Options = {
 	id: 'workbench.action.agentSessions.openChangesView',
@@ -57,12 +63,19 @@ registerAction2(class FocusChangesViewAction extends Action2 {
 			f1: true,
 			keybinding: {
 				weight: KeybindingWeight.WorkbenchContrib,
-				primary: KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KeyH,
+				primary: KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KeyG,
 				when: IsSessionsWindowContext,
 			},
 		});
 	}
 	async run(accessor: ServicesAccessor): Promise<void> {
+		const sessionManagementService = accessor.get(ISessionsManagementService);
+		const activeSession = sessionManagementService.activeSession.get();
+		const changes = activeSession?.changes.get();
+		if (!changes || changes.length === 0) {
+			alert(localize('focusChangesView.noChanges', "There are no changes."));
+			return;
+		}
 		const paneCompositeService = accessor.get(IPaneCompositePartService);
 		const viewsService = accessor.get(IViewsService);
 		await paneCompositeService.openPaneComposite(CHANGES_VIEW_CONTAINER_ID, ViewContainerLocation.AuxiliaryBar, true);
@@ -75,7 +88,7 @@ registerAction2(class FocusChangesFileViewAction extends Action2 {
 	constructor() {
 		super({
 			id: 'workbench.action.agentSessions.focusChangesFileView',
-			title: localize2('focusChangesFileView', "Focus on File Explorer"),
+			title: localize2('focusChangesFileView', "Focus Files Explorer View"),
 			category: Categories.View,
 			precondition: IsSessionsWindowContext,
 			f1: true,
@@ -87,8 +100,13 @@ registerAction2(class FocusChangesFileViewAction extends Action2 {
 		});
 	}
 	async run(accessor: ServicesAccessor): Promise<void> {
+		const paneCompositeService = accessor.get(IPaneCompositePartService);
 		const viewsService = accessor.get(IViewsService);
-		await viewsService.openView('sessions.files.explorer', true);
+		await paneCompositeService.openPaneComposite(SESSIONS_FILES_CONTAINER_ID, ViewContainerLocation.AuxiliaryBar, true);
+		const view = await viewsService.openView(SESSIONS_FILES_VIEW_ID, true);
+		if (view) {
+			view.focus();
+		}
 	}
 });
 
@@ -125,10 +143,7 @@ export class ViewAllSessionChangesAction extends Action2 {
 			title: localize2('chatEditing.viewAllSessionChanges', 'View All Changes'),
 			icon: Codicon.diffMultiple,
 			f1: false,
-			precondition: ContextKeyExpr.and(
-				ContextKeyExpr.equals('sessions.hasGitRepository', true),
-				ChatContextKeys.hasAgentSessionChanges,
-			),
+			precondition: ChatContextKeys.hasAgentSessionChanges,
 			menu: [
 				{
 					id: MenuId.ChatEditingSessionChangesToolbar,
@@ -156,7 +171,6 @@ class OpenPullRequestAction extends Action2 {
 			title: localize2('openPullRequest', "Open Pull Request"),
 			icon: Codicon.gitPullRequest,
 			f1: false,
-			precondition: ChatContextKeys.requestInProgress.negate(),
 			menu: {
 				id: MenuId.ChatEditingSessionChangesToolbar,
 				group: 'navigation',
@@ -186,3 +200,66 @@ class OpenPullRequestAction extends Action2 {
 }
 
 registerAction2(OpenPullRequestAction);
+
+class OpenFileAction extends Action2 {
+	static readonly ID = 'workbench.action.agentSessions.openFile';
+
+	constructor() {
+		super({
+			id: OpenFileAction.ID,
+			title: localize2('openFile', "Open File"),
+			icon: Codicon.goToFile,
+			f1: false,
+			menu: {
+				id: MenuId.ChatEditingSessionChangeToolbar,
+				group: 'navigation',
+				order: 1,
+				when: IsSessionsWindowContext,
+				alt: {
+					id: 'workbench.action.agentSessions.openChanges',
+					title: localize2('openChanges', "Open Changes"),
+					icon: Codicon.gitCompare,
+				}
+			}
+		});
+	}
+
+	async run(accessor: ServicesAccessor, _sessionResource: URI, _ref: string, ...resources: URI[]): Promise<void> {
+		const editorService = accessor.get(IEditorService);
+		await Promise.all(resources.map(resource => editorService.openEditor({ resource })));
+	}
+}
+
+registerAction2(OpenFileAction);
+
+class OpenChangesAction extends Action2 {
+	static readonly ID = 'workbench.action.agentSessions.openChanges';
+
+	constructor() {
+		super({
+			id: OpenChangesAction.ID,
+			title: localize2('openChanges', "Open Changes"),
+			icon: Codicon.gitCompare,
+			f1: false
+		});
+	}
+
+	async run(accessor: ServicesAccessor, _sessionResource: URI, _ref: string, ...resources: URI[]): Promise<void> {
+		const viewsService = accessor.get(IViewsService);
+		const editorService = accessor.get(IEditorService);
+
+		const view = viewsService.getViewWithId<ChangesViewPane>(CHANGES_VIEW_ID);
+		const sessionChanges = view?.viewModel.activeSessionChangesObs.get();
+
+		const changes = sessionChanges?.filter(change =>
+			resources.some(resource => isEqual(change.modifiedUri ?? change.originalUri, resource))
+		) ?? [];
+
+		await Promise.all(changes.map(change => editorService.openEditor({
+			original: { resource: change.originalUri },
+			modified: { resource: change.modifiedUri }
+		})));
+	}
+}
+
+registerAction2(OpenChangesAction);
