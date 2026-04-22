@@ -75,6 +75,7 @@ Registry.as<IConfigurationRegistry>(Extensions.Configuration).registerDefaultCon
 		'github.copilot.chat.cli.remote.enabled': false,
 		'github.copilot.chat.githubMcpServer.enabled': true,
 		'github.copilot.chat.languageContext.typescript.enabled': true,
+		'github.copilot.chat.cli.showExternalSessions': false,
 
 		'inlineChat.affordance': 'editor',
 		'inlineChat.renderMode': 'hover',
