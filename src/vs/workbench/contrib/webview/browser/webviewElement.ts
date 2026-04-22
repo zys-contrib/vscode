@@ -793,22 +793,32 @@ export class WebviewElement extends Disposable implements IWebviewElement, Webvi
 					if (WebviewElement._supportsTransferableStreams.value) {
 						const stream = new ReadableStream<Uint8Array>({
 							start: (controller) => {
-								let errored = false;
+								let closed = false;
+								const close = () => {
+									if (!closed) {
+										closed = true;
+										try { controller.close(); } catch { /* already closed */ }
+									}
+								};
+								token.onCancellationRequested(close);
+
 								listenStream(result.stream, {
 									onData: (chunk) => {
-										if (!errored) {
-											controller.enqueue(chunk.buffer);
+										if (!closed) {
+											try {
+												controller.enqueue(new Uint8Array(chunk.buffer.buffer, chunk.buffer.byteOffset, chunk.buffer.byteLength));
+											} catch {
+												closed = true;
+											}
 										}
 									},
 									onError: (err) => {
-										errored = true;
-										controller.error(err);
-									},
-									onEnd: () => {
-										if (!errored) {
-											controller.close();
+										if (!closed) {
+											closed = true;
+											try { controller.error(err); } catch { /* already closed */ }
 										}
-									}
+									},
+									onEnd: () => close()
 								}, token);
 							}
 						});
