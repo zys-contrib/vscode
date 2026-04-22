@@ -1005,7 +1005,7 @@ export class OnboardingVariationA extends Disposable implements IOnboardingServi
 
 		this._createFeatureCard(chatGrid, Codicon.commentDiscussion,
 			localize('onboarding.sessions.agentMode', "Agent"),
-			localize('onboarding.sessions.agentMode.desc', "Describe a goal. The agent plans the approach, edits files, runs commands, and self-corrects \u2014 you review and approve along the way."));
+			localize('onboarding.sessions.agentMode.desc', "Describe a goal. The agent plans the approach, edits files, runs commands, and self-corrects. You review and approve along the way."));
 
 		this._createFeatureCard(chatGrid, Codicon.comment,
 			localize('onboarding.sessions.askMode', "Ask"),
