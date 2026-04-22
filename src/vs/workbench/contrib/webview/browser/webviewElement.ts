@@ -792,7 +792,6 @@ export class WebviewElement extends Disposable implements IWebviewElement, Webvi
 						: undefined;
 					if (WebviewElement._supportsTransferableStreams.value) {
 						const stream = new ReadableStream<Uint8Array<ArrayBuffer>>({
-							type: 'bytes',
 							start: (controller) => {
 								let closed = false;
 								const close = () => {
