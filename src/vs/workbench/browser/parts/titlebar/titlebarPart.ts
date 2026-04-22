@@ -32,6 +32,7 @@ import { WindowTitle } from './windowTitle.js';
 import { CommandCenterControl } from './commandCenterControl.js';
 import { Categories } from '../../../../platform/action/common/actionCommonCategories.js';
 import { HiddenItemStrategy, MenuWorkbenchToolBar, WorkbenchToolBar } from '../../../../platform/actions/browser/toolbar.js';
+import { IActionViewItemService } from '../../../../platform/actions/browser/actionViewItemService.js';
 import { ACCOUNTS_ACTIVITY_ID, GLOBAL_ACTIVITY_ID } from '../../../common/activity.js';
 import { AccountsActivityActionViewItem, isAccountsActionVisible, SimpleAccountActivityActionViewItem, SimpleGlobalActivityActionViewItem } from '../globalCompositeBar.js';
 import { HoverPosition } from '../../../../base/browser/ui/hover/hoverWidget.js';
@@ -606,6 +607,18 @@ export class BrowserTitlebarPart extends Part implements ITitlebarPart {
 	}
 
 	private actionViewItemProvider(action: IAction, options: IBaseActionViewItemOptions): IActionViewItem | undefined {
+
+		// --- Custom view items registered via IActionViewItemService
+		const actionViewItemService = this.instantiationService.invokeFunction(accessor => accessor.get(IActionViewItemService));
+		for (const menuId of [MenuId.TitleBar, MenuId.LayoutControlMenu]) {
+			const customViewItem = actionViewItemService.lookUp(menuId, action.id);
+			if (customViewItem) {
+				const result = customViewItem(action, options, this.instantiationService, getWindowId(this.element ? getWindow(this.element) : mainWindow));
+				if (result) {
+					return result;
+				}
+			}
+		}
 
 		// --- Activity Actions
 		if (!this.isAuxiliary) {
