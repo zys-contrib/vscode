@@ -109,6 +109,25 @@ import '../../../../platform/theme/common/colors/listColors.js';
 import '../../../../platform/theme/common/colors/miscColors.js';
 import '../../../common/theme.js';
 
+// eslint-disable-next-line local/code-import-patterns
+import sourceMapSupport from 'source-map-support';
+sourceMapSupport.install({
+	environment: 'browser',
+	handleUncaughtExceptions: false,
+	retrieveSourceMap: (source: string) => {
+		const mapUrl = source + '.map';
+		try {
+			const xhr = new XMLHttpRequest();
+			xhr.open('GET', mapUrl, false);
+			xhr.send();
+			if (xhr.status === 200) {
+				return { url: null as never, map: xhr.responseText };
+			}
+		} catch { }
+		return null;
+	},
+});
+
 /**
  * A storage service that never stores anything and always returns the default/fallback value.
  * This is useful for fixtures where we want consistent behavior without persisted state.
