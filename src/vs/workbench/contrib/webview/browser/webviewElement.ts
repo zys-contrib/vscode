@@ -785,7 +785,8 @@ export class WebviewElement extends Disposable implements IWebviewElement, Webvi
 			switch (result.type) {
 				case WebviewResourceResponse.Type.Success: {
 					const range = options.range;
-					const rangeEnd = range?.end !== undefined ? range.end : result.size - 1;
+					const requestedRangeEnd = range?.end !== undefined ? range.end : result.size - 1;
+					const rangeEnd = Math.min(requestedRangeEnd, result.size - 1);
 					const rangeHeader = range
 						? `bytes ${range.start}-${rangeEnd}/${result.size}`
 						: undefined;
