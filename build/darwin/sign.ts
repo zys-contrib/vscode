@@ -18,10 +18,11 @@ function getElectronVersion(): string {
 	return target;
 }
 
-const provisioningProfilePath = path.join(baseDir, 'darwin', 'distribution.provisionprofile');
+const mainProvisioningProfilePath = path.join(baseDir, 'darwin', 'main.provisionprofile');
+const agentsProvisioningProfilePath = path.join(baseDir, 'darwin', 'agents.provisionprofile');
 
 function hasProvisioningProfile(): boolean {
-	return fs.existsSync(provisioningProfilePath);
+	return fs.existsSync(mainProvisioningProfilePath);
 }
 
 function getEntitlementsForFile(filePath: string, tempDir: string): string {
@@ -109,7 +110,18 @@ async function main(buildDir?: string): Promise<void> {
 		? path.resolve(appRoot, appName, 'Contents', 'Applications', `${product.embedded.nameLong}.app`, 'Contents', 'Info.plist')
 		: undefined;
 
-	const resolvedProvisioningProfile = hasProvisioningProfile() ? provisioningProfilePath : undefined;
+	const resolvedProvisioningProfile = hasProvisioningProfile() ? mainProvisioningProfilePath : undefined;
+
+	// Embed the agents provisioning profile into the embedded app bundle
+	// before signing, since @electron/osx-sign only supports one top-level profile.
+	if (product.embedded && fs.existsSync(agentsProvisioningProfilePath)) {
+		const embeddedAppPath = path.join(appRoot, appName, 'Contents', 'Applications', `${product.embedded.nameLong}.app`);
+		if (fs.existsSync(embeddedAppPath)) {
+			const embeddedProfileDest = path.join(embeddedAppPath, 'Contents', 'embedded.provisionprofile');
+			fs.copyFileSync(agentsProvisioningProfilePath, embeddedProfileDest);
+			console.log(`Embedded agents provisioning profile into ${embeddedProfileDest}`);
+		}
+	}
 
 	const appOpts: SignOptions = {
 		app: path.join(appRoot, appName),

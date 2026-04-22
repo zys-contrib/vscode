@@ -75,12 +75,6 @@ export async function writeEncryptedSecret(
 
 /**
  * Secret keys that should be shared between the VS Code app and the agents app.
- * When the agents app starts and doesn't have these secrets, it requests them
- * from VS Code via crossAppIPC.
- */
-/**
- * Secret keys that are shared between Code and the Agents app
- * via the macOS shared keychain.
  */
 export const CROSS_APP_SHARED_SECRET_KEYS: readonly string[] = [
 	'{"extensionId":"vscode.github-authentication","key":"github.auth"}',
@@ -172,7 +166,6 @@ export class BaseSecretStorageService extends Disposable implements ISecretStora
 	protected async _doSet(key: string, value: string): Promise<void> {
 		const storageService = await this.resolvedStorageService;
 
-
 		try {
 			await writeEncryptedSecret(
 				key,
@@ -220,6 +213,7 @@ export class BaseSecretStorageService extends Disposable implements ISecretStora
 		this._logService.trace('[secrets] fetched keys of all secrets');
 		return allKeys.filter(key => key.startsWith(SECRET_STORAGE_PREFIX)).map(key => key.slice(SECRET_STORAGE_PREFIX.length));
 	}
+
 	private async initialize(): Promise<IStorageService> {
 		let storageService;
 		if (!this._useInMemoryStorage && await this._encryptionService.isEncryptionAvailable()) {
