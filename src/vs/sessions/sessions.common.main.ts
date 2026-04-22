@@ -256,7 +256,8 @@ import '../workbench/contrib/sash/browser/sash.contribution.js';
 import '../workbench/contrib/git/browser/git.contributions.js';
 
 // SCM
-import '../workbench/contrib/scm/browser/scm.contribution.js';
+import '../workbench/contrib/scm/browser/quickDiff.contribution.js';
+import '../workbench/contrib/scm/browser/scm.service.contribution.js';
 
 // Debug (service)
 import { NullDebugService, NullDebugVisualizerService } from '../workbench/contrib/debug/common/nullDebugService.js';
@@ -369,9 +370,6 @@ import '../workbench/contrib/languageDetection/browser/languageDetection.contrib
 // Authentication
 import '../workbench/contrib/authentication/browser/authentication.contribution.js';
 
-// User Data Sync
-import '../workbench/contrib/userDataSync/browser/userDataSync.contribution.js';
-
 // User Data Profiles
 import '../workbench/contrib/userDataProfile/browser/userDataProfile.contribution.js';
 
@@ -439,8 +437,9 @@ import './contrib/chat/browser/customizationsDebugLog.contribution.js';
 import './contrib/copilotChatSessions/browser/copilotChatSessions.contribution.js';
 import './contrib/sessions/browser/sessions.contribution.js';
 import './contrib/sessions/browser/views/sessionsListModelService.js';
+import './contrib/remoteAgentHost/browser/agentHostFilterService.js';
 import './contrib/sessions/browser/customizationsToolbar.contribution.js';
-import './contrib/changes/browser/changesView.contribution.js';
+import './contrib/changes/browser/changes.contribution.js';
 import './contrib/layout/browser/layout.contribution.js';
 import './contrib/codeReview/browser/codeReview.contributions.js';
 import './contrib/files/browser/files.contribution.js';
