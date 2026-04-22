@@ -810,6 +810,7 @@ export class WebviewElement extends Disposable implements IWebviewElement, Webvi
 												controller.enqueue(new Uint8Array<ArrayBuffer>(chunk.buffer.buffer as ArrayBuffer, chunk.buffer.byteOffset, chunk.buffer.byteLength));
 											} catch {
 												closed = true;
+												cancellationSub.dispose();
 											}
 										}
 									},
@@ -817,6 +818,7 @@ export class WebviewElement extends Disposable implements IWebviewElement, Webvi
 										if (!closed) {
 											closed = true;
 											try { controller.error(err); } catch { /* already closed */ }
+											cancellationSub.dispose();
 										}
 									},
 									onEnd: () => close()
