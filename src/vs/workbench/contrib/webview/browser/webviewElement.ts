@@ -791,7 +791,8 @@ export class WebviewElement extends Disposable implements IWebviewElement, Webvi
 						? `bytes ${range.start}-${rangeEnd}/${result.size}`
 						: undefined;
 					if (WebviewElement._supportsTransferableStreams.value) {
-						const stream = new ReadableStream<Uint8Array>({
+						const stream = new ReadableStream<Uint8Array<ArrayBuffer>>({
+							type: 'bytes',
 							start: (controller) => {
 								let closed = false;
 								const close = () => {
@@ -806,7 +807,7 @@ export class WebviewElement extends Disposable implements IWebviewElement, Webvi
 									onData: (chunk) => {
 										if (!closed) {
 											try {
-												controller.enqueue(new Uint8Array(chunk.buffer.buffer, chunk.buffer.byteOffset, chunk.buffer.byteLength));
+												controller.enqueue(new Uint8Array<ArrayBuffer>(chunk.buffer.buffer as ArrayBuffer, chunk.buffer.byteOffset, chunk.buffer.byteLength));
 											} catch {
 												closed = true;
 											}
