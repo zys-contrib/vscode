@@ -9,6 +9,22 @@ import { createSchema, platformSessionSchema, schemaProperty, type AutoApproveLe
 import { SessionConfigKey } from '../../common/sessionConfigKeys.js';
 import { JsonRpcErrorCodes, ProtocolError } from '../../common/state/sessionProtocol.js';
 
+/**
+ * Invokes `fn` and returns the thrown {@link ProtocolError}. Avoids
+ * passing an arrow-function validator to `assert.throws` — the unit-test
+ * assert shim does `actual instanceof expected` with that validator, and
+ * arrow functions have no `prototype` property, which WebKit rejects.
+ */
+function captureProtocolError(fn: () => void): ProtocolError {
+	try {
+		fn();
+	} catch (err) {
+		assert.ok(err instanceof ProtocolError, `expected ProtocolError, got: ${err}`);
+		return err;
+	}
+	assert.fail('expected fn to throw, but it did not');
+}
+
 suite('agentHostSchema', () => {
 
 	ensureNoDisposablesAreLeakedInTestSuite();
@@ -89,13 +105,10 @@ suite('agentHostSchema', () => {
 
 		test('assertValid throws ProtocolError with offending path for primitive mismatch', () => {
 			const prop = schemaProperty<string>({ type: 'string', title: 's' });
-			assert.throws(
-				() => prop.assertValid(42, 'myKey'),
-				(err: unknown) => err instanceof ProtocolError
-					&& err.code === JsonRpcErrorCodes.InvalidParams
-					&& err.message.includes('myKey')
-					&& err.message.includes('string'),
-			);
+			const err = captureProtocolError(() => prop.assertValid(42, 'myKey'));
+			assert.strictEqual(err.code, JsonRpcErrorCodes.InvalidParams);
+			assert.ok(err.message.includes('myKey'), err.message);
+			assert.ok(err.message.includes('string'), err.message);
 		});
 
 		test('assertValid path annotates array index and nested property', () => {
@@ -110,12 +123,9 @@ suite('agentHostSchema', () => {
 					},
 				},
 			});
-			assert.throws(
-				() => prop.assertValid({ allow: ['ok', 42] }, 'permissions'),
-				(err: unknown) => err instanceof ProtocolError
-					&& err.message.includes('permissions.allow[1]')
-					&& err.message.includes('string'),
-			);
+			const err = captureProtocolError(() => prop.assertValid({ allow: ['ok', 42] }, 'permissions'));
+			assert.ok(err.message.includes('permissions.allow[1]'), err.message);
+			assert.ok(err.message.includes('string'), err.message);
 		});
 
 		test('assertValid path reports missing required property', () => {
@@ -125,12 +135,9 @@ suite('agentHostSchema', () => {
 				properties: { name: { type: 'string', title: 'name' } },
 				required: ['name'],
 			});
-			assert.throws(
-				() => prop.assertValid({}, 'person'),
-				(err: unknown) => err instanceof ProtocolError
-					&& err.message.includes('person.name')
-					&& err.message.toLowerCase().includes('required'),
-			);
+			const err = captureProtocolError(() => prop.assertValid({}, 'person'));
+			assert.ok(err.message.includes('person.name'), err.message);
+			assert.ok(err.message.toLowerCase().includes('required'), err.message);
 		});
 
 		test('assertValid reports enum violation with the allowed set', () => {
@@ -139,13 +146,10 @@ suite('agentHostSchema', () => {
 				title: 'letters',
 				enum: ['a', 'b'],
 			});
-			assert.throws(
-				() => prop.assertValid('c', 'choice'),
-				(err: unknown) => err instanceof ProtocolError
-					&& err.message.includes('choice')
-					&& err.message.includes('"a"')
-					&& err.message.includes('"b"'),
-			);
+			const err = captureProtocolError(() => prop.assertValid('c', 'choice'));
+			assert.ok(err.message.includes('choice'), err.message);
+			assert.ok(err.message.includes('"a"'), err.message);
+			assert.ok(err.message.includes('"b"'), err.message);
 		});
 	});
 
@@ -181,10 +185,8 @@ suite('agentHostSchema', () => {
 
 		test('assertValid throws for unknown keys', () => {
 			const schema = fixture();
-			assert.throws(
-				() => schema.assertValid('unknown' as 'name', 'x'),
-				(err: unknown) => err instanceof ProtocolError && err.message.includes('unknown'),
-			);
+			const err = captureProtocolError(() => schema.assertValid('unknown' as 'name', 'x'));
+			assert.ok(err.message.includes('unknown'), err.message);
 		});
 
 		test('values returns a shallow copy and passes through unknown keys', () => {
@@ -203,12 +205,9 @@ suite('agentHostSchema', () => {
 
 		test('values throws a path-annotated ProtocolError on invalid entry', () => {
 			const schema = fixture();
-			assert.throws(
-				() => schema.values({ name: 42 as unknown as string }),
-				(err: unknown) => err instanceof ProtocolError
-					&& err.code === JsonRpcErrorCodes.InvalidParams
-					&& err.message.includes('name'),
-			);
+			const err = captureProtocolError(() => schema.values({ name: 42 as unknown as string }));
+			assert.strictEqual(err.code, JsonRpcErrorCodes.InvalidParams);
+			assert.ok(err.message.includes('name'), err.message);
 		});
 
 		test('definition is preserved for spread-based composition', () => {
