@@ -38,14 +38,24 @@
 	background-repeat: no-repeat;
 	background-position: center center;
 	background-size: contain;
+	/* Desaturated at rest; full color on hover/focus (per quality below). */
+	filter: grayscale(1) opacity(0.75);
+	transition: filter 150ms ease;
 }
 
 /* Quality-aware tinting: the bundled `code-icon.svg` is the stable (blue) shape. Insider/exploration builds rotate hue to approximate their brand color. */
-.monaco-workbench .open-in-agents-titlebar-widget[data-product-quality="insider"] > .open-in-agents-titlebar-widget-icon {
+.monaco-workbench .open-in-agents-titlebar-widget[data-product-quality="stable"]:hover > .open-in-agents-titlebar-widget-icon,
+.monaco-workbench .open-in-agents-titlebar-widget[data-product-quality="stable"]:focus > .open-in-agents-titlebar-widget-icon {
+	filter: none;
+}
+
+.monaco-workbench .open-in-agents-titlebar-widget[data-product-quality="insider"]:hover > .open-in-agents-titlebar-widget-icon,
+.monaco-workbench .open-in-agents-titlebar-widget[data-product-quality="insider"]:focus > .open-in-agents-titlebar-widget-icon {
 	filter: hue-rotate(140deg) saturate(0.85);
 }
 
-.monaco-workbench .open-in-agents-titlebar-widget[data-product-quality="exploration"] > .open-in-agents-titlebar-widget-icon {
+.monaco-workbench .open-in-agents-titlebar-widget[data-product-quality="exploration"]:hover > .open-in-agents-titlebar-widget-icon,
+.monaco-workbench .open-in-agents-titlebar-widget[data-product-quality="exploration"]:focus > .open-in-agents-titlebar-widget-icon {
 	filter: hue-rotate(-50deg) saturate(1.4);
 }
 
