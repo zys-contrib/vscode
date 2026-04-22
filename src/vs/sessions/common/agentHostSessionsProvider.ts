@@ -101,24 +101,51 @@ export function resolvedConfigsEqual(a: IResolveSessionConfigResult, b: IResolve
 /** Known auto-approve config values. */
 const AUTO_APPROVE_ENUM = ['default', 'autoApprove', 'autopilot'];
 
-/**
- * Builds a minimal session-mutable config schema from changed values.
- * Used when a restored session receives a ConfigChanged action before
- * the full schema has been hydrated.
- */
-export function buildMutableConfigSchema(config: Record<string, unknown>): Record<string, { type: 'string'; title: string; sessionMutable: true; enum: string[] }> {
-	const properties: Record<string, { type: 'string'; title: string; sessionMutable: true; enum: string[] }> = {};
-	for (const key of Object.keys(config)) {
-		const value = config[key];
-		const enumValues = key === 'autoApprove'
-			? AUTO_APPROVE_ENUM
-			: typeof value === 'string' ? [value] : [];
-		properties[key] = {
+type MutableConfigSchemaItem =
+	| { type: 'string'; title: string; sessionMutable: true; enum: string[] }
+	| { type: 'number'; title: string; sessionMutable: true }
+	| { type: 'boolean'; title: string; sessionMutable: true }
+	| { type: 'array'; title: string; sessionMutable: true }
+	| { type: 'object'; title: string; sessionMutable: true };
+
+function buildMutableConfigSchemaItem(key: string, value: unknown): MutableConfigSchemaItem | undefined {
+	if (typeof value === 'string') {
+		return {
 			type: 'string',
 			title: key,
 			sessionMutable: true,
-			enum: enumValues,
+			enum: key === 'autoApprove' ? AUTO_APPROVE_ENUM : [value],
 		};
+	}
+	if (typeof value === 'number') {
+		return { type: 'number', title: key, sessionMutable: true };
+	}
+	if (typeof value === 'boolean') {
+		return { type: 'boolean', title: key, sessionMutable: true };
+	}
+	if (Array.isArray(value)) {
+		return { type: 'array', title: key, sessionMutable: true };
+	}
+	if (value && typeof value === 'object') {
+		return { type: 'object', title: key, sessionMutable: true };
+	}
+	return undefined;
+}
+
+/**
+ * Builds a minimal session-mutable config schema from changed values.
+ * Used when a restored session receives a ConfigChanged action before
+ * the full schema has been hydrated. Properties whose value type isn't
+ * representable in the config schema (e.g. `null`, `undefined`) are
+ * omitted.
+ */
+export function buildMutableConfigSchema(config: Record<string, unknown>): Record<string, MutableConfigSchemaItem> {
+	const properties: Record<string, MutableConfigSchemaItem> = {};
+	for (const key of Object.keys(config)) {
+		const property = buildMutableConfigSchemaItem(key, config[key]);
+		if (property) {
+			properties[key] = property;
+		}
 	}
 	return properties;
 }

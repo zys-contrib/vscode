@@ -7,6 +7,7 @@ import { match as globMatch } from '../../../base/common/glob.js';
 import { Disposable } from '../../../base/common/lifecycle.js';
 import { extUriBiasedIgnorePathCase, normalizePath } from '../../../base/common/resources.js';
 import { URI } from '../../../base/common/uri.js';
+import { localize } from '../../../nls.js';
 import { ILogService } from '../../log/common/log.js';
 import type { IAgentToolReadyEvent } from '../common/agentService.js';
 import { ConfirmationOptionKind, type IConfirmationOption } from '../common/state/protocol/state.js';
@@ -59,9 +60,9 @@ export class SessionPermissionManager extends Disposable {
 	static readonly ALLOW_SESSION_OPTION_ID = 'allow-session';
 
 	private static readonly _CONFIRMATION_OPTIONS: readonly IConfirmationOption[] = [
-		{ id: SessionPermissionManager.ALLOW_SESSION_OPTION_ID, label: 'Allow in this Session', kind: ConfirmationOptionKind.Approve, group: 1 },
-		{ id: 'allow-once', label: 'Allow Once', kind: ConfirmationOptionKind.Approve },
-		{ id: 'skip', label: 'Skip', kind: ConfirmationOptionKind.Deny, group: 2 },
+		{ id: SessionPermissionManager.ALLOW_SESSION_OPTION_ID, label: localize('sessionPermissions.allowSession', "Allow in this Session"), kind: ConfirmationOptionKind.Approve, group: 1 },
+		{ id: 'allow-once', label: localize('sessionPermissions.allowOnce', "Allow Once"), kind: ConfirmationOptionKind.Approve },
+		{ id: 'skip', label: localize('sessionPermissions.skip', "Skip"), kind: ConfirmationOptionKind.Deny, group: 2 },
 	];
 
 	// ---- Edit auto-approve patterns -----------------------------------------

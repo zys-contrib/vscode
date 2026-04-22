@@ -180,11 +180,10 @@ export class AgentSessionSettingsFileSystemProvider extends Disposable implement
 		}
 		const { provider, sessionId } = this._resolve(parsed);
 		const content = serializeSessionSettings(provider, sessionId);
-		const now = Date.now();
 		return {
 			type: FileType.File,
-			ctime: now,
-			mtime: now,
+			ctime: 0,
+			mtime: 0,
 			size: VSBuffer.fromString(content).byteLength,
 			permissions: 0 as FilePermission,
 		};
