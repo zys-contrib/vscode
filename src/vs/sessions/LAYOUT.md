@@ -84,6 +84,8 @@ The Agent Sessions titlebar includes a command center with a custom title bar wi
 The widget:
 - Extends `BaseActionViewItem` and renders a clickable label showing the active session title
 - Shows kind icon (provider type icon), session title, repository folder name, and the active git branch/worktree name in parentheses when available, plus the changes summary (+insertions -deletions)
+- Uses spacing between titlebar groups instead of vertical separator bars, and shows the session title metadata without the previous dot separator before the folder/worktree label
+- Keeps the command center focused on the session picker widget itself, without an adjacent "Mark as Done" action button
 - Truncates the repository/worktree metadata with ellipsis before truncating the primary AI-generated session title when command center space is constrained
 - On click, opens the `AgentSessionsPicker` quick pick to switch between sessions
 - Gets the active session label from `IActiveSessionService.getActiveSession()` and the live model title from `IChatService`, falling back to "New Session" if no active session is found
@@ -665,6 +667,9 @@ interface IPartVisibilityState {
 | 2026-04-22 | Added a sessions-workbench notification offset override so the shared notification controllers no longer push top-right notifications down to `42px`; sessions now reapply a fixed `40px` top offset for top-right notification center/toast placement. |
 | 2026-04-22 | Generalized the auxiliary bar snap-close prevention to trigger whenever the main editor part is visible (any editor type), so the behavior now applies automatically without maintaining an editor-type allowlist. |
 | 2026-04-22 | Updated the sessions auxiliary bar sizing rules so attached diff editors and integrated browser editors keep the normal 270px auxiliary-bar minimum width while disabling sash snap-to-close in that state, and the titlebar toggle continues to hide/show the secondary sidebar normally. |
+| 2026-04-21 | Renamed the command-center "Add Chat" titlebar action to "New Sub-Session" so the plus-button tooltip matches the sub-session workflow. |
+| 2026-04-21 | Removed the remaining left-margin spacing after the titlebar's VS Code and session-picker items, and dropped the command-center "Mark as Done" checkmark button next to the active session title. |
+| 2026-04-21 | Removed the titlebar's vertical separator bars in favor of spacing-only group separation, and removed the dot separator between the active session title and its folder/worktree metadata. |
 | 2026-04-21 | Updated the sessions chat composite bar tabs to preserve each chat title's original casing instead of applying per-word capitalization. |
 | 2026-04-21 | Moved the sessions-only default notification placement to bottom-right and documented the sessions-specific notification center offsets: `15px` from the bottom/right or bottom/left edges, and `top: 40px; right: 15px;` for top-right placement. |
 | 2026-04-17 | Added a subtle 1px titlebar-token border around the sessions account widget's GitHub profile image, including the inactive-window variant, and documented the avatar chrome in the layout spec. |
