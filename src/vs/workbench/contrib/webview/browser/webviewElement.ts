@@ -11,6 +11,7 @@ import { CodeWindow } from '../../../../base/browser/window.js';
 import { promiseWithResolvers, ThrottledDelayer } from '../../../../base/common/async.js';
 import { CancellationToken, CancellationTokenSource } from '../../../../base/common/cancellation.js';
 import { Emitter, Event } from '../../../../base/common/event.js';
+import { Lazy } from '../../../../base/common/lazy.js';
 import { Disposable, IDisposable, toDisposable } from '../../../../base/common/lifecycle.js';
 import { COI } from '../../../../base/common/network.js';
 import { observableValue } from '../../../../base/common/observable.js';
@@ -96,6 +97,19 @@ export class WebviewElement extends Disposable implements IWebviewElement, Webvi
 	private _encodedWebviewOrigin: string | undefined;
 
 	protected get platform(): string { return 'browser'; }
+
+	private static readonly _supportsTransferableStreams = new Lazy<boolean>(() => {
+		try {
+			const stream = new ReadableStream();
+			const mc = new MessageChannel();
+			mc.port1.postMessage(stream, [stream]);
+			mc.port1.close();
+			mc.port2.close();
+			return true;
+		} catch {
+			return false;
+		}
+	});
 
 	private readonly _expectedServiceWorkerVersion = 5; // Keep this in sync with the version in service-worker.js
 
@@ -775,26 +789,62 @@ export class WebviewElement extends Disposable implements IWebviewElement, Webvi
 					const rangeHeader = range
 						? `bytes ${range.start}-${rangeEnd}/${result.size}`
 						: undefined;
-					this._send('did-load-resource', {
-						id,
-						status: range ? 206 : 200,
-						path: uri.path,
-						mime: result.mimeType,
-						etag: result.etag,
-						mtime: result.mtime,
-						range: rangeHeader,
-					});
-					listenStream(result.stream, {
-						onData: (chunk) => {
-							this._send('did-load-resource-chunk', { id, data: chunk.buffer });
-						},
-						onError: () => {
-							this._send('did-load-resource-end', { id, error: true });
-						},
-						onEnd: () => {
-							this._send('did-load-resource-end', { id });
-						}
-					}, token);
+					if (WebviewElement._supportsTransferableStreams.value) {
+						const stream = new ReadableStream<Uint8Array>({
+							start: (controller) => {
+								let errored = false;
+								listenStream(result.stream, {
+									onData: (chunk) => {
+										if (!errored) {
+											controller.enqueue(chunk.buffer);
+										}
+									},
+									onError: (err) => {
+										errored = true;
+										controller.error(err);
+									},
+									onEnd: () => {
+										if (!errored) {
+											controller.close();
+										}
+									}
+								}, token);
+							}
+						});
+						this._send('did-load-resource', {
+							id,
+							status: range ? 206 : 200,
+							path: uri.path,
+							mime: result.mimeType,
+							etag: result.etag,
+							mtime: result.mtime,
+							range: rangeHeader,
+							stream,
+						}, [stream]);
+					} else {
+						// Safari: transferable streams not supported, fall back to chunk messages
+						this._send('did-load-resource', {
+							id,
+							status: range ? 206 : 200,
+							path: uri.path,
+							mime: result.mimeType,
+							etag: result.etag,
+							mtime: result.mtime,
+							range: rangeHeader,
+						});
+						listenStream(result.stream, {
+							onData: (chunk) => {
+								const data = new Uint8Array(chunk.buffer.buffer, chunk.buffer.byteOffset, chunk.buffer.byteLength);
+								this._send('did-load-resource-chunk', { id, data }, [data.buffer]);
+							},
+							onError: () => {
+								this._send('did-load-resource-end', { id, error: true });
+							},
+							onEnd: () => {
+								this._send('did-load-resource-end', { id });
+							}
+						}, token);
+					}
 					return;
 				}
 				case WebviewResourceResponse.Type.NotModified: {

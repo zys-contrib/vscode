@@ -64,8 +64,9 @@ export type ToWebviewMessage = {
 	'did-load-resource':
 	| { id: number; status: 401 | 404; path: string }
 	| { id: number; status: 304; path: string; mime: string; mtime: number | undefined }
-	| { id: number; status: 200 | 206; path: string; mime: string; etag: string | undefined; mtime: number | undefined; range?: string }
+	| { id: number; status: 200 | 206; path: string; mime: string; etag: string | undefined; mtime: number | undefined; range?: string; stream?: ReadableStream<Uint8Array> }
 	;
+	// Safari fallback: transferable streams not supported
 	'did-load-resource-chunk': { id: number; data: Uint8Array };
 	'did-load-resource-end': { id: number; error?: boolean };
 	'did-load-localhost': {

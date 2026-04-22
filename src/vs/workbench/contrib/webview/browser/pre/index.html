@@ -5,7 +5,7 @@
 	<meta charset="UTF-8">
 
 	<meta http-equiv="Content-Security-Policy"
-		content="default-src 'none'; script-src 'sha256-WhL9mQLo3KATK6RDvduN9smt1WPdn17ub5WXh9udZ5s=' 'self'; frame-src 'self'; style-src 'unsafe-inline';">
+		content="default-src 'none'; script-src 'sha256-25y69Rmwe2/7r58SQN/qPNWvAcjm+OR1DVlm3D2jsXc=' 'self'; frame-src 'self'; style-src 'unsafe-inline';">
 
 	<!-- Disable pinch zooming -->
 	<meta name="viewport"
@@ -485,8 +485,12 @@
 		};
 
 		if (!disableServiceWorker) {
+			hostMessaging.onMessage('did-load-resource', (_event, data) => {
+				const transfer = data.stream ? [data.stream] : [];
+				assertIsDefined(navigator.serviceWorker.controller).postMessage({ channel: 'did-load-resource', data }, transfer);
+			});
+
 			for (const channel of [
-				'did-load-resource',
 				'did-load-resource-end',
 				'did-load-localhost',
 			]) {

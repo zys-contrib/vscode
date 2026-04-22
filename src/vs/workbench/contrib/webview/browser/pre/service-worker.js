@@ -116,11 +116,11 @@ class RequestStore {
 const resourceRequestStore = new RequestStore();
 
 /**
- * Map of active streaming resource responses.
+ * Safari fallback: map of active chunk-based streaming responses.
  * Maps request id to a WritableStreamDefaultWriter for piping chunks.
  * @type {Map<number, WritableStreamDefaultWriter<Uint8Array>>}
  */
-const activeResourceStreams = new Map();
+const safariResourceStreams = new Map();
 
 /**
  * Map of requested localhost origins to optional redirects.
@@ -166,18 +166,22 @@ sw.addEventListener('message', async (event) => {
 			/** @type {ResourceResponse} */
 			const response = event.data.data;
 			if (response.status === 200 || response.status === 206) {
-				// Streaming response — set up a TransformStream for incoming chunks
-				const { readable, writable } = new TransformStream();
-				const writer = writable.getWriter();
-				activeResourceStreams.set(response.id, writer);
-
-				// Clean up when the stream closes for any reason,
-				// including the browser cancelling the fetch when the client is disposed.
-				writer.closed.then(
-					() => activeResourceStreams.delete(response.id),
-					() => activeResourceStreams.delete(response.id)
-				);
-
+				/** @type {ReadableStream<Uint8Array>} */
+				let stream;
+				if (response.stream) {
+					// Transferable stream (Chromium/Firefox)
+					stream = response.stream;
+				} else {
+					// Safari fallback: set up a TransformStream for incoming chunks
+					const transform = new TransformStream();
+					const writer = transform.writable.getWriter();
+					safariResourceStreams.set(response.id, writer);
+					writer.closed.then(
+						() => safariResourceStreams.delete(response.id),
+						() => safariResourceStreams.delete(response.id)
+					);
+					stream = transform.readable;
+				}
 				resourceRequestStore.resolve(response.id, {
 					status: response.status,
 					id: response.id,
@@ -185,7 +189,7 @@ sw.addEventListener('message', async (event) => {
 					mime: response.mime,
 					etag: response.etag,
 					mtime: response.mtime,
-					stream: readable,
+					stream,
 					range: response.range,
 				});
 			} else if (!resourceRequestStore.resolve(response.id, response)) {
@@ -193,26 +197,27 @@ sw.addEventListener('message', async (event) => {
 			}
 			return;
 		}
+		// Safari fallback: chunk-based streaming for browsers without transferable streams
 		case 'did-load-resource-chunk': {
 			const data = event.data.data;
-			const writer = activeResourceStreams.get(data.id);
+			const writer = safariResourceStreams.get(data.id);
 			if (writer) {
 				writer.write(data.data).catch(() => {
-					activeResourceStreams.delete(data.id);
+					safariResourceStreams.delete(data.id);
 				});
 			}
 			return;
 		}
 		case 'did-load-resource-end': {
 			const data = event.data.data;
-			const writer = activeResourceStreams.get(data.id);
+			const writer = safariResourceStreams.get(data.id);
 			if (writer) {
 				if (data.error) {
 					writer.abort(new Error('Stream error')).catch(() => { /* already cleaning up */ });
 				} else {
 					writer.close().catch(() => { /* already cleaning up */ });
 				}
-				activeResourceStreams.delete(data.id);
+				safariResourceStreams.delete(data.id);
 			}
 			return;
 		}
