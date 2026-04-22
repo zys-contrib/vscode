@@ -102,7 +102,7 @@ import './fixtures.css';
 
 // Import color registrations to ensure colors are available
 import { IdleDeadline, installFakeRunWhenIdle } from '../../../../base/common/async.js';
-import { AsyncSchedulerProcessor, TimeTravelScheduler } from '../../../../base/test/common/timeTravelScheduler.js';
+import { AsyncSchedulerProcessor, TimeTravelScheduler, captureGlobalTimeApi, createLoggingTimeApi, createVirtualTimeApi, overwriteGlobalTimeApi } from '../../../../base/test/common/timeTravelScheduler.js';
 import '../../../../platform/theme/common/colors/baseColors.js';
 import '../../../../platform/theme/common/colors/editorColors.js';
 import '../../../../platform/theme/common/colors/listColors.js';
@@ -649,6 +649,15 @@ export interface ComponentFixtureOptions {
 
 type ThemedFixtures = ReturnType<typeof defineFixtureVariants>;
 
+// Permanent logging layer that detects real timer API usage.
+// Includes handler source for identification since bundled stack traces are not useful.
+const realTimeApi = captureGlobalTimeApi();
+const loggingTimeApi = createLoggingTimeApi(realTimeApi, (name, stack, handler) => {
+	const handlerStr = typeof handler === 'function' ? handler.toString().slice(0, 500) : String(handler);
+	console.warn(`[ComponentFixture] Real ${name} called outside of virtual time.\nHandler: ${handlerStr}\nStack: ${stack}`);
+});
+overwriteGlobalTimeApi(loggingTimeApi);
+
 /**
  * Creates Dark and Light fixture variants from a single render function.
  * The render function receives a context with container and disposableStore.
@@ -669,13 +678,15 @@ export function defineComponentFixture(options: ComponentFixtureOptions): Themed
 			const scheduler = new TimeTravelScheduler(Date.now());
 			const p = schedulerStore.add(new AsyncSchedulerProcessor(scheduler, {
 				maxTaskCount: 100,
+				realTimeApi,
 			}));
 
 			async function actualRender() {
 
 				setupTheme(container, theme);
 
-				schedulerStore.add(scheduler.installGlobally());
+				const virtualTimeApi = createVirtualTimeApi(scheduler, { fakeRequestAnimationFrame: true });
+				schedulerStore.add(overwriteGlobalTimeApi(virtualTimeApi));
 				disposableStore.add(installFakeRunWhenIdle((_targetWindow, callback, _timeout?) => {
 					return scheduler.schedule({
 						time: scheduler.now,
