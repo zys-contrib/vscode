@@ -727,7 +727,6 @@
 	flex-direction: column;
 	gap: 14px;
 	flex: 1;
-	align-content: start;
 }
 
 .onboarding-a-sessions-group {

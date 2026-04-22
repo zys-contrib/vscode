@@ -29,7 +29,7 @@ export function getOnboardingStepTitle(stepId: OnboardingStepId): string {
 		case OnboardingStepId.AiPreference:
 			return localize('onboarding.step.aiPreference', "Your AI Style");
 		case OnboardingStepId.AgentSessions:
-			return localize('onboarding.step.agentSessions', "Build with AI agents");
+			return localize('onboarding.step.agentSessions', "Build with AI Agents");
 	}
 }
 

@@ -993,10 +993,10 @@ export class OnboardingVariationA extends Disposable implements IOnboardingServi
 
 		const features = append(wrapper, $('.onboarding-a-sessions-features'));
 
-		// Group 1: Chat modes — Ask / Agent / Plan
+		// Group 1: Chat modes — Plan / Agent / Ask
 		const chatGroup = append(features, $('.onboarding-a-sessions-group'));
 		const chatLabel = append(chatGroup, $('div.onboarding-a-sessions-group-label'));
-		chatLabel.textContent = localize('onboarding.sessions.group.chat', "In the Chat view");
+		chatLabel.textContent = localize('onboarding.sessions.group.chat', "Choose Your Agent");
 		const chatGrid = append(chatGroup, $('.onboarding-a-sessions-grid.onboarding-a-sessions-grid-3'));
 
 		this._createFeatureCard(chatGrid, Codicon.listOrdered,
@@ -1011,25 +1011,19 @@ export class OnboardingVariationA extends Disposable implements IOnboardingServi
 			localize('onboarding.sessions.askMode', "Ask"),
 			localize('onboarding.sessions.askMode.desc', "Ask questions about your code or technical concepts and get answers grounded in your codebase \u2014 no file changes."));
 
-		// Group 2: everything else
+		// Group 2: ways to run and customize agents beyond the default Chat experience
 		const moreGroup = append(features, $('.onboarding-a-sessions-group'));
 		const moreLabel = append(moreGroup, $('div.onboarding-a-sessions-group-label'));
-		moreLabel.textContent = localize('onboarding.sessions.group.more', "Beyond the Chat view");
+		moreLabel.textContent = localize('onboarding.sessions.group.more', "Agents That Work Your Way");
 		const moreGrid = append(moreGroup, $('.onboarding-a-sessions-grid.onboarding-a-sessions-grid-2'));
 
 		this._createFeatureCard(moreGrid, Codicon.rocket,
-			localize('onboarding.sessions.runAnywhere', "Run agents anywhere"),
+			localize('onboarding.sessions.runAnywhere', "Run Agents Anywhere"),
 			localize('onboarding.sessions.runAnywhere.desc', "Run agents locally for interactive work, in the background with Copilot CLI, or in the cloud with cloud agents that open a pull request your team can review."));
 
-		const inlineDesc = this._createFeatureCard(moreGrid, Codicon.sparkle,
-			localize('onboarding.sessions.inline', "AI assistance as you type"));
-		inlineDesc.append(
-			localize('onboarding.sessions.inline.desc1', "Inline suggestions and next edit predictions appear as you code \u2014 press "),
-			this._createKbd(localize('onboarding.sessions.inline.tab', "Tab")),
-			localize('onboarding.sessions.inline.desc2', " to accept. Press "),
-			this._createKbd(isMacintosh ? '\u2318I' : 'Ctrl+I'),
-			localize('onboarding.sessions.inline.desc3', " to open inline chat for targeted edits without leaving the editor."),
-		);
+		this._createFeatureCard(moreGrid, Codicon.settingsGear,
+			localize('onboarding.sessions.customize', "Customize Your Agents"),
+			localize('onboarding.sessions.customize.desc', "Tailor agents to your project with custom instructions, reusable prompts, chat modes, and MCP servers that connect them to the tools and context you rely on."));
 
 		// Tutorial link at bottom of content, above footer
 		const docsRow = append(wrapper, $('.onboarding-a-sessions-docs'));
