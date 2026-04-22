@@ -9,12 +9,12 @@ import { parentOriginHash } from '../../../../base/browser/iframe.js';
 import { IMouseWheelEvent } from '../../../../base/browser/mouseEvent.js';
 import { CodeWindow } from '../../../../base/browser/window.js';
 import { promiseWithResolvers, ThrottledDelayer } from '../../../../base/common/async.js';
-import { streamToBuffer, VSBufferReadableStream } from '../../../../base/common/buffer.js';
-import { CancellationTokenSource } from '../../../../base/common/cancellation.js';
+import { CancellationToken, CancellationTokenSource } from '../../../../base/common/cancellation.js';
 import { Emitter, Event } from '../../../../base/common/event.js';
 import { Disposable, IDisposable, toDisposable } from '../../../../base/common/lifecycle.js';
 import { COI } from '../../../../base/common/network.js';
 import { observableValue } from '../../../../base/common/observable.js';
+import { listenStream } from '../../../../base/common/stream.js';
 import { URI } from '../../../../base/common/uri.js';
 import { generateUuid } from '../../../../base/common/uuid.js';
 import { localize } from '../../../../nls.js';
@@ -97,7 +97,7 @@ export class WebviewElement extends Disposable implements IWebviewElement, Webvi
 
 	protected get platform(): string { return 'browser'; }
 
-	private readonly _expectedServiceWorkerVersion = 4; // Keep this in sync with the version in service-worker.js
+	private readonly _expectedServiceWorkerVersion = 5; // Keep this in sync with the version in service-worker.js
 
 	private _element: HTMLIFrameElement | undefined;
 	protected get element(): HTMLIFrameElement | undefined { return this._element; }
@@ -281,7 +281,7 @@ export class WebviewElement extends Disposable implements IWebviewElement, Webvi
 					path: decodeURIComponent(entry.path), // This gets re-encoded
 					query: entry.query ? decodeURIComponent(entry.query) : entry.query,
 				});
-				this.loadResource(entry.id, uri, entry.ifNoneMatch);
+				this.loadResource(entry.id, uri, { ifNoneMatch: entry.ifNoneMatch, range: entry.range }, this._resourceLoadingCts.token);
 			} catch (e) {
 				this._send('did-load-resource', {
 					id: entry.id,
@@ -760,25 +760,42 @@ export class WebviewElement extends Disposable implements IWebviewElement, Webvi
 		}
 	}
 
-	private async loadResource(id: number, uri: URI, ifNoneMatch: string | undefined) {
+	private async loadResource(id: number, uri: URI, options: { ifNoneMatch: string | undefined; range?: { readonly start: number; readonly end?: number } }, token: CancellationToken) {
 		try {
 			const result = await loadLocalResource(uri, {
-				ifNoneMatch,
+				ifNoneMatch: options.ifNoneMatch,
 				roots: this._content.options.localResourceRoots || [],
-			}, this._uriIdentityService, this._fileService, this._logService, this._resourceLoadingCts.token);
+				range: options.range,
+			}, this._uriIdentityService, this._fileService, this._logService, token);
 
 			switch (result.type) {
 				case WebviewResourceResponse.Type.Success: {
-					const buffer = await this.streamToBuffer(result.stream);
-					return this._send('did-load-resource', {
+					const range = options.range;
+					const rangeEnd = range?.end !== undefined ? range.end : result.size - 1;
+					const rangeHeader = range
+						? `bytes ${range.start}-${rangeEnd}/${result.size}`
+						: undefined;
+					this._send('did-load-resource', {
 						id,
-						status: 200,
+						status: range ? 206 : 200,
 						path: uri.path,
 						mime: result.mimeType,
-						data: buffer,
 						etag: result.etag,
-						mtime: result.mtime
-					}, [buffer]);
+						mtime: result.mtime,
+						range: rangeHeader,
+					});
+					listenStream(result.stream, {
+						onData: (chunk) => {
+							this._send('did-load-resource-chunk', { id, data: chunk.buffer });
+						},
+						onError: () => {
+							this._send('did-load-resource-end', { id, error: true });
+						},
+						onEnd: () => {
+							this._send('did-load-resource-end', { id });
+						}
+					}, token);
+					return;
 				}
 				case WebviewResourceResponse.Type.NotModified: {
 					return this._send('did-load-resource', {
@@ -806,11 +823,6 @@ export class WebviewElement extends Disposable implements IWebviewElement, Webvi
 			status: 404,
 			path: uri.path,
 		});
-	}
-
-	protected async streamToBuffer(stream: VSBufferReadableStream): Promise<ArrayBufferLike> {
-		const vsBuffer = await streamToBuffer(stream);
-		return vsBuffer.buffer.buffer;
 	}
 
 	private async localLocalhost(id: string, origin: string) {
