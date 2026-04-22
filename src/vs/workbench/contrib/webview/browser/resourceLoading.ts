@@ -71,6 +71,9 @@ export async function loadLocalResource(
 		if (options.range) {
 			readOptions.position = options.range.start;
 			if (options.range.end !== undefined) {
+				if (options.range.end < options.range.start) {
+					return WebviewResourceResponse.Failed;
+				}
 				readOptions.length = options.range.end - options.range.start + 1;
 			}
 		}
