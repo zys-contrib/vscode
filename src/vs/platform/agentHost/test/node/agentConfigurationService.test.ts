@@ -9,8 +9,8 @@ import { URI } from '../../../../base/common/uri.js';
 import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../base/test/common/utils.js';
 import { NullLogService } from '../../../log/common/log.js';
 import { createSchema, schemaProperty } from '../../common/agentHostSchema.js';
-import type { ISessionConfigState, IRootConfigState } from '../../common/state/protocol/state.js';
-import { buildSubagentSessionUri, SessionStatus, type ISessionSummary } from '../../common/state/sessionState.js';
+import type { SessionConfigState, RootConfigState } from '../../common/state/protocol/state.js';
+import { buildSubagentSessionUri, SessionStatus, type SessionSummary } from '../../common/state/sessionState.js';
 import { AgentConfigurationService } from '../../node/agentConfigurationService.js';
 import { AgentHostStateManager } from '../../node/agentHostStateManager.js';
 
@@ -32,7 +32,7 @@ suite('AgentConfigurationService', () => {
 	function seedSessionConfig(sessionUri: string, values: Record<string, unknown>): void {
 		const state = manager.getSessionState(sessionUri);
 		assert.ok(state, `Session not found: ${sessionUri}`);
-		const mutable = state as { config?: ISessionConfigState };
+		const mutable = state as { config?: SessionConfigState };
 		mutable.config = {
 			schema: schema.toProtocol(),
 			values,
@@ -40,14 +40,14 @@ suite('AgentConfigurationService', () => {
 	}
 
 	function seedRootConfig(values: Record<string, unknown>): void {
-		const rootMutable = manager.rootState as { config?: IRootConfigState };
+		const rootMutable = manager.rootState as { config?: RootConfigState };
 		rootMutable.config = {
 			schema: schema.toProtocol(),
 			values,
 		};
 	}
 
-	function makeSummary(resource: string, workingDirectory?: string): ISessionSummary {
+	function makeSummary(resource: string, workingDirectory?: string): SessionSummary {
 		return {
 			resource,
 			provider: 'copilot',

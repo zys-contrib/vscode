@@ -15,8 +15,8 @@ import { IInstantiationService } from '../../instantiation/common/instantiation.
 import { IAgent, IAgentAttachment, IAgentProgressEvent, type IAgentToolCompleteEvent, type IAgentToolReadyEvent } from '../common/agentService.js';
 import { IDiffComputeService } from '../common/diffComputeService.js';
 import { ISessionDataService } from '../common/sessionDataService.js';
-import type { IAgentInfo } from '../common/state/protocol/state.js';
-import { ActionType, ISessionAction } from '../common/state/sessionActions.js';
+import type { AgentInfo } from '../common/state/protocol/state.js';
+import { ActionType, SessionAction } from '../common/state/sessionActions.js';
 import {
 	CustomizationStatus,
 	PendingMessageKind,
@@ -26,9 +26,9 @@ import {
 	ToolResultContentType,
 	buildSubagentSessionUri,
 	getToolFileEdits,
-	type ISessionCustomization,
-	type ISessionState,
-	type IToolResultContent,
+	type SessionCustomization,
+	type SessionState,
+	type ToolResultContent,
 	type URI as ProtocolURI,
 } from '../common/state/sessionState.js';
 import { AgentEventMapper } from './agentEventMapper.js';
@@ -76,7 +76,7 @@ export class AgentSideEffects extends Disposable {
 	private readonly _diffComputeService: IDiffComputeService;
 	/** Serializes per-session diff computations to avoid races with stale previousDiffs. */
 	private readonly _diffComputationSequencer = new SequencerByKey<string>();
-	private _lastAgentInfos: readonly IAgentInfo[] = [];
+	private _lastAgentInfos: readonly AgentInfo[] = [];
 	/** Per-session debounce timers for mid-turn diff computation. */
 	private readonly _debouncedDiffTimers = this._register(new DisposableMap<string>());
 	private static readonly _DIFF_DEBOUNCE_MS = 5000;
@@ -123,7 +123,7 @@ export class AgentSideEffects extends Disposable {
 	 * Publishes agent descriptors using the last known model lists.
 	 */
 	private _publishAgentInfos(agents: readonly IAgent[], reader: IReader): void {
-		const infos: IAgentInfo[] = agents.map(a => {
+		const infos: AgentInfo[] = agents.map(a => {
 			const d = a.getDescriptor();
 			const protectedResources = a.getProtectedResources();
 			return {
@@ -268,7 +268,7 @@ export class AgentSideEffects extends Disposable {
 			// When a parent tool call has an associated subagent session,
 			// preserve the subagent content metadata in the completion
 			// result. The SDK's tool_complete provides its own content
-			// which would overwrite the IToolResultSubagentContent that
+			// which would overwrite the ToolResultSubagentContent that
 			// was set via SessionToolCallContentChanged while running.
 			if (e.type === 'tool_complete') {
 				const subagentKey = `${sessionKey}:${e.toolCallId}`;
@@ -412,10 +412,10 @@ export class AgentSideEffects extends Disposable {
 	 * Gets the current content array from a running tool call, if any.
 	 */
 	private _getRunningToolCallContent(
-		state: ISessionState | undefined,
+		state: SessionState | undefined,
 		turnId: string,
 		toolCallId: string,
-	): IToolResultContent[] {
+	): ToolResultContent[] {
 		if (!state?.activeTurn || state.activeTurn.id !== turnId) {
 			return [];
 		}
@@ -575,7 +575,7 @@ export class AgentSideEffects extends Disposable {
 		);
 	}
 
-	handleAction(action: ISessionAction): void {
+	handleAction(action: SessionAction): void {
 		switch (action.type) {
 			case ActionType.SessionTurnStarted: {
 				// Reset the event mapper's part tracking for the new turn
@@ -696,7 +696,7 @@ export class AgentSideEffects extends Disposable {
 					break;
 				}
 				// Publish initial "loading" status for all customizations
-				const loading: ISessionCustomization[] = refs.map(r => ({
+				const loading: SessionCustomization[] = refs.map(r => ({
 					customization: r,
 					enabled: true,
 					status: CustomizationStatus.Loading,
@@ -711,7 +711,7 @@ export class AgentSideEffects extends Disposable {
 					refs,
 					(synced) => {
 						// Incremental progress: publish updated statuses
-						const statuses: ISessionCustomization[] = synced.map(s => s.customization);
+						const statuses: SessionCustomization[] = synced.map(s => s.customization);
 						this._stateManager.dispatchServerAction({
 							type: ActionType.SessionCustomizationsChanged,
 							session: action.session,
@@ -720,7 +720,7 @@ export class AgentSideEffects extends Disposable {
 					},
 				).then(synced => {
 					// Final status
-					const statuses: ISessionCustomization[] = synced.map(s => s.customization);
+					const statuses: SessionCustomization[] = synced.map(s => s.customization);
 					this._stateManager.dispatchServerAction({
 						type: ActionType.SessionCustomizationsChanged,
 						session: action.session,

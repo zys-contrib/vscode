@@ -12,7 +12,7 @@ import { ILogService } from '../../log/common/log.js';
 import type { IAgentToolReadyEvent } from '../common/agentService.js';
 import { platformSessionSchema } from '../common/agentHostSchema.js';
 import { SessionConfigKey } from '../common/sessionConfigKeys.js';
-import { ConfirmationOptionKind, type IConfirmationOption } from '../common/state/protocol/state.js';
+import { ConfirmationOptionKind, type ConfirmationOption } from '../common/state/protocol/state.js';
 import { ActionType, type IToolCallReadyAction } from '../common/state/sessionActions.js';
 import {
 	ResponsePartKind,
@@ -38,7 +38,7 @@ export interface IToolApprovalEvent {
 
 /** Standard per-tool confirmation options presented to the user. */
 const ALLOW_SESSION_OPTION_ID = 'allow-session';
-const CONFIRMATION_OPTIONS: readonly IConfirmationOption[] = [
+const CONFIRMATION_OPTIONS: readonly ConfirmationOption[] = [
 	{ id: ALLOW_SESSION_OPTION_ID, label: localize('sessionPermissions.allowSession', "Allow in this Session"), kind: ConfirmationOptionKind.Approve, group: 1 },
 	{ id: 'allow-once', label: localize('sessionPermissions.allowOnce', "Allow Once"), kind: ConfirmationOptionKind.Approve },
 	{ id: 'skip', label: localize('sessionPermissions.skip', "Skip"), kind: ConfirmationOptionKind.Deny, group: 2 },
@@ -76,6 +76,7 @@ const DEFAULT_EDIT_AUTO_APPROVE_PATTERNS: Readonly<Record<string, boolean>> = {
  *   permissions list).
  */
 export class SessionPermissionManager extends Disposable {
+
 
 	// ---- Edit auto-approve patterns -----------------------------------------
 

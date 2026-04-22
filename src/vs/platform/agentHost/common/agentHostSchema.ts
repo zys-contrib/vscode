@@ -5,7 +5,7 @@
 
 import { localize } from '../../../nls.js';
 import { SessionConfigKey } from './sessionConfigKeys.js';
-import type { ISessionConfigPropertySchema, ISessionConfigSchema } from './state/protocol/commands.js';
+import type { SessionConfigPropertySchema, SessionConfigSchema } from './state/protocol/commands.js';
 import { JsonRpcErrorCodes, ProtocolError } from './state/sessionProtocol.js';
 
 // ---- Schema builder --------------------------------------------------------
@@ -20,7 +20,7 @@ import { JsonRpcErrorCodes, ProtocolError } from './state/sessionProtocol.js';
  * runtime.
  */
 export interface ISchemaProperty<T> {
-	readonly protocol: ISessionConfigPropertySchema;
+	readonly protocol: SessionConfigPropertySchema;
 	/**
 	 * Returns `true` iff `value` conforms to {@link protocol}. Narrows
 	 * the type to `T` for callers. The boolean form is preferred for
@@ -44,7 +44,7 @@ export interface ISchemaProperty<T> {
  * Defines a strongly-typed schema property whose runtime validator is
  * derived from the supplied JSON-schema descriptor.
  */
-export function schemaProperty<T>(protocol: ISessionConfigPropertySchema): ISchemaProperty<T> {
+export function schemaProperty<T>(protocol: SessionConfigPropertySchema): ISchemaProperty<T> {
 	const assertFn = buildAssert(protocol);
 	const assertValid = (value: unknown, path: string = ''): asserts value is T => assertFn(value, path);
 	const validate = (value: unknown): value is T => {
@@ -75,7 +75,7 @@ export type SchemaValues<D extends SchemaDefinition> = {
 export interface ISchema<D extends SchemaDefinition> {
 	readonly definition: D;
 	/** Returns the protocol-serializable schema for this bundle. */
-	toProtocol(): ISessionConfigSchema;
+	toProtocol(): SessionConfigSchema;
 	/**
 	 * Validates each known key in `values` against its schema and returns
 	 * a new plain record. Throws a {@link ProtocolError} with a path like
@@ -112,8 +112,8 @@ export interface ISchema<D extends SchemaDefinition> {
 export function createSchema<D extends SchemaDefinition>(definition: D): ISchema<D> {
 	return {
 		definition,
-		toProtocol(): ISessionConfigSchema {
-			const properties: Record<string, ISessionConfigPropertySchema> = {};
+		toProtocol(): SessionConfigSchema {
+			const properties: Record<string, SessionConfigPropertySchema> = {};
 			for (const key of Object.keys(definition)) {
 				properties[key] = definition[key].protocol;
 			}
@@ -170,11 +170,11 @@ export function createSchema<D extends SchemaDefinition>(definition: D): ISchema
  */
 type AssertValidator = (value: unknown, path: string) => void;
 
-function buildAssert(schema: ISessionConfigPropertySchema): AssertValidator {
+function buildAssert(schema: SessionConfigPropertySchema): AssertValidator {
 	if (schema.type === 'object' && schema.properties) {
 		const propAsserts: Record<string, AssertValidator> = {};
 		for (const key of Object.keys(schema.properties)) {
-			propAsserts[key] = buildAssert(schema.properties[key] as ISessionConfigPropertySchema);
+			propAsserts[key] = buildAssert(schema.properties[key] as SessionConfigPropertySchema);
 		}
 		const required = new Set(schema.required ?? []);
 		return (value, path) => {
@@ -195,7 +195,7 @@ function buildAssert(schema: ISessionConfigPropertySchema): AssertValidator {
 		};
 	}
 	if (schema.type === 'array' && schema.items) {
-		const itemAssert = buildAssert(schema.items as ISessionConfigPropertySchema);
+		const itemAssert = buildAssert(schema.items as SessionConfigPropertySchema);
 		return (value, path) => {
 			if (!Array.isArray(value)) {
 				throw invalidParams(path, 'array', value);
@@ -208,7 +208,7 @@ function buildAssert(schema: ISessionConfigPropertySchema): AssertValidator {
 	return buildPrimitiveAssert(schema);
 }
 
-function buildPrimitiveAssert(schema: ISessionConfigPropertySchema): AssertValidator {
+function buildPrimitiveAssert(schema: SessionConfigPropertySchema): AssertValidator {
 	const enumDynamic = schema.enumDynamic === true;
 	return (value, path) => {
 		switch (schema.type) {

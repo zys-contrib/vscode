@@ -19,7 +19,7 @@ import { ServiceCollection } from '../../../instantiation/common/serviceCollecti
 import { ILogService, NullLogService } from '../../../log/common/log.js';
 import { AgentSession, IAgent } from '../../common/agentService.js';
 import { ISessionDataService } from '../../common/sessionDataService.js';
-import { ActionType, IActionEnvelope, ISessionAction } from '../../common/state/sessionActions.js';
+import { ActionType, ActionEnvelope, SessionAction } from '../../common/state/sessionActions.js';
 import { buildSubagentSessionUri, PendingMessageKind, ResponsePartKind, SessionStatus, ToolCallStatus, ToolResultContentType } from '../../common/state/sessionState.js';
 import { IProductService } from '../../../product/common/productService.js';
 import { AgentConfigurationService, IAgentConfigurationService } from '../../node/agentConfigurationService.js';
@@ -111,7 +111,7 @@ suite('AgentSideEffects', () => {
 
 		test('calls sendMessage on the agent', async () => {
 			setupSession();
-			const action: ISessionAction = {
+			const action: SessionAction = {
 				type: ActionType.SessionTurnStarted,
 				session: sessionUri.toString(),
 				turnId: 'turn-1',
@@ -134,7 +134,7 @@ suite('AgentSideEffects', () => {
 				sessionDataService: {} as ISessionDataService,
 			});
 
-			const envelopes: IActionEnvelope[] = [];
+			const envelopes: ActionEnvelope[] = [];
 			disposables.add(stateManager.onDidEmitEnvelope(e => envelopes.push(e)));
 
 			noAgentSideEffects.handleAction({
@@ -169,7 +169,7 @@ suite('AgentSideEffects', () => {
 		test('dispatches titleChanged with user message on first turn', () => {
 			setupDefaultSession();
 
-			const envelopes: IActionEnvelope[] = [];
+			const envelopes: ActionEnvelope[] = [];
 			disposables.add(stateManager.onDidEmitEnvelope(e => envelopes.push(e)));
 
 			sideEffects.handleAction({
@@ -189,7 +189,7 @@ suite('AgentSideEffects', () => {
 		test('does not dispatch titleChanged when message is whitespace', () => {
 			setupDefaultSession();
 
-			const envelopes: IActionEnvelope[] = [];
+			const envelopes: ActionEnvelope[] = [];
 			disposables.add(stateManager.onDidEmitEnvelope(e => envelopes.push(e)));
 
 			sideEffects.handleAction({
@@ -206,7 +206,7 @@ suite('AgentSideEffects', () => {
 		test('normalizes whitespace and truncates long messages', () => {
 			setupDefaultSession();
 
-			const envelopes: IActionEnvelope[] = [];
+			const envelopes: ActionEnvelope[] = [];
 			disposables.add(stateManager.onDidEmitEnvelope(e => envelopes.push(e)));
 
 			const longMessage = 'Fix the bug\nin the login\tpage  please ' + 'a'.repeat(250);
@@ -238,7 +238,7 @@ suite('AgentSideEffects', () => {
 				turnId: 'turn-1',
 			});
 
-			const envelopes: IActionEnvelope[] = [];
+			const envelopes: ActionEnvelope[] = [];
 			disposables.add(stateManager.onDidEmitEnvelope(e => envelopes.push(e)));
 
 			sideEffects.handleAction({
@@ -265,7 +265,7 @@ suite('AgentSideEffects', () => {
 			});
 			stateManager.dispatchServerAction({ type: ActionType.SessionReady, session: sessionUri.toString() });
 
-			const envelopes: IActionEnvelope[] = [];
+			const envelopes: ActionEnvelope[] = [];
 			disposables.add(stateManager.onDidEmitEnvelope(e => envelopes.push(e)));
 
 			sideEffects.handleAction({
@@ -322,7 +322,7 @@ suite('AgentSideEffects', () => {
 			setupSession();
 			startTurn('turn-1');
 
-			const envelopes: IActionEnvelope[] = [];
+			const envelopes: ActionEnvelope[] = [];
 			disposables.add(stateManager.onDidEmitEnvelope(e => envelopes.push(e)));
 			disposables.add(sideEffects.registerProgressListener(agent));
 
@@ -336,7 +336,7 @@ suite('AgentSideEffects', () => {
 			setupSession();
 			startTurn('turn-1');
 
-			const envelopes: IActionEnvelope[] = [];
+			const envelopes: ActionEnvelope[] = [];
 			disposables.add(stateManager.onDidEmitEnvelope(e => envelopes.push(e)));
 			const listener = sideEffects.registerProgressListener(agent);
 
@@ -369,7 +369,7 @@ suite('AgentSideEffects', () => {
 		});
 
 		test('model observable update publishes models', async () => {
-			const envelopes: IActionEnvelope[] = [];
+			const envelopes: ActionEnvelope[] = [];
 			disposables.add(stateManager.onDidEmitEnvelope(e => envelopes.push(e)));
 
 			const envelope = Event.toPromise(Event.filter(stateManager.onDidEmitEnvelope, e => {
@@ -396,7 +396,7 @@ suite('AgentSideEffects', () => {
 		});
 
 		test('unchanged model observable update does not dispatch unchanged agent infos', async () => {
-			const envelopes: IActionEnvelope[] = [];
+			const envelopes: ActionEnvelope[] = [];
 			disposables.add(stateManager.onDidEmitEnvelope(e => envelopes.push(e)));
 			const models = [{ provider: 'mock' as const, id: 'mock-model', name: 'mock Model', maxContextWindow: 128000, supportsVision: false }];
 
@@ -539,7 +539,7 @@ suite('AgentSideEffects', () => {
 			// Message should NOT be consumed yet (turn is active)
 			assert.strictEqual(agent.sendMessageCalls.length, 0);
 
-			const envelopes: IActionEnvelope[] = [];
+			const envelopes: ActionEnvelope[] = [];
 			disposables.add(stateManager.onDidEmitEnvelope(e => envelopes.push(e)));
 
 			// Fire idle → turn completes → queued message should be consumed
@@ -564,7 +564,7 @@ suite('AgentSideEffects', () => {
 			setupSession();
 			startTurn('turn-1');
 
-			const envelopes: IActionEnvelope[] = [];
+			const envelopes: ActionEnvelope[] = [];
 			disposables.add(stateManager.onDidEmitEnvelope(e => envelopes.push(e)));
 
 			const setAction = {
@@ -592,7 +592,7 @@ suite('AgentSideEffects', () => {
 			setupSession();
 			disposables.add(sideEffects.registerProgressListener(agent));
 
-			const envelopes: IActionEnvelope[] = [];
+			const envelopes: ActionEnvelope[] = [];
 			disposables.add(stateManager.onDidEmitEnvelope(e => envelopes.push(e)));
 
 			const action = {
@@ -639,10 +639,10 @@ suite('AgentSideEffects', () => {
 		test('calls setClientCustomizations and dispatches customizationsChanged', async () => {
 			setupSession();
 
-			const envelopes: IActionEnvelope[] = [];
+			const envelopes: ActionEnvelope[] = [];
 			disposables.add(stateManager.onDidEmitEnvelope(e => envelopes.push(e)));
 
-			const action: ISessionAction = {
+			const action: SessionAction = {
 				type: ActionType.SessionActiveClientChanged,
 				session: sessionUri.toString(),
 				activeClient: {
@@ -675,10 +675,10 @@ suite('AgentSideEffects', () => {
 		test('skips when activeClient has no customizations', () => {
 			setupSession();
 
-			const envelopes: IActionEnvelope[] = [];
+			const envelopes: ActionEnvelope[] = [];
 			disposables.add(stateManager.onDidEmitEnvelope(e => envelopes.push(e)));
 
-			const action: ISessionAction = {
+			const action: SessionAction = {
 				type: ActionType.SessionActiveClientChanged,
 				session: sessionUri.toString(),
 				activeClient: {
@@ -697,7 +697,7 @@ suite('AgentSideEffects', () => {
 		test('skips when activeClient is null', () => {
 			setupSession();
 
-			const action: ISessionAction = {
+			const action: SessionAction = {
 				type: ActionType.SessionActiveClientChanged,
 				session: sessionUri.toString(),
 				activeClient: null,
@@ -715,7 +715,7 @@ suite('AgentSideEffects', () => {
 		test('calls setCustomizationEnabled on the agent', () => {
 			setupSession();
 
-			const action: ISessionAction = {
+			const action: SessionAction = {
 				type: ActionType.SessionCustomizationToggled,
 				session: sessionUri.toString(),
 				uri: 'file:///plugin-a',
@@ -765,7 +765,7 @@ suite('AgentSideEffects', () => {
 				toolCallId: 'tc-conf-1',
 				approved: true,
 				confirmed: 'user-action' as const,
-			} as ISessionAction);
+			} as SessionAction);
 
 			assert.deepStrictEqual(agent.respondToPermissionCalls, [
 				{ requestId: 'tc-conf-1', approved: true },
@@ -793,7 +793,7 @@ suite('AgentSideEffects', () => {
 				toolCallId: 'tc-deny-1',
 				approved: false,
 				reason: 'denied' as const,
-			} as ISessionAction);
+			} as SessionAction);
 
 			assert.deepStrictEqual(agent.respondToPermissionCalls, [
 				{ requestId: 'tc-deny-1', approved: false },
@@ -988,7 +988,7 @@ suite('AgentSideEffects', () => {
 			startTurn('turn-1');
 			disposables.add(sideEffects.registerProgressListener(agent));
 
-			const envelopes: IActionEnvelope[] = [];
+			const envelopes: ActionEnvelope[] = [];
 			disposables.add(stateManager.onDidEmitEnvelope(e => envelopes.push(e)));
 
 			agent.fireProgress({
@@ -1137,7 +1137,7 @@ suite('AgentSideEffects', () => {
 			startTurn('turn-1');
 			disposables.add(sideEffects.registerProgressListener(agent));
 
-			const envelopes: IActionEnvelope[] = [];
+			const envelopes: ActionEnvelope[] = [];
 			disposables.add(stateManager.onDidEmitEnvelope(e => envelopes.push(e)));
 
 			agent.fireProgress({
@@ -1766,7 +1766,7 @@ suite('AgentSideEffects', () => {
 				approved: true,
 				confirmed: 'user-action' as const,
 				selectedOptionId: 'allow-session',
-			} as ISessionAction);
+			} as SessionAction);
 
 			const updatedState = stateManager.getSessionState(sessionUri.toString());
 			assert.deepStrictEqual(
