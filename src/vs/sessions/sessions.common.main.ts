@@ -293,8 +293,9 @@ import '../workbench/contrib/customEditor/browser/customEditor.contribution.js';
 import '../workbench/contrib/externalUriOpener/common/externalUriOpener.contribution.js';
 
 // Extensions Management
-import '../workbench/contrib/extensions/browser/extensions.contribution.js';
-import '../workbench/contrib/extensions/browser/extensionsViewlet.js';
+import { IExtensionsWorkbenchService } from '../workbench/contrib/extensions/common/extensions.js';
+import { ExtensionsWorkbenchService } from '../workbench/contrib/extensions/browser/extensionsWorkbenchService.js';
+registerSingleton(IExtensionsWorkbenchService, ExtensionsWorkbenchService, InstantiationType.Eager /* Auto updates extensions */);
 
 // Output View
 import '../workbench/contrib/output/browser/output.contribution.js';
