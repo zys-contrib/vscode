@@ -13,6 +13,8 @@ import type { IResolveSessionConfigResult } from '../../../../../platform/agentH
 import { TestInstantiationService } from '../../../../../platform/instantiation/test/common/instantiationServiceMock.js';
 import { ServiceCollection } from '../../../../../platform/instantiation/common/serviceCollection.js';
 import { NullLogService, ILogService } from '../../../../../platform/log/common/log.js';
+import { Extensions as JSONExtensions, IJSONContributionRegistry } from '../../../../../platform/jsonschemas/common/jsonContributionRegistry.js';
+import { Registry } from '../../../../../platform/registry/common/platform.js';
 import type { IAgentHostSessionsProvider } from '../../../../common/agentHostSessionsProvider.js';
 import { ISessionsProvidersService } from '../../../../services/sessions/browser/sessionsProvidersService.js';
 import type { ISession } from '../../../../services/sessions/common/session.js';
@@ -46,6 +48,7 @@ suite('AgentSessionSettingsFileSystemProvider', () => {
 	interface IMockAgentHostSessionsProvider extends IAgentHostSessionsProvider {
 		config: IResolveSessionConfigResult | undefined;
 		readonly onDidChangeSessionConfigEmitter: Emitter<string>;
+		readonly onDidChangeSessionsEmitter: Emitter<{ added: readonly ISession[]; removed: readonly ISession[]; changed: readonly ISession[] }>;
 		readonly replaceCalls: Array<{ sessionId: string; values: Record<string, unknown> }>;
 	}
 
@@ -63,6 +66,7 @@ suite('AgentSessionSettingsFileSystemProvider', () => {
 			id: PROVIDER_ID,
 			config: initialConfig,
 			onDidChangeSessionConfigEmitter,
+			onDidChangeSessionsEmitter,
 			replaceCalls,
 			onDidChangeSessionConfig: onDidChangeSessionConfigEmitter.event,
 			onDidChangeSessions: onDidChangeSessionsEmitter.event,
@@ -219,6 +223,92 @@ suite('AgentSessionSettingsFileSystemProvider', () => {
 
 		await assert.rejects(async () => {
 			await fs.readFile(uri);
+		});
+	});
+
+	suite('schema registration', () => {
+		const schemaRegistry = Registry.as<IJSONContributionRegistry>(JSONExtensions.JSONContribution);
+
+		function expectedSchemaId(session: ISession): string {
+			return `vscode://schemas/agent-session-settings/${session.providerId}${session.resource.scheme}${session.resource.path}.jsonc`;
+		}
+
+		test('readFile lazily registers a schema + association for the session', async () => {
+			const { fs, uri, session } = createHarness({
+				schema: {
+					type: 'object',
+					properties: {
+						autoApprove: { type: 'string', title: 'Auto Approve', sessionMutable: true, enum: ['default', 'autoApprove'] },
+					},
+				},
+				values: { autoApprove: 'default' },
+			});
+			const schemaId = expectedSchemaId(session);
+
+			// No registration before the file is read.
+			assert.strictEqual(schemaRegistry.hasSchemaContent(schemaId), false);
+			assert.strictEqual(schemaRegistry.getSchemaAssociations()[schemaId], undefined);
+
+			await fs.readFile(uri);
+
+			assert.strictEqual(schemaRegistry.hasSchemaContent(schemaId), true);
+			assert.deepStrictEqual(schemaRegistry.getSchemaAssociations()[schemaId], [uri.toString()]);
+		});
+
+		test('schema is refreshed when onDidChangeSessionConfig fires with a new schema identity', async () => {
+			const { fs, uri, session, sessionProvider } = createHarness({
+				schema: {
+					type: 'object',
+					properties: {
+						autoApprove: { type: 'string', title: 'Auto Approve', sessionMutable: true, enum: ['default'] },
+					},
+				},
+				values: { autoApprove: 'default' },
+			});
+			const schemaId = expectedSchemaId(session);
+
+			// Trigger initial registration.
+			await fs.readFile(uri);
+			const initial = schemaRegistry.getSchemaContributions().schemas[schemaId];
+			assert.ok(initial);
+
+			// Swap in a new schema (identity change) and notify.
+			sessionProvider.config = {
+				schema: {
+					type: 'object',
+					properties: {
+						autoApprove: { type: 'string', title: 'Auto Approve', sessionMutable: true, enum: ['default', 'autoApprove'] },
+						mode: { type: 'string', title: 'Mode', sessionMutable: true, enum: ['a', 'b'] },
+					},
+				},
+				values: { autoApprove: 'default', mode: 'a' },
+			};
+			sessionProvider.onDidChangeSessionConfigEmitter.fire(session.sessionId);
+
+			const refreshed = schemaRegistry.getSchemaContributions().schemas[schemaId];
+			assert.notStrictEqual(refreshed, initial);
+			assert.ok(refreshed.properties?.['mode'], 'refreshed schema should include the newly added property');
+		});
+
+		test('schema is disposed when the session is removed', async () => {
+			const { fs, uri, session, sessionProvider } = createHarness({
+				schema: {
+					type: 'object',
+					properties: {
+						autoApprove: { type: 'string', title: 'Auto Approve', sessionMutable: true, enum: ['default'] },
+					},
+				},
+				values: { autoApprove: 'default' },
+			});
+			const schemaId = expectedSchemaId(session);
+
+			await fs.readFile(uri);
+			assert.strictEqual(schemaRegistry.hasSchemaContent(schemaId), true);
+
+			sessionProvider.onDidChangeSessionsEmitter.fire({ added: [], removed: [session], changed: [] });
+
+			assert.strictEqual(schemaRegistry.hasSchemaContent(schemaId), false);
+			assert.strictEqual(schemaRegistry.getSchemaAssociations()[schemaId], undefined);
 		});
 	});
 });
