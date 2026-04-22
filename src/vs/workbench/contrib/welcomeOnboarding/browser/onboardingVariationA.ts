@@ -1009,7 +1009,7 @@ export class OnboardingVariationA extends Disposable implements IOnboardingServi
 
 		this._createFeatureCard(chatGrid, Codicon.comment,
 			localize('onboarding.sessions.askMode', "Ask"),
-			localize('onboarding.sessions.askMode.desc', "Ask questions about your code or technical concepts and get answers grounded in your codebase \u2014 no file changes."));
+			localize('onboarding.sessions.askMode.desc', "Ask questions about your code or technical concepts and get answers grounded in your codebase."));
 
 		// Group 2: ways to run and customize agents beyond the default Chat experience
 		const moreGroup = append(features, $('.onboarding-a-sessions-group'));
