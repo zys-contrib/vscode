@@ -21,7 +21,7 @@ import { IProductService } from '../../../platform/product/common/productService
 import { Registry } from '../../../platform/registry/common/platform.js';
 import { ITelemetryService } from '../../../platform/telemetry/common/telemetry.js';
 import { IWorkspaceContextService, WorkbenchState } from '../../../platform/workspace/common/workspace.js';
-import { ToggleTitleBarConfigAction } from '../../browser/parts/titlebar/titlebarActions.js';
+import { ToggleTitleBarConfigAction, TitleBarLeadingActionsGroup } from '../../browser/parts/titlebar/titlebarActions.js';
 import { IWorkbenchContribution, registerWorkbenchContribution2, WorkbenchPhase } from '../../common/contributions.js';
 import { IsAuxiliaryWindowContext, IsSessionsWindowContext } from '../../common/contextkeys.js';
 import { workbenchConfigurationNodeBase } from '../../common/configuration.js';
@@ -62,11 +62,11 @@ class OpenInAgentsAction extends Action2 {
 			f1: true,
 			precondition: OpenInAgentsVisibility,
 			menu: [{
-				// Render in the global titlebar tool bar in the dedicated
-				// '0_leading' slot so we appear before the layout controls
-				// (and stay visible when layout controls are toggled off).
+				// Render in the global titlebar tool bar in the dedicated leading
+				// slot so we appear before the layout controls (and stay visible
+				// when layout controls are toggled off).
 				id: MenuId.TitleBar,
-				group: '0_leading',
+				group: TitleBarLeadingActionsGroup,
 				order: -1000,
 				when: OpenInAgentsVisibility,
 			}, {
