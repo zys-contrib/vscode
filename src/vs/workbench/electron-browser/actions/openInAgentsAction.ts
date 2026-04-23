@@ -13,7 +13,7 @@ import { localize, localize2 } from '../../../nls.js';
 import { Action2, MenuId, registerAction2 } from '../../../platform/actions/common/actions.js';
 import { IActionViewItemService } from '../../../platform/actions/browser/actionViewItemService.js';
 import { IConfigurationRegistry, Extensions as ConfigurationExtensions } from '../../../platform/configuration/common/configurationRegistry.js';
-import { ContextKeyExpr } from '../../../platform/contextkey/common/contextkey.js';
+import { ContextKeyExpr, IContextKeyService, RawContextKey } from '../../../platform/contextkey/common/contextkey.js';
 import { IHoverService } from '../../../platform/hover/browser/hover.js';
 import { IInstantiationService, ServicesAccessor } from '../../../platform/instantiation/common/instantiation.js';
 import { INativeHostService } from '../../../platform/native/common/native.js';
@@ -30,6 +30,10 @@ import { IWorkbenchEnvironmentService } from '../../services/environment/common/
 const OpenInAgentsActionId = 'workbench.action.openInAgents';
 const OpenInAgentsEnabledSetting = 'workbench.openInAgents.enabled';
 
+// Context key tracking the current product quality so we can restrict the
+// "Open in Agents" entry to insider/exploration builds for now.
+const OpenInAgentsProductQualityContext = new RawContextKey<string>('openInAgentsProductQuality', '');
+
 type OpenInAgentsMode = 'siblingApp' | 'newWindow';
 
 type OpenInAgentsEvent = { mode: OpenInAgentsMode };
@@ -45,6 +49,8 @@ const OpenInAgentsVisibility = ContextKeyExpr.and(
 	IsAuxiliaryWindowContext.toNegated(),
 	// Hide when AI features are disabled.
 	ContextKeyExpr.notEquals('config.chat.disableAIFeatures', true),
+	// Hide in stable builds for now (insider, exploration and OSS dev are allowed).
+	ContextKeyExpr.notEquals(OpenInAgentsProductQualityContext.key, 'stable'),
 );
 
 /**
@@ -165,8 +171,11 @@ class OpenInAgentsContribution extends Disposable implements IWorkbenchContribut
 	constructor(
 		@IActionViewItemService actionViewItemService: IActionViewItemService,
 		@IInstantiationService instantiationService: IInstantiationService,
+		@IContextKeyService contextKeyService: IContextKeyService,
+		@IProductService productService: IProductService,
 	) {
 		super();
+		OpenInAgentsProductQualityContext.bindTo(contextKeyService).set(productService.quality ?? '');
 		this._register(actionViewItemService.register(MenuId.TitleBar, OpenInAgentsActionId, (action, options) => {
 			return instantiationService.createInstance(OpenInAgentsTitleBarWidget, action, options);
 		}, undefined));
