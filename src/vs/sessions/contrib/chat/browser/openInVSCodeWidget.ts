@@ -11,7 +11,6 @@ import { IAction } from '../../../../base/common/actions.js';
 import { Disposable } from '../../../../base/common/lifecycle.js';
 import { localize } from '../../../../nls.js';
 import { IActionViewItemService } from '../../../../platform/actions/browser/actionViewItemService.js';
-import { ICommandService } from '../../../../platform/commands/common/commands.js';
 import { IHoverService } from '../../../../platform/hover/browser/hover.js';
 import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
 import { IProductService } from '../../../../platform/product/common/productService.js';
@@ -31,7 +30,6 @@ class OpenInVSCodeTitleBarWidget extends BaseActionViewItem {
 		options: IBaseActionViewItemOptions | undefined,
 		@IProductService private readonly productService: IProductService,
 		@IHoverService private readonly hoverService: IHoverService,
-		@ICommandService private readonly commandService: ICommandService,
 	) {
 		super(undefined, action, options);
 	}
@@ -62,7 +60,7 @@ class OpenInVSCodeTitleBarWidget extends BaseActionViewItem {
 
 	override onClick(event: EventLike): void {
 		EventHelper.stop(event, true);
-		this.commandService.executeCommand(OpenInVSCodeActionId);
+		this.action.run();
 	}
 }
 

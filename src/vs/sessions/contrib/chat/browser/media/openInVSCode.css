@@ -33,7 +33,16 @@
 	background-size: contain;
 	/* Desaturated at rest; full color on hover/focus. */
 	filter: grayscale(1) opacity(0.75);
+}
+
+.monaco-enable-motion .monaco-workbench .open-in-vscode-titlebar-widget > .open-in-vscode-titlebar-widget-icon,
+.monaco-workbench.monaco-enable-motion .open-in-vscode-titlebar-widget > .open-in-vscode-titlebar-widget-icon {
 	transition: filter 150ms ease;
+}
+
+.monaco-reduce-motion .monaco-workbench .open-in-vscode-titlebar-widget > .open-in-vscode-titlebar-widget-icon,
+.monaco-workbench.monaco-reduce-motion .open-in-vscode-titlebar-widget > .open-in-vscode-titlebar-widget-icon {
+	transition-duration: 0ms !important;
 }
 
 /* In production builds vscode-distro overlays vs/workbench/browser/media/code-icon.svg
@@ -59,7 +68,16 @@
 	font: inherit;
 	overflow: hidden;
 	white-space: nowrap;
+}
+
+.monaco-enable-motion .monaco-workbench .open-in-vscode-titlebar-widget > .open-in-vscode-titlebar-widget-label,
+.monaco-workbench.monaco-enable-motion .open-in-vscode-titlebar-widget > .open-in-vscode-titlebar-widget-label {
 	transition: max-width 150ms ease, opacity 150ms ease, margin-left 150ms ease;
+}
+
+.monaco-reduce-motion .monaco-workbench .open-in-vscode-titlebar-widget > .open-in-vscode-titlebar-widget-label,
+.monaco-workbench.monaco-reduce-motion .open-in-vscode-titlebar-widget > .open-in-vscode-titlebar-widget-label {
+	transition-duration: 0ms !important;
 }
 
 .monaco-workbench .open-in-vscode-titlebar-widget:hover,

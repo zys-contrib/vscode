@@ -72,7 +72,9 @@ registerAction2(class OpenSessionWorktreeInVSCodeAction extends Action2 {
 
 		const hasSibling = !!(
 			productService.darwinSiblingBundleIdentifier ||
-			productService.win32SiblingExeBasename
+			productService.win32SiblingExeBasename ||
+			productService.embedded?.darwinSiblingBundleIdentifier ||
+			productService.embedded?.win32SiblingExeBasename
 		);
 
 		if (hasSibling) {
