@@ -4,12 +4,10 @@
  *--------------------------------------------------------------------------------------------*/
 
 import './media/openInAgents.css';
-import { $, addDisposableListener, append, EventHelper, EventType } from '../../../base/browser/dom.js';
+import { $, append } from '../../../base/browser/dom.js';
 import { getDefaultHoverDelegate } from '../../../base/browser/ui/hover/hoverDelegateFactory.js';
-import { StandardKeyboardEvent } from '../../../base/browser/keyboardEvent.js';
 import { BaseActionViewItem, IBaseActionViewItemOptions } from '../../../base/browser/ui/actionbar/actionViewItems.js';
 import { IAction } from '../../../base/common/actions.js';
-import { KeyCode } from '../../../base/common/keyCodes.js';
 import { Disposable } from '../../../base/common/lifecycle.js';
 import { localize, localize2 } from '../../../nls.js';
 import { Action2, MenuId, registerAction2 } from '../../../platform/actions/common/actions.js';
@@ -155,16 +153,6 @@ class OpenInAgentsTitleBarWidget extends BaseActionViewItem {
 
 		const labelEl = append(container, $('span.open-in-agents-titlebar-widget-label'));
 		labelEl.textContent = label;
-
-		// BaseActionViewItem only wires mouse / touch — add Enter / Space activation
-		// so the widget is usable via keyboard.
-		this._register(addDisposableListener(container, EventType.KEY_DOWN, e => {
-			const event = new StandardKeyboardEvent(e);
-			if (event.equals(KeyCode.Enter) || event.equals(KeyCode.Space)) {
-				EventHelper.stop(event, true);
-				this.onClick(e);
-			}
-		}));
 	}
 }
 
