@@ -43,6 +43,9 @@ const OpenInAgentsVisibility = ContextKeyExpr.and(
 	ContextKeyExpr.equals(`config.${OpenInAgentsEnabledSetting}`, true),
 	IsSessionsWindowContext.toNegated(),
 	IsAuxiliaryWindowContext.toNegated(),
+	// Hide when AI features are disabled (e.g. `chat.disableAIFeatures`).
+	// Raw key from ChatEntitlementContextKeys.Setup.disabledInWorkspace.
+	ContextKeyExpr.equals('chatSetupDisabledInWorkspace', false),
 );
 
 /**
@@ -144,7 +147,7 @@ class OpenInAgentsTitleBarWidget extends BaseActionViewItem {
 		container.setAttribute('role', 'button');
 		container.setAttribute('data-product-quality', this.productService.quality ?? 'stable');
 
-		const label = this.action.label || localize('openInAgents', 'Open in Agents');
+		const label = this.action.label || localize('openInAgentsLabel', "Open in Agents");
 		container.setAttribute('aria-label', label);
 		this._register(this.hoverService.setupManagedHover(getDefaultHoverDelegate('element'), container, label));
 
