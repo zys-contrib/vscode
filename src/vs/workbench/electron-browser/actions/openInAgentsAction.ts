@@ -43,9 +43,8 @@ const OpenInAgentsVisibility = ContextKeyExpr.and(
 	ContextKeyExpr.equals(`config.${OpenInAgentsEnabledSetting}`, true),
 	IsSessionsWindowContext.toNegated(),
 	IsAuxiliaryWindowContext.toNegated(),
-	// Hide when AI features are disabled (e.g. `chat.disableAIFeatures`).
-	// Raw key from ChatEntitlementContextKeys.Setup.disabledInWorkspace.
-	ContextKeyExpr.equals('chatSetupDisabledInWorkspace', false),
+	// Hide when AI features are disabled.
+	ContextKeyExpr.notEquals('config.chat.disableAIFeatures', true),
 );
 
 /**
