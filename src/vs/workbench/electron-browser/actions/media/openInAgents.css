@@ -54,8 +54,7 @@
 	opacity: 0;
 	margin-left: 0;
 	color: var(--vscode-foreground);
-	font-size: 12px;
-	line-height: 22px;
+	font: inherit;
 	overflow: hidden;
 	white-space: nowrap;
 	transition: max-width 150ms ease, opacity 150ms ease, margin-left 150ms ease;
