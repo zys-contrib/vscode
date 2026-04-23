@@ -720,7 +720,8 @@ export class BrowserTitlebarPart extends Part implements ITitlebarPart {
 			if (this.globalToolbarMenu) {
 				fillInActionBarActions(
 					this.globalToolbarMenu.getActions(),
-					actions
+					actions,
+					actionGroup => actionGroup !== '0_leading' // already rendered before layout controls
 				);
 			}
 

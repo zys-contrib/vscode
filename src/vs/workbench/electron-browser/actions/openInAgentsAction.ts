@@ -4,16 +4,17 @@
  *--------------------------------------------------------------------------------------------*/
 
 import './media/openInAgents.css';
-import { $, append } from '../../../base/browser/dom.js';
+import { $, addDisposableListener, append, EventHelper, EventType } from '../../../base/browser/dom.js';
+import { StandardKeyboardEvent } from '../../../base/browser/keyboardEvent.js';
 import { BaseActionViewItem, IBaseActionViewItemOptions } from '../../../base/browser/ui/actionbar/actionViewItems.js';
 import { IAction } from '../../../base/common/actions.js';
+import { KeyCode } from '../../../base/common/keyCodes.js';
 import { Disposable } from '../../../base/common/lifecycle.js';
 import { localize, localize2 } from '../../../nls.js';
 import { Action2, MenuId, registerAction2 } from '../../../platform/actions/common/actions.js';
 import { IActionViewItemService } from '../../../platform/actions/browser/actionViewItemService.js';
 import { IConfigurationRegistry, Extensions as ConfigurationExtensions } from '../../../platform/configuration/common/configurationRegistry.js';
 import { ContextKeyExpr } from '../../../platform/contextkey/common/contextkey.js';
-import { IsMacContext, IsWindowsContext } from '../../../platform/contextkey/common/contextkeys.js';
 import { IInstantiationService, ServicesAccessor } from '../../../platform/instantiation/common/instantiation.js';
 import { INativeHostService } from '../../../platform/native/common/native.js';
 import { IProductService } from '../../../platform/product/common/productService.js';
@@ -32,14 +33,15 @@ const OpenInAgentsVisibility = ContextKeyExpr.and(
 	ContextKeyExpr.equals(`config.${OpenInAgentsEnabledSetting}`, true),
 	IsSessionsWindowContext.toNegated(),
 	IsAuxiliaryWindowContext.toNegated(),
-	ContextKeyExpr.or(IsMacContext, IsWindowsContext),
 );
 
 /**
- * Action that launches the sibling Agents app via
- * {@link INativeHostService.launchSiblingApp} with `--agents` and the current
- * workspace folder/file. Mirrors the "Open in VS Code" action that lives in
- * the Agents window's title bar.
+ * Action that opens the Agents application for the current workspace.
+ *
+ * In built builds where a sibling Agents app is registered (`darwinSiblingBundleIdentifier`
+ * / `win32SiblingExeBasename`), launches it via {@link INativeHostService.launchSiblingApp}
+ * with `--agents` and the current workspace folder/file. Otherwise falls back to opening
+ * a new in-process Agents window via {@link INativeHostService.openAgentsWindow}.
  */
 class OpenInAgentsAction extends Action2 {
 
@@ -109,9 +111,8 @@ class OpenInAgentsAction extends Action2 {
 }
 
 /**
- * Renders the "Open in Agents" titlebar entry as the product-icon-only button
- * that expands to reveal a label on hover/focus. The icon is tinted via CSS
- * to match the host product quality (stable, insider, exploration).
+ * Renders the "Open in Agents" titlebar entry as an icon-only button that
+ * expands to reveal a label on hover / keyboard focus.
  */
 class OpenInAgentsTitleBarWidget extends BaseActionViewItem {
 
@@ -128,10 +129,7 @@ class OpenInAgentsTitleBarWidget extends BaseActionViewItem {
 
 		container.classList.add('open-in-agents-titlebar-widget');
 		container.setAttribute('role', 'button');
-		container.tabIndex = 0;
-
-		const quality = this.productService.quality ?? 'stable';
-		container.setAttribute('data-product-quality', quality);
+		container.setAttribute('data-product-quality', this.productService.quality ?? 'stable');
 
 		const label = this.action.label || localize('openInAgents', 'Open in Agents');
 		container.setAttribute('aria-label', label);
@@ -142,6 +140,16 @@ class OpenInAgentsTitleBarWidget extends BaseActionViewItem {
 
 		const labelEl = append(container, $('span.open-in-agents-titlebar-widget-label'));
 		labelEl.textContent = label;
+
+		// BaseActionViewItem only wires mouse / touch — add Enter / Space activation
+		// so the widget is usable via keyboard.
+		this._register(addDisposableListener(container, EventType.KEY_DOWN, e => {
+			const event = new StandardKeyboardEvent(e);
+			if (event.equals(KeyCode.Enter) || event.equals(KeyCode.Space)) {
+				EventHelper.stop(event, true);
+				this.onClick(e);
+			}
+		}));
 	}
 }
 
