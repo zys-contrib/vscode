@@ -9,7 +9,7 @@ import { SyncDescriptor } from '../../../../platform/instantiation/common/descri
 import { Registry } from '../../../../platform/registry/common/platform.js';
 import { registerIcon } from '../../../../platform/theme/common/iconRegistry.js';
 import { registerWorkbenchContribution2, WorkbenchPhase } from '../../../../workbench/common/contributions.js';
-import { IViewContainersRegistry, ViewContainerLocation, IViewsRegistry, Extensions as ViewContainerExtensions, WindowVisibility } from '../../../../workbench/common/views.js';
+import { IViewContainersRegistry, ViewContainerLocation, IViewsRegistry, Extensions as ViewContainerExtensions, WindowEnablement } from '../../../../workbench/common/views.js';
 import { CHANGES_VIEW_CONTAINER_ID, CHANGES_VIEW_ID } from '../common/changes.js';
 import { ChangesViewPane, ChangesViewPaneContainer } from './changesView.js';
 import { ChangesTitleBarContribution } from './changesTitleBarWidget.js';
@@ -24,27 +24,14 @@ const viewContainersRegistry = Registry.as<IViewContainersRegistry>(ViewContaine
 const changesViewContainer = viewContainersRegistry.registerViewContainer({
 	id: CHANGES_VIEW_CONTAINER_ID,
 	title: localize2('changes', 'Changes'),
-	ctorDescriptor: new SyncDescriptor(ChangesViewPaneContainer),
 	icon: changesViewIcon,
 	order: 10,
-	hideIfEmpty: true,
-	windowVisibility: WindowVisibility.Sessions
-}, ViewContainerLocation.AuxiliaryBar, { doNotRegisterOpenCommand: true });
-
-const viewsRegistry = Registry.as<IViewsRegistry>(ViewContainerExtensions.ViewsRegistry);
-
-viewsRegistry.registerViews([{
-	id: CHANGES_VIEW_ID,
-	name: localize2('changes', 'Changes'),
-	containerIcon: changesViewIcon,
-	ctorDescriptor: new SyncDescriptor(ChangesViewPane),
-	canToggleVisibility: true,
-	canMoveView: true,
-	weight: 100,
-	order: 1,
+	ctorDescriptor: new SyncDescriptor(ChangesViewPaneContainer, [CHANGES_VIEW_CONTAINER_ID, { mergeViewWithContainerWhenSingleView: true }]),
+	storageId: CHANGES_VIEW_CONTAINER_ID,
+	hideIfEmpty: false,
 	openCommandActionDescriptor: {
 		id: CHANGES_VIEW_CONTAINER_ID,
-		mnemonicTitle: localize({ key: 'miChanges', comment: ['&& denotes a mnemonic'] }, "&&Changes"),
+		mnemonicTitle: localize({ key: 'miChanges', comment: ['&& denotes a mnemonic'] }, "Chan&&ges"),
 		keybindings: {
 			primary: 0,
 			win: { primary: KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KeyG },
@@ -53,7 +40,21 @@ viewsRegistry.registerViews([{
 		},
 		order: 1,
 	},
-	windowVisibility: WindowVisibility.Sessions,
+	windowEnablement: WindowEnablement.Sessions
+}, ViewContainerLocation.AuxiliaryBar);
+
+const viewsRegistry = Registry.as<IViewsRegistry>(ViewContainerExtensions.ViewsRegistry);
+
+viewsRegistry.registerViews([{
+	id: CHANGES_VIEW_ID,
+	name: localize2('changes', 'Changes'),
+	containerIcon: changesViewIcon,
+	ctorDescriptor: new SyncDescriptor(ChangesViewPane),
+	canToggleVisibility: false,
+	canMoveView: false,
+	weight: 100,
+	order: 1,
+	windowEnablement: WindowEnablement.Sessions,
 }], changesViewContainer);
 
 registerWorkbenchContribution2(ChangesTitleBarContribution.ID, ChangesTitleBarContribution, WorkbenchPhase.AfterRestored);
