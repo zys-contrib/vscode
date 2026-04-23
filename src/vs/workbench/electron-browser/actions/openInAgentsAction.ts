@@ -89,7 +89,7 @@ class OpenInAgentsAction extends Action2 {
 		const workspaceContextService = accessor.get(IWorkspaceContextService);
 		const telemetryService = accessor.get(ITelemetryService);
 
-		const args: string[] = ['--agents', '--new-window'];
+		const args: string[] = ['--new-window'];
 
 		const workspace = workspaceContextService.getWorkspace();
 		switch (workspaceContextService.getWorkbenchState()) {
