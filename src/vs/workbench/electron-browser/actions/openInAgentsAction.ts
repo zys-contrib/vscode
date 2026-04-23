@@ -5,6 +5,7 @@
 
 import './media/openInAgents.css';
 import { $, addDisposableListener, append, EventHelper, EventType } from '../../../base/browser/dom.js';
+import { getDefaultHoverDelegate } from '../../../base/browser/ui/hover/hoverDelegateFactory.js';
 import { StandardKeyboardEvent } from '../../../base/browser/keyboardEvent.js';
 import { BaseActionViewItem, IBaseActionViewItemOptions } from '../../../base/browser/ui/actionbar/actionViewItems.js';
 import { IAction } from '../../../base/common/actions.js';
@@ -15,6 +16,7 @@ import { Action2, MenuId, registerAction2 } from '../../../platform/actions/comm
 import { IActionViewItemService } from '../../../platform/actions/browser/actionViewItemService.js';
 import { IConfigurationRegistry, Extensions as ConfigurationExtensions } from '../../../platform/configuration/common/configurationRegistry.js';
 import { ContextKeyExpr } from '../../../platform/contextkey/common/contextkey.js';
+import { IHoverService } from '../../../platform/hover/browser/hover.js';
 import { IInstantiationService, ServicesAccessor } from '../../../platform/instantiation/common/instantiation.js';
 import { INativeHostService } from '../../../platform/native/common/native.js';
 import { IProductService } from '../../../platform/product/common/productService.js';
@@ -134,6 +136,7 @@ class OpenInAgentsTitleBarWidget extends BaseActionViewItem {
 		action: IAction,
 		options: IBaseActionViewItemOptions | undefined,
 		@IProductService private readonly productService: IProductService,
+		@IHoverService private readonly hoverService: IHoverService,
 	) {
 		super(undefined, action, options);
 	}
@@ -147,7 +150,7 @@ class OpenInAgentsTitleBarWidget extends BaseActionViewItem {
 
 		const label = this.action.label || localize('openInAgents', 'Open in Agents');
 		container.setAttribute('aria-label', label);
-		container.title = label;
+		this._register(this.hoverService.setupManagedHover(getDefaultHoverDelegate('element'), container, label));
 
 		const icon = append(container, $('span.open-in-agents-titlebar-widget-icon'));
 		icon.setAttribute('aria-hidden', 'true');
@@ -169,7 +172,7 @@ class OpenInAgentsTitleBarWidget extends BaseActionViewItem {
 
 class OpenInAgentsContribution extends Disposable implements IWorkbenchContribution {
 
-	static readonly ID = 'workbench.contrib.openInAgents';
+	static readonly ID = 'workbench.contrib.openInAgents.desktop';
 
 	constructor(
 		@IActionViewItemService actionViewItemService: IActionViewItemService,
