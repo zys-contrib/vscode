@@ -201,7 +201,7 @@ export class AsyncSchedulerProcessor extends Disposable {
 		}
 	}
 
-	waitFor(virtualTimeMs: number): Promise<void> {
+	runForVirtualTimeMs(virtualTimeMs: number): Promise<void> {
 		this._virtualDeadline = this.scheduler.now + virtualTimeMs;
 		return this.waitForEmptyQueue().finally(() => {
 			this._virtualDeadline = Number.MAX_SAFE_INTEGER;

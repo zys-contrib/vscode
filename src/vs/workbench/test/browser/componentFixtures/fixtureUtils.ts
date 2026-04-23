@@ -671,8 +671,8 @@ export function defineComponentFixture(options: ComponentFixtureOptions): Themed
 		isolation: 'none',
 		displayMode: { type: 'component' },
 		background: theme === darkTheme ? 'dark' : 'light',
-		render: async (container: HTMLElement) => {
-			const disposableStore = new DisposableStore();
+		render: async (container: HTMLElement, context) => {
+			const disposableStore = context.addDisposable(new DisposableStore());
 
 			const schedulerStore = disposableStore.add(new DisposableStore());
 			const scheduler = new TimeTravelScheduler(Date.now());
@@ -706,7 +706,7 @@ export function defineComponentFixture(options: ComponentFixtureOptions): Themed
 
 				const result = options.render({ container, disposableStore, theme });
 
-				const p2 = p.waitFor(1000);
+				const p2 = p.runForVirtualTimeMs(1000);
 
 				await Promise.all([
 					result instanceof Promise ? result : Promise.resolve(),
@@ -715,10 +715,6 @@ export function defineComponentFixture(options: ComponentFixtureOptions): Themed
 			}
 
 			await actualRender();
-
-			schedulerStore.dispose();
-
-			return disposableStore;
 		},
 	});
 
