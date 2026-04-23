@@ -84,7 +84,7 @@ registerAction2(class ToggleRemoteConnectionsAction extends Action2 {
 					ChatContextKeys.enabled,
 					ChatContextKeys.location.isEqualTo(ChatAgentLocation.Chat),
 					ChatContextKeys.inQuickChat.negate(),
-					ChatContextKeys.lockedCodingAgentId.isEqualTo(AgentSessionProviders.AgentHostCopilot),
+					ContextKeyExpr.regex(ChatContextKeys.lockedCodingAgentId.key, /^agent-host-/),
 				)
 			}
 		});
