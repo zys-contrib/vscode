@@ -73,12 +73,6 @@
 		]
 	},
 	{
-		"name": "intent [inline] - add comment",
-		"requests": [
-			"e606a08966f44ccaed93c83498ed006af30be49a3b051d560ff0431c484e72b4"
-		]
-	},
-	{
 		"name": "intent [inline] - add comment, describe function",
 		"requests": [
 			"d9b83cebf608c0f9c45c60fd9aa6d83dc95de978d170769e46fbf95d9b801c6a"
@@ -1168,12 +1162,6 @@
 		"name": "intent [inline] - write documentation",
 		"requests": [
 			"e636c79cee9f53865276c76607f4c287a67f2a1671c115f5666bff2505ab744c"
-		]
-	},
-	{
-		"name": "intent [inline] - write jsdoc",
-		"requests": [
-			"415ffb5f0940f287dfcd2e324ea16238d7f3552b12c736f2609c31e2ec55baec"
 		]
 	},
 	{
