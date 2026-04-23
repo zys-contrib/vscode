@@ -60,7 +60,7 @@ class OpenInAgentsAction extends Action2 {
 	constructor() {
 		super({
 			id: OpenInAgentsActionId,
-			title: localize2('openInAgents', 'Open in Agents'),
+			title: localize2('openInAgents', "Open in Agents"),
 			f1: true,
 			precondition: OpenInAgentsVisibility,
 			menu: [{
