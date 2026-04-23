@@ -145,9 +145,7 @@ class GithubTextSearchResults extends PromptElement<GithubTextSearchResultsProps
 				const displayPath = githubInfo?.path ?? chunk.chunk.file.toString();
 				const nwoLabel = githubInfo?.nwo;
 
-				const lineInfo = chunk.chunk.range.startLineNumber > 0
-					? ` starting at line ${chunk.chunk.range.startLineNumber}`
-					: '';
+				const lineInfo = ` starting at line ${chunk.chunk.range.startLineNumber}`;
 
 				const headerText = nwoLabel
 					? `Text match excerpt from \`${nwoLabel}\` in \`${displayPath}\`${lineInfo}:`
@@ -155,7 +153,7 @@ class GithubTextSearchResults extends PromptElement<GithubTextSearchResultsProps
 
 				return <TextChunk>
 					{headerText}<br />
-					{createFencedCodeBlock(getLanguageId(chunk.chunk.file), chunk.chunk.text, undefined, displayPath)}<br /><br />
+					{createFencedCodeBlock(getLanguageId(chunk.chunk.file), chunk.chunk.text)}<br /><br />
 				</TextChunk>;
 			});
 
