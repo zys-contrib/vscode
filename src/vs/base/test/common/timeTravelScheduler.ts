@@ -155,7 +155,12 @@ export class AsyncSchedulerProcessor extends Disposable {
 	}
 
 	private _process() {
-		const executedTask = this.scheduler.runNext();
+		let executedTask: ScheduledTask | undefined;
+		try {
+			executedTask = this.scheduler.runNext();
+		} catch (e) {
+			console.error(`[TimeTravelScheduler] Task threw:`, e);
+		}
 		if (executedTask) {
 			this._history.push(executedTask);
 
