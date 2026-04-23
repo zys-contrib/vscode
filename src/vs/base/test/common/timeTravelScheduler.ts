@@ -260,7 +260,7 @@ export const originalGlobalValues: TimeApi = captureGlobalTimeApi();
 // Expose the real setTimeout for the component explorer runtime, which needs true time
 // even when virtual time is installed for fixtures.
 // eslint-disable-next-line local/code-no-any-casts
-(window as any).setTimeout_original = originalGlobalValues.setTimeout;
+(originalGlobalValues.setTimeout as any).originalFn = originalGlobalValues.setTimeout;
 
 export interface CreateVirtualTimeApiOptions {
 	fakeRequestAnimationFrame?: boolean;
