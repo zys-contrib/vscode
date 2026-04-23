@@ -1,0 +1,86 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+import './media/openInVSCode.css';
+import { $, append, EventHelper, EventLike } from '../../../../base/browser/dom.js';
+import { getDefaultHoverDelegate } from '../../../../base/browser/ui/hover/hoverDelegateFactory.js';
+import { BaseActionViewItem, IBaseActionViewItemOptions } from '../../../../base/browser/ui/actionbar/actionViewItems.js';
+import { IAction } from '../../../../base/common/actions.js';
+import { Disposable } from '../../../../base/common/lifecycle.js';
+import { localize } from '../../../../nls.js';
+import { IActionViewItemService } from '../../../../platform/actions/browser/actionViewItemService.js';
+import { ICommandService } from '../../../../platform/commands/common/commands.js';
+import { IHoverService } from '../../../../platform/hover/browser/hover.js';
+import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
+import { IProductService } from '../../../../platform/product/common/productService.js';
+import { IWorkbenchContribution, registerWorkbenchContribution2, WorkbenchPhase } from '../../../../workbench/common/contributions.js';
+import { Menus } from '../../../browser/menus.js';
+
+const OpenInVSCodeActionId = 'chat.openSessionWorktreeInVSCode';
+
+/**
+ * Renders the "Open in VS Code" titlebar entry as an icon-only button that
+ * expands to reveal a label on hover / keyboard focus.
+ */
+class OpenInVSCodeTitleBarWidget extends BaseActionViewItem {
+
+	constructor(
+		action: IAction,
+		options: IBaseActionViewItemOptions | undefined,
+		@IProductService private readonly productService: IProductService,
+		@IHoverService private readonly hoverService: IHoverService,
+		@ICommandService private readonly commandService: ICommandService,
+	) {
+		super(undefined, action, options);
+	}
+
+	override render(container: HTMLElement): void {
+		super.render(container);
+
+		container.classList.add('open-in-vscode-titlebar-widget');
+		container.setAttribute('role', 'button');
+
+		// Use the product quality for quality-tinted hover styling.
+		const quality = this.productService.quality ?? 'stable';
+		container.setAttribute('data-product-quality', quality);
+
+		const label = this.action.label || localize('openInVSCodeLabel', "Open in VS Code");
+		container.setAttribute('aria-label', label);
+		this._register(this.hoverService.setupManagedHover(getDefaultHoverDelegate('element'), container, label));
+
+		const icon = append(container, $('span.open-in-vscode-titlebar-widget-icon'));
+		icon.setAttribute('aria-hidden', 'true');
+
+		const labelEl = append(container, $('span.open-in-vscode-titlebar-widget-label'));
+		labelEl.textContent = label;
+	}
+
+	override onClick(event: EventLike): void {
+		EventHelper.stop(event, true);
+		this.commandService.executeCommand(OpenInVSCodeActionId);
+	}
+}
+
+/**
+ * Workbench contribution that registers the custom action view item for
+ * the "Open in VS Code" action in the sessions titlebar toolbar, replacing
+ * the default icon-only codicon with a rich expandable widget.
+ */
+class OpenInVSCodeWidgetContribution extends Disposable implements IWorkbenchContribution {
+
+	static readonly ID = 'workbench.contrib.openInVSCode.widget';
+
+	constructor(
+		@IActionViewItemService actionViewItemService: IActionViewItemService,
+		@IInstantiationService instantiationService: IInstantiationService,
+	) {
+		super();
+		this._register(actionViewItemService.register(Menus.TitleBarSessionMenu, OpenInVSCodeActionId, (action, options) => {
+			return instantiationService.createInstance(OpenInVSCodeTitleBarWidget, action, options);
+		}, undefined));
+	}
+}
+
+registerWorkbenchContribution2(OpenInVSCodeWidgetContribution.ID, OpenInVSCodeWidgetContribution, WorkbenchPhase.BlockRestore);
