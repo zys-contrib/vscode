@@ -637,6 +637,11 @@ export interface ISessionsList {
 	readonly onDidChangeFindOpenState: Event<boolean>;
 	refresh(): void;
 	reveal(sessionResource: URI): boolean;
+	/**
+	 * Returns the sessions currently visible in the list, in display order.
+	 * Sessions hidden by workspace group capping ("show more") are excluded.
+	 */
+	getVisibleSessions(): readonly ISession[];
 	clearFocus(): void;
 	hasFocusOrSelection(): boolean;
 	setVisible(visible: boolean): void;
@@ -952,6 +957,36 @@ export class SessionsList extends Disposable implements ISessionsList {
 
 		this.tree.setChildren(null, children);
 		this._onDidUpdate.fire();
+	}
+
+	getVisibleSessions(): readonly ISession[] {
+		// Derive the visible session list from the tree model so that index-based
+		// navigation matches what the user actually sees: this respects collapsed
+		// sections, find-widget filtering, and excludes section / show-more nodes.
+		const sessions = new Set<ISession>(this.sessions);
+		const visibleSessions: ISession[] = [];
+
+		const collect = (node: ITreeNode<SessionListItem | null, FuzzyScore | undefined>): void => {
+			if (!node.visible) {
+				return;
+			}
+			if (node.element && sessions.has(node.element as ISession)) {
+				visibleSessions.push(node.element as ISession);
+			}
+			if (node.collapsed) {
+				return;
+			}
+			for (const child of node.children) {
+				collect(child);
+			}
+		};
+
+		const root = this.tree.getNode();
+		for (const child of root.children) {
+			collect(child);
+		}
+
+		return visibleSessions;
 	}
 
 	reveal(sessionResource: URI): boolean {
