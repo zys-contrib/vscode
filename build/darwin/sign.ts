@@ -25,7 +25,7 @@ function hasProvisioningProfile(): boolean {
 	return fs.existsSync(mainProvisioningProfilePath);
 }
 
-function getEntitlementsForFile(filePath: string, tempDir: string, teamId?: string): string {
+function getEntitlementsForFile(filePath: string, tempDir: string, useProvisioningProfile: boolean, teamId?: string): string {
 	if (filePath.includes(' Helper (GPU).app')) {
 		return path.join(baseDir, 'azure-pipelines', 'darwin', 'helper-gpu-entitlements.plist');
 	} else if (filePath.includes(' Helper (Renderer).app')) {
@@ -34,7 +34,7 @@ function getEntitlementsForFile(filePath: string, tempDir: string, teamId?: stri
 		return path.join(baseDir, 'azure-pipelines', 'darwin', 'helper-plugin-entitlements.plist');
 	}
 	const entitlementsPath = path.join(baseDir, 'azure-pipelines', 'darwin', 'app-entitlements.plist');
-	if (!hasProvisioningProfile()) {
+	if (!useProvisioningProfile) {
 		// Without a provisioning profile, keychain-access-groups entitlement
 		// will cause signing failures. Strip it from the entitlements plist.
 		return getStrippedEntitlements(entitlementsPath, tempDir);
@@ -109,7 +109,7 @@ async function retrySignOnKeychainError<T>(fn: () => Promise<T>, maxRetries: num
 	throw lastError;
 }
 
-async function main(buildDir?: string): Promise<void> {
+async function main(buildDir?: string, skipProvisioningProfile?: boolean): Promise<void> {
 	const tempDir = process.env['AGENT_TEMPDIRECTORY'];
 	const arch = process.env['VSCODE_ARCH'];
 	const identity = process.env['CODESIGN_IDENTITY'];
@@ -129,7 +129,8 @@ async function main(buildDir?: string): Promise<void> {
 		? path.resolve(appRoot, appName, 'Contents', 'Applications', `${product.embedded.nameLong}.app`, 'Contents', 'Info.plist')
 		: undefined;
 
-	const resolvedProvisioningProfile = hasProvisioningProfile() ? mainProvisioningProfilePath : undefined;
+	const useProvisioningProfile = !skipProvisioningProfile && hasProvisioningProfile();
+	const resolvedProvisioningProfile = useProvisioningProfile ? mainProvisioningProfilePath : undefined;
 
 	let teamId: string | undefined;
 	if (resolvedProvisioningProfile) {
@@ -145,7 +146,7 @@ async function main(buildDir?: string): Promise<void> {
 
 	// Embed the agents provisioning profile into the embedded app bundle
 	// before signing, since @electron/osx-sign only supports one top-level profile.
-	if (product.embedded && fs.existsSync(agentsProvisioningProfilePath)) {
+	if (useProvisioningProfile && product.embedded && fs.existsSync(agentsProvisioningProfilePath)) {
 		const embeddedAppPath = path.join(appRoot, appName, 'Contents', 'Applications', `${product.embedded.nameLong}.app`);
 		if (fs.existsSync(embeddedAppPath)) {
 			const embeddedProfileDest = path.join(embeddedAppPath, 'Contents', 'embedded.provisionprofile');
@@ -158,7 +159,7 @@ async function main(buildDir?: string): Promise<void> {
 		app: path.join(appRoot, appName),
 		platform: 'darwin',
 		optionsForFile: (filePath) => ({
-			entitlements: getEntitlementsForFile(filePath, tempDir, teamId),
+			entitlements: getEntitlementsForFile(filePath, tempDir, useProvisioningProfile, teamId),
 			hardenedRuntime: true,
 		}),
 		preAutoEntitlements: false,
@@ -257,7 +258,10 @@ async function main(buildDir?: string): Promise<void> {
 }
 
 if (import.meta.main) {
-	main(process.argv[2]).catch(async err => {
+	const args = process.argv.slice(2);
+	const skipProvisioningProfile = args.includes('--skip-provisioning-profile');
+	const buildDir = args.filter(a => !a.startsWith('--'))[0];
+	main(buildDir, skipProvisioningProfile).catch(async err => {
 		console.error(err);
 		const tempDir = process.env['AGENT_TEMPDIRECTORY'];
 		if (tempDir) {
