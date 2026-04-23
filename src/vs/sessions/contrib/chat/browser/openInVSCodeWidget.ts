@@ -42,9 +42,12 @@ class OpenInVSCodeTitleBarWidget extends BaseActionViewItem {
 		container.classList.add('open-in-vscode-titlebar-widget');
 		container.setAttribute('role', 'button');
 
-		// Use the product quality for quality-tinted hover styling.
-		const quality = this.productService.quality ?? 'stable';
-		container.setAttribute('data-product-quality', quality);
+		// Set quality attribute for quality-tinted hover styling and distro icon selection.
+		// Only set when quality is known so that the CSS fallback icon is used in dev builds.
+		const quality = this.productService.quality;
+		if (quality) {
+			container.setAttribute('data-product-quality', quality);
+		}
 
 		const label = this.action.label || localize('openInVSCodeLabel', "Open in VS Code");
 		container.setAttribute('aria-label', label);

@@ -23,8 +23,10 @@
 	width: 16px;
 	height: 16px;
 	flex: 0 0 auto;
-	/* Full-color VS Code logo. Uses filter: grayscale(1) at rest and
-	 * filter: none on hover/focus to transition from monochrome to color. */
+	/* Dev fallback: the VS Code shield logo bundled in the sessions media folder.
+	 * In production builds the distro mixin overwrites
+	 * vs/workbench/browser/media/code-icon.svg with the quality-branded icon;
+	 * the per-quality rules below then take precedence. */
 	background-image: url('./vscode-icon.svg');
 	background-repeat: no-repeat;
 	background-position: center center;
@@ -32,6 +34,15 @@
 	/* Desaturated at rest; full color on hover/focus. */
 	filter: grayscale(1) opacity(0.75);
 	transition: filter 150ms ease;
+}
+
+/* In production builds vscode-distro overlays vs/workbench/browser/media/code-icon.svg
+ * with the quality-specific branded VS Code icon. Use it whenever the product quality is
+ * known (the data-product-quality attribute is only set in non-dev builds). */
+.monaco-workbench .open-in-vscode-titlebar-widget[data-product-quality="stable"] > .open-in-vscode-titlebar-widget-icon,
+.monaco-workbench .open-in-vscode-titlebar-widget[data-product-quality="insider"] > .open-in-vscode-titlebar-widget-icon,
+.monaco-workbench .open-in-vscode-titlebar-widget[data-product-quality="exploration"] > .open-in-vscode-titlebar-widget-icon {
+	background-image: url('../../../../../workbench/browser/media/code-icon.svg');
 }
 
 .monaco-workbench .open-in-vscode-titlebar-widget:hover > .open-in-vscode-titlebar-widget-icon,
