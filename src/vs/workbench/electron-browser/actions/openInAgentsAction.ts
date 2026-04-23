@@ -106,8 +106,6 @@ class OpenInAgentsAction extends Action2 {
 		}
 
 		const hasSibling = !!(
-			productService.embedded?.darwinSiblingBundleIdentifier ||
-			productService.embedded?.win32SiblingExeBasename ||
 			productService.darwinSiblingBundleIdentifier ||
 			productService.win32SiblingExeBasename
 		);
