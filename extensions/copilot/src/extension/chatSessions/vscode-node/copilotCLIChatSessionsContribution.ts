@@ -1454,7 +1454,9 @@ export class CopilotCLIChatSessionParticipant extends Disposable {
 			// If user has selected a repo, then update with repo information (right icons, etc).
 			if (isUntitled) {
 				void this.lockRepoOptionForSession(context, token);
-				this.customSessionTitleService.generateSessionTitle(session.object.sessionId, request, token).catch(ex => this.logService.error(ex, 'Failed to generate custom session title'));
+				this.customSessionTitleService.generateSessionTitle(session.object.sessionId, request, token)
+					.then(title => title ? this.sessionService.updateSessionSummary(session.object.sessionId, title) : undefined)
+					.catch(ex => this.logService.error(ex, 'Failed to generate custom session title'));
 			}
 			const requestsForSession = this.pendingRequestBySession.get(session.object.sessionId) ?? new Set<vscode.ChatRequest>();
 			requestsForSession.add(request);
