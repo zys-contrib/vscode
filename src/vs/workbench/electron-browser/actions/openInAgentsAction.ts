@@ -48,11 +48,12 @@ const OpenInAgentsVisibility = ContextKeyExpr.and(
 	ContextKeyExpr.equals(`config.${OpenInAgentsEnabledSetting}`, true),
 	IsSessionsWindowContext.toNegated(),
 	IsAuxiliaryWindowContext.toNegated(),
-	// Hide when chat sentiment indicates AI features should not be shown
-	// (mirrors the gating used by the Copilot status bar entry).
+	// Hide whenever the user has signaled (or policy/workspace trust dictates)
+	// that AI features should not be shown in this window/workspace.
 	ChatEntitlementContextKeys.Setup.hidden.negate(),
 	ChatEntitlementContextKeys.Setup.disabled.negate(),
 	ChatEntitlementContextKeys.Setup.disabledInWorkspace.negate(),
+	ChatEntitlementContextKeys.Setup.untrusted.negate(),
 	// Hide in stable builds for now (insider, exploration and OSS dev are allowed).
 	ContextKeyExpr.notEquals(OpenInAgentsProductQualityContext.key, 'stable'),
 );
