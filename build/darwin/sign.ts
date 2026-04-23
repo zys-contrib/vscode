@@ -172,7 +172,8 @@ async function main(buildDir?: string, skipProvisioningProfile?: boolean): Promi
 
 	// Only overwrite plist entries for x64 and arm64 builds,
 	// universal will get its copy from the x64 build.
-	if (arch !== 'universal') {
+	// Skip when re-signing (skipProvisioningProfile) since entries already exist.
+	if (arch !== 'universal' && !skipProvisioningProfile) {
 		await spawn('plutil', [
 			'-insert',
 			'NSAppleEventsUsageDescription',
