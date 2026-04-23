@@ -30,8 +30,8 @@ import { IWorkbenchEnvironmentService } from '../../services/environment/common/
 const OpenInAgentsActionId = 'workbench.action.openInAgents';
 const OpenInAgentsEnabledSetting = 'workbench.openInAgents.enabled';
 
-// Context key tracking the current product quality so we can restrict the
-// "Open in Agents" entry to insider/exploration builds for now.
+// Context key tracking the current product quality so we can hide the
+// "Open in Agents" entry in stable builds for now.
 const OpenInAgentsProductQualityContext = new RawContextKey<string>('openInAgentsProductQuality', '');
 
 type OpenInAgentsMode = 'siblingApp' | 'newWindow';
