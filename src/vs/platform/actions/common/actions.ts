@@ -88,6 +88,7 @@ export class MenuId {
 	static readonly EditorContextPeek = new MenuId('EditorContextPeek');
 	static readonly EditorContextShare = new MenuId('EditorContextShare');
 	static readonly EditorTitle = new MenuId('EditorTitle');
+	static readonly EditorTitleLayout = new MenuId('EditorTitleLayout');
 	static readonly ModalEditorTitle = new MenuId('ModalEditorTitle');
 	static readonly ModalEditorEditorTitle = new MenuId('ModalEditorEditorTitle');
 	static readonly CompactWindowEditorTitle = new MenuId('CompactWindowEditorTitle');
@@ -100,6 +101,7 @@ export class MenuId {
 	static readonly EditorTabsBarShowTabsSubmenu = new MenuId('EditorTabsBarShowTabsSubmenu');
 	static readonly EditorTabsBarShowTabsZenModeSubmenu = new MenuId('EditorTabsBarShowTabsZenModeSubmenu');
 	static readonly EditorActionsPositionSubmenu = new MenuId('EditorActionsPositionSubmenu');
+	static readonly EditorRenderWhitespaceSubmenu = new MenuId('EditorRenderWhitespaceSubmenu');
 	static readonly EditorSplitMoveSubmenu = new MenuId('EditorSplitMoveSubmenu');
 	static readonly ExplorerContext = new MenuId('ExplorerContext');
 	static readonly ExplorerContextShare = new MenuId('ExplorerContextShare');
@@ -293,7 +295,7 @@ export class MenuId {
 	static readonly ChatEditorInlineExecute = new MenuId('ChatEditorInputExecute');
 	static readonly ChatEditorInlineInputSide = new MenuId('ChatEditorInputSide');
 	static readonly InlineChatEditorAffordance = new MenuId('InlineChatEditorAffordance');
-	static readonly InlineChatInput = new MenuId('InlineChatInput');
+
 	static readonly AccessibleView = new MenuId('AccessibleView');
 	static readonly MultiDiffEditorContent = new MenuId('MultiDiffEditorContent');
 	static readonly MultiDiffEditorFileToolbar = new MenuId('MultiDiffEditorFileToolbar');
