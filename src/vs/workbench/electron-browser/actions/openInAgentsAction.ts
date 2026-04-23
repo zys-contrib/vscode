@@ -23,6 +23,7 @@ import { ToggleTitleBarConfigAction } from '../../browser/parts/titlebar/titleba
 import { IWorkbenchContribution, registerWorkbenchContribution2, WorkbenchPhase } from '../../common/contributions.js';
 import { IsAuxiliaryWindowContext, IsSessionsWindowContext } from '../../common/contextkeys.js';
 import { workbenchConfigurationNodeBase } from '../../common/configuration.js';
+import { IWorkbenchEnvironmentService } from '../../services/environment/common/environmentService.js';
 
 const OpenInAgentsActionId = 'workbench.action.openInAgents';
 const OpenInAgentsEnabledSetting = 'workbench.openInAgents.enabled';
@@ -70,17 +71,8 @@ class OpenInAgentsAction extends Action2 {
 	override async run(accessor: ServicesAccessor): Promise<void> {
 		const nativeHostService = accessor.get(INativeHostService);
 		const productService = accessor.get(IProductService);
+		const environmentService = accessor.get(IWorkbenchEnvironmentService);
 		const workspaceContextService = accessor.get(IWorkspaceContextService);
-
-		const hasSibling = !!(
-			productService.embedded?.darwinSiblingBundleIdentifier ||
-			productService.embedded?.win32SiblingExeBasename ||
-			productService.darwinSiblingBundleIdentifier ||
-			productService.win32SiblingExeBasename
-		);
-		if (!hasSibling) {
-			return;
-		}
 
 		const args: string[] = ['--agents', '--new-window'];
 
@@ -98,7 +90,21 @@ class OpenInAgentsAction extends Action2 {
 				break;
 		}
 
-		await nativeHostService.launchSiblingApp(args);
+		const hasSibling = !!(
+			productService.embedded?.darwinSiblingBundleIdentifier ||
+			productService.embedded?.win32SiblingExeBasename ||
+			productService.darwinSiblingBundleIdentifier ||
+			productService.win32SiblingExeBasename
+		);
+
+		// In built builds with a sibling Agents app available, launch it.
+		// Otherwise (dev / OSS / no sibling), open a new agents window of
+		// the current Electron app.
+		if (environmentService.isBuilt && hasSibling) {
+			await nativeHostService.launchSiblingApp(args);
+		} else {
+			await nativeHostService.openAgentsWindow({ forceNewWindow: true });
+		}
 	}
 }
 
