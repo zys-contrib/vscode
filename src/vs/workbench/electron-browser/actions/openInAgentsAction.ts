@@ -26,6 +26,7 @@ import { IWorkbenchContribution, registerWorkbenchContribution2, WorkbenchPhase 
 import { IsAuxiliaryWindowContext, IsSessionsWindowContext } from '../../common/contextkeys.js';
 import { workbenchConfigurationNodeBase } from '../../common/configuration.js';
 import { IWorkbenchEnvironmentService } from '../../services/environment/common/environmentService.js';
+import { ChatEntitlementContextKeys } from '../../services/chat/common/chatEntitlementService.js';
 
 const OpenInAgentsActionId = 'workbench.action.openInAgents';
 const OpenInAgentsEnabledSetting = 'workbench.openInAgents.enabled';
@@ -47,8 +48,11 @@ const OpenInAgentsVisibility = ContextKeyExpr.and(
 	ContextKeyExpr.equals(`config.${OpenInAgentsEnabledSetting}`, true),
 	IsSessionsWindowContext.toNegated(),
 	IsAuxiliaryWindowContext.toNegated(),
-	// Hide when AI features are disabled.
-	ContextKeyExpr.notEquals('config.chat.disableAIFeatures', true),
+	// Hide when chat sentiment indicates AI features should not be shown
+	// (mirrors the gating used by the Copilot status bar entry).
+	ChatEntitlementContextKeys.Setup.hidden.negate(),
+	ChatEntitlementContextKeys.Setup.disabled.negate(),
+	ChatEntitlementContextKeys.Setup.disabledInWorkspace.negate(),
 	// Hide in stable builds for now (insider, exploration and OSS dev are allowed).
 	ContextKeyExpr.notEquals(OpenInAgentsProductQualityContext.key, 'stable'),
 );
