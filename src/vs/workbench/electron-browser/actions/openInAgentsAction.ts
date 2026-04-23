@@ -184,7 +184,7 @@ class OpenInAgentsContribution extends Disposable implements IWorkbenchContribut
 }
 
 registerAction2(OpenInAgentsAction);
-registerWorkbenchContribution2(OpenInAgentsContribution.ID, OpenInAgentsContribution, WorkbenchPhase.AfterRestored);
+registerWorkbenchContribution2(OpenInAgentsContribution.ID, OpenInAgentsContribution, WorkbenchPhase.BlockRestore);
 
 // Toggle entry in titlebar context menu (right-click on titlebar)
 registerAction2(class ToggleOpenInAgents extends ToggleTitleBarConfigAction {
