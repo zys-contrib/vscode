@@ -19,6 +19,7 @@ import { IInstantiationService, ServicesAccessor } from '../../../platform/insta
 import { INativeHostService } from '../../../platform/native/common/native.js';
 import { IProductService } from '../../../platform/product/common/productService.js';
 import { Registry } from '../../../platform/registry/common/platform.js';
+import { ITelemetryService } from '../../../platform/telemetry/common/telemetry.js';
 import { IWorkspaceContextService, WorkbenchState } from '../../../platform/workspace/common/workspace.js';
 import { ToggleTitleBarConfigAction } from '../../browser/parts/titlebar/titlebarActions.js';
 import { IWorkbenchContribution, registerWorkbenchContribution2, WorkbenchPhase } from '../../common/contributions.js';
@@ -28,6 +29,15 @@ import { IWorkbenchEnvironmentService } from '../../services/environment/common/
 
 const OpenInAgentsActionId = 'workbench.action.openInAgents';
 const OpenInAgentsEnabledSetting = 'workbench.openInAgents.enabled';
+
+type OpenInAgentsMode = 'siblingApp' | 'newWindow';
+
+type OpenInAgentsEvent = { mode: OpenInAgentsMode };
+type OpenInAgentsClassification = {
+	owner: 'osortega';
+	comment: 'Tracks when the user opens the Agents application from the VS Code titlebar.';
+	mode: { classification: 'SystemMetaData'; purpose: 'FeatureInsight'; comment: 'How the Agents app was opened: siblingApp (launched separate Agents app) or newWindow (in-process agents window).' };
+};
 
 const OpenInAgentsVisibility = ContextKeyExpr.and(
 	ContextKeyExpr.equals(`config.${OpenInAgentsEnabledSetting}`, true),
@@ -75,6 +85,7 @@ class OpenInAgentsAction extends Action2 {
 		const productService = accessor.get(IProductService);
 		const environmentService = accessor.get(IWorkbenchEnvironmentService);
 		const workspaceContextService = accessor.get(IWorkspaceContextService);
+		const telemetryService = accessor.get(ITelemetryService);
 
 		const args: string[] = ['--agents', '--new-window'];
 
@@ -102,7 +113,10 @@ class OpenInAgentsAction extends Action2 {
 		// In built builds with a sibling Agents app available, launch it.
 		// Otherwise (dev / OSS / no sibling), open a new agents window of
 		// the current Electron app.
-		if (environmentService.isBuilt && hasSibling) {
+		const mode: OpenInAgentsMode = environmentService.isBuilt && hasSibling ? 'siblingApp' : 'newWindow';
+		telemetryService.publicLog2<OpenInAgentsEvent, OpenInAgentsClassification>('vscode.openInAgents', { mode });
+
+		if (mode === 'siblingApp') {
 			await nativeHostService.launchSiblingApp(args);
 		} else {
 			await nativeHostService.openAgentsWindow({ forceNewWindow: true });
