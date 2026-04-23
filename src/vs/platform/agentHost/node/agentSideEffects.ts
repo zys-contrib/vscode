@@ -749,8 +749,8 @@ export class AgentSideEffects extends Disposable {
 				this._persistSessionFlag(action.session, 'isRead', action.isRead ? 'true' : '');
 				break;
 			}
-			case ActionType.SessionIsDoneChanged: {
-				this._persistSessionFlag(action.session, 'isDone', action.isDone ? 'true' : '');
+			case ActionType.SessionIsArchivedChanged: {
+				this._persistSessionFlag(action.session, 'isArchived', action.isArchived ? 'true' : '');
 				break;
 			}
 			case ActionType.SessionConfigChanged: {
