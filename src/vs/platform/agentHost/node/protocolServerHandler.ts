@@ -391,18 +391,24 @@ export class ProtocolServerHandler extends Disposable {
 				if (!provider) {
 					throw new Error(`Agent session URI has no provider scheme: ${s.session.toString()}`);
 				}
+				// Encode isRead/isArchived as status bitmask flags
+				let status = s.status ?? SessionStatus.Idle;
+				if (s.isRead) {
+					status |= SessionStatus.IsRead;
+				}
+				if (s.isArchived) {
+					status |= SessionStatus.IsArchived;
+				}
 				return {
 					resource: s.session.toString(),
 					provider,
 					title: s.summary ?? 'Session',
-					status: s.status ?? SessionStatus.Idle,
+					status,
 					createdAt: s.startTime,
 					modifiedAt: s.modifiedTime,
 					...(s.project ? { project: { uri: s.project.uri.toString(), displayName: s.project.displayName } } : {}),
 					model: s.model,
 					workingDirectory: s.workingDirectory?.toString(),
-					isRead: s.isRead,
-					isDone: s.isDone,
 					diffs: s.diffs ? [...s.diffs] : undefined,
 				};
 			});
