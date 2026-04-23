@@ -311,7 +311,8 @@ export class BrowserTitlebarPart extends Part implements ITitlebarPart {
 		@IHostService private readonly hostService: IHostService,
 		@IEditorService editorService: IEditorService,
 		@IMenuService private readonly menuService: IMenuService,
-		@IKeybindingService private readonly keybindingService: IKeybindingService
+		@IKeybindingService private readonly keybindingService: IKeybindingService,
+		@IActionViewItemService private readonly actionViewItemService: IActionViewItemService
 	) {
 		super(id, { hasTitle: false }, themeService, storageService, layoutService);
 
@@ -609,9 +610,8 @@ export class BrowserTitlebarPart extends Part implements ITitlebarPart {
 	private actionViewItemProvider(action: IAction, options: IBaseActionViewItemOptions): IActionViewItem | undefined {
 
 		// --- Custom view items registered via IActionViewItemService
-		const actionViewItemService = this.instantiationService.invokeFunction(accessor => accessor.get(IActionViewItemService));
 		for (const menuId of [MenuId.TitleBar, MenuId.LayoutControlMenu]) {
-			const customViewItem = actionViewItemService.lookUp(menuId, action.id);
+			const customViewItem = this.actionViewItemService.lookUp(menuId, action.id);
 			if (customViewItem) {
 				const result = customViewItem(action, options, this.instantiationService, getWindowId(this.element ? getWindow(this.element) : mainWindow));
 				if (result) {
@@ -954,8 +954,9 @@ export class MainBrowserTitlebarPart extends BrowserTitlebarPart {
 		@IEditorService editorService: IEditorService,
 		@IMenuService menuService: IMenuService,
 		@IKeybindingService keybindingService: IKeybindingService,
+		@IActionViewItemService actionViewItemService: IActionViewItemService,
 	) {
-		super(Parts.TITLEBAR_PART, mainWindow, editorGroupService.mainPart, contextMenuService, configurationService, environmentService, instantiationService, themeService, storageService, layoutService, contextKeyService, hostService, editorService, menuService, keybindingService);
+		super(Parts.TITLEBAR_PART, mainWindow, editorGroupService.mainPart, contextMenuService, configurationService, environmentService, instantiationService, themeService, storageService, layoutService, contextKeyService, hostService, editorService, menuService, keybindingService, actionViewItemService);
 	}
 }
 
@@ -989,9 +990,10 @@ export class AuxiliaryBrowserTitlebarPart extends BrowserTitlebarPart implements
 		@IEditorService editorService: IEditorService,
 		@IMenuService menuService: IMenuService,
 		@IKeybindingService keybindingService: IKeybindingService,
+		@IActionViewItemService actionViewItemService: IActionViewItemService,
 	) {
 		const id = AuxiliaryBrowserTitlebarPart.COUNTER++;
-		super(`workbench.parts.auxiliaryTitle.${id}`, getWindow(container), editorGroupsContainer, contextMenuService, configurationService, environmentService, instantiationService, themeService, storageService, layoutService, contextKeyService, hostService, editorService, menuService, keybindingService);
+		super(`workbench.parts.auxiliaryTitle.${id}`, getWindow(container), editorGroupsContainer, contextMenuService, configurationService, environmentService, instantiationService, themeService, storageService, layoutService, contextKeyService, hostService, editorService, menuService, keybindingService, actionViewItemService);
 	}
 
 	override get preventZoom(): boolean {
