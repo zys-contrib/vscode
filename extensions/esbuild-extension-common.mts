@@ -12,14 +12,6 @@ type BuildOptions = Partial<esbuild.BuildOptions> & {
 	outdir: string;
 };
 
-/**
- * Build the source code once using esbuild.
- */
-async function build(options: BuildOptions, didBuild?: (outDir: string) => unknown): Promise<void> {
-	await esbuild.build(options);
-	await didBuild?.(options.outdir);
-}
-
 interface RunConfig {
 	readonly platform: 'node' | 'browser';
 	readonly format?: 'cjs' | 'esm';
@@ -80,12 +72,31 @@ export async function run(config: RunConfig, args: string[], didBuild?: (outDir:
 		if (didBuild) {
 			resolvedOptions.plugins = [
 				...(resolvedOptions.plugins || []),
-				{ name: 'did-build', setup(pluginBuild) { pluginBuild.onEnd(() => { didBuild(outdir); }); } },
+				{
+					name: 'did-build', setup(pluginBuild) {
+						pluginBuild.onEnd(async result => {
+							if (result.errors.length > 0) {
+								return;
+							}
+
+							try {
+								await didBuild(outdir);
+							} catch (error) {
+								console.error('didBuild failed:', error);
+							}
+						});
+					},
+				}
 			];
 		}
 		const ctx = await esbuild.context(resolvedOptions);
 		await ctx.watch();
 	} else {
-		return build(resolvedOptions, didBuild).catch(() => process.exit(1));
+		try {
+			await esbuild.build(resolvedOptions);
+			await didBuild?.(outdir);
+		} catch {
+			process.exit(1);
+		}
 	}
 }
