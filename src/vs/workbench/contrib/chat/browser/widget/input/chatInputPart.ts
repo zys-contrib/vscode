@@ -3544,16 +3544,18 @@ export class ChatInputPart extends Disposable implements IHistoryNavigationWidge
 
 		// CSS animations capture animation-duration at start time and most
 		// browsers do not re-pick up values that come from a custom
-		// property mid-flight. If the comet is currently spinning, force
-		// a restart so the new cadence takes effect immediately. Toggling
-		// the .working class would cancel the in-flight indicator state,
-		// so instead we briefly remove and re-add the animation by
-		// flipping a marker class that the CSS uses to swap animation-name.
+		// property mid-flight. If the comet is currently spinning, restart
+		// it on the next animation frame so style and layout changes can
+		// batch without forcing a synchronous reflow. Toggling the .working
+		// class would cancel the in-flight indicator state, so instead we
+		// briefly flip a marker class that the CSS uses to swap
+		// animation-name.
 		if (this.inputContainer.classList.contains('working')) {
-			this.inputContainer.classList.add('chat-input-anim-restart');
-			// Force a style recalc so the next frame restarts the animation.
-			void this.inputContainer.offsetWidth;
-			this.inputContainer.classList.remove('chat-input-anim-restart');
+			const inputContainer = this.inputContainer;
+			inputContainer.classList.add('chat-input-anim-restart');
+			dom.scheduleAtNextAnimationFrame(dom.getWindow(inputContainer), () => {
+				inputContainer.classList.remove('chat-input-anim-restart');
+			});
 		}
 	}
 
