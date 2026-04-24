@@ -7,7 +7,7 @@ import '../../workbench/browser/style.js';
 import './media/style.css';
 import { Disposable, DisposableStore, IDisposable, toDisposable } from '../../base/common/lifecycle.js';
 import { Emitter, Event, setGlobalLeakWarningThreshold } from '../../base/common/event.js';
-import { getActiveDocument, getActiveElement, getClientArea, getWindowId, getWindows, IDimension, isAncestorUsingFlowTo, isHTMLElement, size, Dimension, runWhenWindowIdle, addDisposableListener, EventType } from '../../base/browser/dom.js';
+import { getActiveDocument, getActiveElement, getClientArea, getWindowId, getWindows, IDimension, isAncestorUsingFlowTo, isHTMLElement, size, Dimension, runWhenWindowIdle } from '../../base/browser/dom.js';
 import { DeferredPromise, RunOnceScheduler } from '../../base/common/async.js';
 import { isFullscreen, onDidChangeFullscreen, isChrome, isFirefox, isSafari } from '../../base/browser/browser.js';
 import { mark } from '../../base/common/performance.js';
@@ -697,9 +697,6 @@ export class Workbench extends Disposable implements IAgentWorkbenchLayoutServic
 		}));
 	}
 
-	private sidebarDrawerBackdrop: HTMLElement | undefined;
-	private readonly sidebarDrawerBackdropDisposables = this._register(new DisposableStore());
-
 	private toggleMobileSidebarDrawer(): void {
 		const isOpen = this.partVisibility.sidebar;
 		if (isOpen) {
@@ -710,17 +707,6 @@ export class Workbench extends Disposable implements IAgentWorkbenchLayoutServic
 	}
 
 	private openMobileSidebarDrawer(): void {
-		// Show backdrop — created fresh each open so its click listener is
-		// tracked by a DisposableStore and cleaned up on close.
-		if (!this.sidebarDrawerBackdrop) {
-			const backdrop = document.createElement('div');
-			backdrop.className = 'mobile-sidebar-backdrop';
-			this.sidebarDrawerBackdropDisposables.add(addDisposableListener(backdrop, EventType.CLICK, () => this.closeMobileSidebarDrawer()));
-			this.sidebarDrawerBackdropDisposables.add(toDisposable(() => backdrop.remove()));
-			this.sidebarDrawerBackdrop = backdrop;
-		}
-		this.mainContainer.appendChild(this.sidebarDrawerBackdrop);
-
 		// Push a history entry so the Android back button dismisses the drawer.
 		// Must come before setSideBarHidden(false) so layoutMobileSidebar() sees
 		// the drawer state.
@@ -729,16 +715,13 @@ export class Workbench extends Disposable implements IAgentWorkbenchLayoutServic
 		}
 
 		// Show sidebar in grid — the actual drawer dimensions are applied by
-		// layoutMobileSidebar() from within layout(), which respects the
-		// "drawer" shape on phone (85% width, below the mobile top bar).
+		// layoutMobileSidebar() from within layout(), which uses the full
+		// viewport width below the mobile top bar on phone. The toggle button
+		// in the top bar remains visible and is used to close the drawer.
 		this.setSideBarHidden(false);
 	}
 
 	private closeMobileSidebarDrawer(): void {
-		// Remove backdrop and dispose its listener.
-		this.sidebarDrawerBackdropDisposables.clear();
-		this.sidebarDrawerBackdrop = undefined;
-
 		// Hide sidebar in grid
 		this.setSideBarHidden(true);
 
@@ -1286,10 +1269,11 @@ export class Workbench extends Disposable implements IAgentWorkbenchLayoutServic
 			return;
 		}
 
-		// Phone drawer: 85% width (capped at 360px), positioned below the
-		// mobile top bar (the grid titlebar is hidden on phone).
+		// Phone drawer: full width, positioned below the mobile top bar so
+		// the sidebar toggle button stays accessible for dismissal. The grid
+		// titlebar is hidden on phone so we subtract only the mobile top bar.
 		const topBarHeight = this.mobileTopBarElement?.offsetHeight ?? 48;
-		const drawerWidth = Math.min(Math.floor(this._mainContainerDimension.width * 0.85), 360);
+		const drawerWidth = this._mainContainerDimension.width;
 		const drawerHeight = Math.max(0, this._mainContainerDimension.height - topBarHeight);
 		sidebarContainer.classList.add('mobile-overlay-sidebar');
 		sidebarContainer.style.position = 'fixed';
