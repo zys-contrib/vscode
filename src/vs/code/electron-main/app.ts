@@ -1275,12 +1275,12 @@ export class CodeApplication extends Disposable {
 			this._register(new MacOSCrossAppSecretSharing(
 				accessor.get(IStorageMainService),
 				accessor.get(IEncryptionMainService),
+				accessor.get(ISharedKeychainMainService),
 				accessor.get(IStateService),
 				this.logService,
 				this.environmentMainService,
 				accessor.get(ILaunchMainService),
 				this.lifecycleMainService,
-				crossAppIPCService,
 			));
 		}
 
