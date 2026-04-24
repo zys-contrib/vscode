@@ -1492,6 +1492,8 @@ have to be updated for changes to the rules above, or to support more deeply nes
 
 .chat-editor-container {
 	padding: 0 0 0 4px;
+	/* enables 100cqi for placeholder truncation below */
+	container-type: inline-size;
 }
 
 .interactive-session .interactive-input-part.compact .chat-editor-container {
@@ -1501,6 +1503,23 @@ have to be updated for changes to the rules above, or to support more deeply nes
 
 .chat-editor-container .monaco-editor .mtk1 {
 	color: var(--vscode-input-foreground);
+}
+
+/* Truncate the chat input placeholder with an ellipsis in narrow views
+	instead of letting it overflow off the right edge of the input.
+	The placeholder is rendered as a Monaco contentText decoration with
+	class prefix "ced-chat-session-detail" inside the view-line spans;
+	style the decoration element directly so we don't pay :has() cost
+	across every view-line on each typed character. */
+.chat-editor-container .monaco-editor [class^="ced-chat-session-detail"] {
+	display: inline-block;
+	max-width: 100%; /* fallback for environments without container query units */
+	max-width: 100cqi;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	vertical-align: bottom;
+	color: var(--vscode-input-placeholderForeground);
 }
 
 .interactive-session .chat-editor-container .monaco-editor .chat-prompt-spinner {
