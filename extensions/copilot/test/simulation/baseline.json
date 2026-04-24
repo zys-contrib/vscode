@@ -3968,9 +3968,9 @@
   {
     "name": "intent [inline] - can you write unit test case constructor in xunit",
     "contentFilterCount": 0,
-    "passCount": 10,
-    "failCount": 0,
-    "score": 1
+    "passCount": 8,
+    "failCount": 2,
+    "score": 0.8
   },
   {
     "name": "intent [inline] - change mappedrequest to any",
@@ -4220,9 +4220,9 @@
   {
     "name": "intent [inline] - embed a variable in an array",
     "contentFilterCount": 0,
-    "passCount": 10,
-    "failCount": 0,
-    "score": 1
+    "passCount": 0,
+    "failCount": 10,
+    "score": 0
   },
   {
     "name": "intent [inline] - exaplain this",
@@ -4311,9 +4311,9 @@
   {
     "name": "intent [inline] - filter the supportedentities where isasset is true",
     "contentFilterCount": 0,
-    "passCount": 0,
-    "failCount": 10,
-    "score": 0
+    "passCount": 10,
+    "failCount": 0,
+    "score": 1
   },
   {
     "name": "intent [inline] - fix all the errors",
@@ -4367,9 +4367,9 @@
   {
     "name": "intent [inline] - fix this to use full image",
     "contentFilterCount": 0,
-    "passCount": 0,
-    "failCount": 10,
-    "score": 0
+    "passCount": 2,
+    "failCount": 8,
+    "score": 0.2
   },
   {
     "name": "intent [inline] - fix to log the real error too",
@@ -4605,9 +4605,9 @@
   {
     "name": "intent [inline] - issue #1126: change to GDPR",
     "contentFilterCount": 0,
-    "passCount": 0,
-    "failCount": 10,
-    "score": 0
+    "passCount": 10,
+    "failCount": 0,
+    "score": 1
   },
   {
     "name": "intent [inline] - issue #1126: expand comments",
@@ -4668,9 +4668,9 @@
   {
     "name": "intent [inline] - metadata_df will always contain just 1 row, is there a more efficient way to create new_row?",
     "contentFilterCount": 0,
-    "passCount": 10,
-    "failCount": 0,
-    "score": 1
+    "passCount": 9,
+    "failCount": 1,
+    "score": 0.9
   },
   {
     "name": "intent [inline] - mock getflights in tests",
@@ -4773,9 +4773,9 @@
   {
     "name": "intent [inline] - show me all the cases created by caseorigin=ava over the months",
     "contentFilterCount": 0,
-    "passCount": 6,
-    "failCount": 4,
-    "score": 0.6
+    "passCount": 10,
+    "failCount": 0,
+    "score": 1
   },
   {
     "name": "intent [inline] - suggest code that specifies two required input parameters, a yaml file and a yaml schema",
@@ -7391,9 +7391,9 @@
   {
     "name": "notebook (edit) [inline] [python] - set index",
     "contentFilterCount": 0,
-    "passCount": 10,
-    "failCount": 0,
-    "score": 1
+    "passCount": 0,
+    "failCount": 10,
+    "score": 0
   },
   {
     "name": "notebook (edit) [inline] [python] - variables",
