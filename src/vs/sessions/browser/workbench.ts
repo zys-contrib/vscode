@@ -1255,33 +1255,27 @@ export class Workbench extends Disposable implements IAgentWorkbenchLayoutServic
 			return;
 		}
 
-		// Only phone uses the overlay drawer shape. Tablet/desktop let the
-		// grid position the sidebar normally, so clear any inline styles.
+		// On phone the sidebar renders as a full-viewport overlay drawer.
+		// Geometry is fully expressed in CSS — see
+		// `mobileChatShell.css` (split-view-view fills the grid) and
+		// `sidebarPart.css` (drawer animation, z-index). We avoid setting
+		// inline position/size styles here because writing them after the
+		// grid has already laid out and painted the sidebar causes a
+		// visible one-frame snap on toggle.
 		const isPhone = this.layoutPolicy.viewportClass.get() === 'phone';
 		if (!isPhone || !this.partVisibility.sidebar) {
 			sidebarContainer.classList.remove('mobile-overlay-sidebar');
-			sidebarContainer.style.position = '';
-			sidebarContainer.style.top = '';
-			sidebarContainer.style.left = '';
-			sidebarContainer.style.width = '';
-			sidebarContainer.style.height = '';
-			sidebarContainer.style.zIndex = '';
 			return;
 		}
 
-		// Phone drawer: full width, positioned below the mobile top bar so
-		// the sidebar toggle button stays accessible for dismissal. The grid
-		// titlebar is hidden on phone so we subtract only the mobile top bar.
+		sidebarContainer.classList.add('mobile-overlay-sidebar');
+
+		// Re-layout the sidebar Part with the drawer's content dimensions
+		// so its internal composite/list sizing matches the CSS-positioned
+		// drawer (grid area minus the mobile top bar).
 		const topBarHeight = this.mobileTopBarElement?.offsetHeight ?? 48;
 		const drawerWidth = this._mainContainerDimension.width;
 		const drawerHeight = Math.max(0, this._mainContainerDimension.height - topBarHeight);
-		sidebarContainer.classList.add('mobile-overlay-sidebar');
-		sidebarContainer.style.position = 'fixed';
-		sidebarContainer.style.top = `${topBarHeight}px`;
-		sidebarContainer.style.left = '0';
-		sidebarContainer.style.width = `${drawerWidth}px`;
-		sidebarContainer.style.height = `${drawerHeight}px`;
-		sidebarContainer.style.zIndex = '30';
 		sidebarPart.layout(drawerWidth, drawerHeight, topBarHeight, 0);
 	}
 
