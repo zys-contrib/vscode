@@ -1478,20 +1478,6 @@
 						]
 					},
 					{
-						"name": "doc",
-						"when": "!config.inlineChat.enableV2",
-						"description": "%copilot.workspace.doc.description%",
-						"disambiguation": [
-							{
-								"category": "doc",
-								"description": "Add documentation comment for this symbol",
-								"examples": [
-									"Add jsdoc to this method"
-								]
-							}
-						]
-					},
-					{
 						"name": "fix",
 						"when": "!config.inlineChat.enableV2",
 						"description": "%copilot.workspace.fix.description%",
