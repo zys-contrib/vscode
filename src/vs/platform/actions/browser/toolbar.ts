@@ -12,7 +12,7 @@ import { intersection } from '../../../base/common/collections.js';
 import { BugIndicatingError } from '../../../base/common/errors.js';
 import { Emitter } from '../../../base/common/event.js';
 import { Iterable } from '../../../base/common/iterator.js';
-import { DisposableStore, toDisposable, IDisposable } from '../../../base/common/lifecycle.js';
+import { DisposableStore, toDisposable, IDisposable, Disposable } from '../../../base/common/lifecycle.js';
 import { localize } from '../../../nls.js';
 import { createActionViewItem, getActionBarActions } from './menuEntryActionViewItem.js';
 import { IMenu, IMenuActionOptions, IMenuService, MenuId, MenuItemAction, SubmenuItemAction } from '../common/actions.js';
@@ -285,12 +285,20 @@ export class WorkbenchToolBar extends ToolBar {
 
 // ---- MenuWorkbenchToolBar -------------------------------------------------
 
-let sharedIntersectionObserver: IntersectionObserver | undefined;
+const sharedIntersectionObservers = new WeakMap<Window, IntersectionObserver>();
 const intersectionObserverCallbacks = new WeakMap<Element, (isVisible: boolean) => void>();
 
 function observeVisibility(element: Element, callback: (isVisible: boolean) => void): IDisposable {
-	if (!sharedIntersectionObserver) {
-		sharedIntersectionObserver = new IntersectionObserver((entries) => {
+	const targetWindow = getWindow(element);
+	if (typeof targetWindow.IntersectionObserver !== 'function') {
+		// fallback: assume always visible
+		callback(true);
+		return Disposable.None;
+	}
+
+	let observer = sharedIntersectionObservers.get(targetWindow);
+	if (!observer) {
+		observer = new targetWindow.IntersectionObserver((entries) => {
 			for (const entry of entries) {
 				const cb = intersectionObserverCallbacks.get(entry.target);
 				if (cb) {
@@ -298,14 +306,15 @@ function observeVisibility(element: Element, callback: (isVisible: boolean) => v
 				}
 			}
 		});
+		sharedIntersectionObservers.set(targetWindow, observer);
 	}
 
 	intersectionObserverCallbacks.set(element, callback);
-	sharedIntersectionObserver.observe(element);
+	observer.observe(element);
 
 	return toDisposable(() => {
 		intersectionObserverCallbacks.delete(element);
-		sharedIntersectionObserver?.unobserve(element);
+		observer.unobserve(element);
 	});
 }
 
