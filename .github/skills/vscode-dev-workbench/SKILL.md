@@ -106,7 +106,7 @@ node out/vs/platform/agentHost/node/agentHostServerMain.js \
 # Listens on ws://localhost:8765
 ```
 
-`--enable-mock-agent` registers the `ScriptedMockAgent` from `src/vs/platform/agentHost/test/node/mockAgent.ts` with one pre-existing session. Seed additional sessions via the `VSCODE_AGENT_HOST_MOCK_SEED_SESSIONS=<json>` env var. Scripted prompts include `hello`, `use-tool`, `error`, `permission`, `write-file`, `run-safe-command`, `slow`, `client-tool`, `subagent`, etc. (see `mockAgent.ts` for the full list).
+`--enable-mock-agent` registers the `ScriptedMockAgent` from `src/vs/platform/agentHost/test/node/mockAgent.ts` with one pre-existing session. Seed additional sessions via the `VSCODE_AGENT_HOST_MOCK_SEED_SESSIONS` env var, using a comma-separated list of session URIs (for example, `VSCODE_AGENT_HOST_MOCK_SEED_SESSIONS=mock://pre-1,mock://pre-2`). Scripted prompts include `hello`, `use-tool`, `error`, `permission`, `write-file`, `run-safe-command`, `slow`, `client-tool`, `subagent`, etc. (see `mockAgent.ts` for the full list).
 
 Then open:
 
