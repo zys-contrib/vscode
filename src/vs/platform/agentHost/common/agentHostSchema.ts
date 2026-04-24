@@ -117,7 +117,7 @@ export interface ISchema<D extends SchemaDefinition> {
 	 * {@link values} or {@link assertValid} when you want a descriptive
 	 * {@link ProtocolError} instead.
 	 */
-	validateOrDefault<T extends Partial<{ [K in keyof D]: SchemaValue<D[K]> }>>(values: Record<string, unknown> | undefined, defaults: T): Record<string, unknown>;
+	validateOrDefault<T extends Partial<{ [K in keyof D]: SchemaValue<D[K]> }>>(values: { [K in keyof T]?: unknown } | undefined, defaults: T): T;
 }
 
 export function createSchema<D extends SchemaDefinition>(definition: D): ISchema<D> {
@@ -158,9 +158,9 @@ export function createSchema<D extends SchemaDefinition>(definition: D): ISchema
 			const narrowed: ISchemaProperty<unknown> = prop;
 			narrowed.assertValid(value, key);
 		},
-		validateOrDefault<T extends Partial<{ [K in keyof D]: SchemaValue<D[K]> }>>(values: Record<string, unknown> | undefined, defaults: T): Record<string, unknown> {
+		validateOrDefault<T extends Partial<{ [K in keyof D]: SchemaValue<D[K]> }>>(values: { [K in keyof T]?: unknown } | undefined, defaults: T): T {
 			const result: Record<string, unknown> = {};
-			const raw = values ?? {};
+			const raw: { [K in keyof T]?: unknown } = values ?? {};
 			for (const key of Object.keys(definition)) {
 				const prop = definition[key];
 				const candidate = raw[key];
@@ -172,7 +172,7 @@ export function createSchema<D extends SchemaDefinition>(definition: D): ISchema
 				// else: key not in defaults and incoming value missing/invalid
 				// → leave unset so higher-scope defaults can fill in.
 			}
-			return result;
+			return result as T;
 		},
 	};
 }

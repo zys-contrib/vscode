@@ -11,7 +11,8 @@ import { localize } from '../../../nls.js';
 import { ILogService } from '../../log/common/log.js';
 import type { IAgentToolReadyEvent } from '../common/agentService.js';
 import { platformSessionSchema } from '../common/agentHostSchema.js';
-import { SessionConfigKey } from '../common/sessionConfigKeys.js'; import { ConfirmationOptionKind, type ConfirmationOption } from '../common/state/protocol/state.js';
+import { SessionConfigKey } from '../common/sessionConfigKeys.js';
+import { ConfirmationOptionKind, type ConfirmationOption } from '../common/state/protocol/state.js';
 import { ActionType, type IToolCallReadyAction } from '../common/state/sessionActions.js';
 import {
 	ResponsePartKind,
