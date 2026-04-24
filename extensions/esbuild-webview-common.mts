@@ -60,7 +60,7 @@ export async function run(
 		if (didBuild) {
 			resolvedOptions.plugins = [
 				...(resolvedOptions.plugins || []),
-				{ name: 'did-build', setup(build) { build.onEnd(() => { didBuild(outdir); }); } },
+				{ name: 'did-build', setup(pluginBuild) { pluginBuild.onEnd(() => { didBuild(outdir); }); } },
 			];
 		}
 		const ctx = await esbuild.context(resolvedOptions);
