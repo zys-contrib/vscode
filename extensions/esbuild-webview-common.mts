@@ -18,28 +18,8 @@ export type BuildOptions = Partial<esbuild.BuildOptions> & {
  * Build the source code once using esbuild.
  */
 async function build(options: BuildOptions, didBuild?: (outDir: string) => unknown): Promise<void> {
-	await esbuild.build({
-		bundle: true,
-		minify: true,
-		sourcemap: false,
-		format: 'esm',
-		platform: 'browser',
-		target: ['es2024'],
-		...options,
-	});
-
+	await esbuild.build(options);
 	await didBuild?.(options.outdir);
-}
-
-/**
- * Build the source code once using esbuild, logging errors instead of throwing.
- */
-async function tryBuild(options: BuildOptions, didBuild?: (outDir: string) => unknown): Promise<void> {
-	try {
-		await build(options, didBuild);
-	} catch (err) {
-		console.error(err);
-	}
 }
 
 export async function run(
@@ -61,6 +41,12 @@ export async function run(
 	}
 
 	const resolvedOptions: BuildOptions = {
+		bundle: true,
+		minify: true,
+		sourcemap: false,
+		format: 'esm',
+		platform: 'browser',
+		target: ['es2024'],
 		entryPoints: config.entryPoints,
 		outdir,
 		logOverride: {
@@ -71,9 +57,14 @@ export async function run(
 
 	const isWatch = args.indexOf('--watch') >= 0;
 	if (isWatch) {
-		await tryBuild(resolvedOptions, didBuild);
-		const watcher = await import('@parcel/watcher');
-		watcher.subscribe(config.srcDir, () => tryBuild(resolvedOptions, didBuild));
+		if (didBuild) {
+			resolvedOptions.plugins = [
+				...(resolvedOptions.plugins || []),
+				{ name: 'did-build', setup(build) { build.onEnd(() => { didBuild(outdir); }); } },
+			];
+		}
+		const ctx = await esbuild.context(resolvedOptions);
+		await ctx.watch();
 	} else {
 		return build(resolvedOptions, didBuild).catch(() => process.exit(1));
 	}

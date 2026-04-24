@@ -20,17 +20,6 @@ async function build(options: BuildOptions, didBuild?: (outDir: string) => unkno
 	await didBuild?.(options.outdir);
 }
 
-/**
- * Build the source code once using esbuild, logging errors instead of throwing.
- */
-async function tryBuild(options: BuildOptions, didBuild?: (outDir: string) => unknown): Promise<void> {
-	try {
-		await build(options, didBuild);
-	} catch (err) {
-		console.error(err);
-	}
-}
-
 interface RunConfig {
 	readonly platform: 'node' | 'browser';
 	readonly format?: 'cjs' | 'esm';
@@ -88,9 +77,14 @@ export async function run(config: RunConfig, args: string[], didBuild?: (outDir:
 
 	const isWatch = args.indexOf('--watch') >= 0;
 	if (isWatch) {
-		await tryBuild(resolvedOptions, didBuild);
-		const watcher = await import('@parcel/watcher');
-		watcher.subscribe(config.srcDir, () => tryBuild(resolvedOptions, didBuild));
+		if (didBuild) {
+			resolvedOptions.plugins = [
+				...(resolvedOptions.plugins || []),
+				{ name: 'did-build', setup(build) { build.onEnd(() => { didBuild(outdir); }); } },
+			];
+		}
+		const ctx = await esbuild.context(resolvedOptions);
+		await ctx.watch();
 	} else {
 		return build(resolvedOptions, didBuild).catch(() => process.exit(1));
 	}
