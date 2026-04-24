@@ -3518,8 +3518,8 @@ export class ChatInputPart extends Disposable implements IHistoryNavigationWidge
 	 * constant. A fixed cycle time made wide inputs feel sluggish, but
 	 * an aggressive inverse curve made narrow inputs feel slow because
 	 * their cycle was clamped while the comet had little distance to
-	 * cover. Linear-with-width + tight clamps keeps both extremes
-	 * looking lively.
+	 * cover. Sub-linear scaling with width (`sqrt(width)`) plus tight
+	 * clamps keeps both extremes looking lively.
 	 */
 	private _lastAnimDurationS: number | undefined;
 	private _updateWorkingProgressAnimationDuration(width: number): void {
