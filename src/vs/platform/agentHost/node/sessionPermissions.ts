@@ -11,8 +11,7 @@ import { localize } from '../../../nls.js';
 import { ILogService } from '../../log/common/log.js';
 import type { IAgentToolReadyEvent } from '../common/agentService.js';
 import { platformSessionSchema } from '../common/agentHostSchema.js';
-import { SessionConfigKey } from '../common/sessionConfigKeys.js';
-import { ConfirmationOptionKind, type ConfirmationOption } from '../common/state/protocol/state.js';
+import { SessionConfigKey } from '../common/sessionConfigKeys.js'; import { ConfirmationOptionKind, type ConfirmationOption } from '../common/state/protocol/state.js';
 import { ActionType, type IToolCallReadyAction } from '../common/state/sessionActions.js';
 import {
 	ResponsePartKind,
@@ -238,10 +237,13 @@ export class SessionPermissionManager extends Disposable {
 		if (!toolName) {
 			return false;
 		}
+		// `getEffectiveValue` walks session → parent → host, so sessions
+		// that haven't materialized their own `permissions` yet transparently
+		// inherit from the host-level allow/deny lists.
 		const permissions = this._configService.getEffectiveValue(sessionKey, platformSessionSchema, SessionConfigKey.Permissions);
 		const allowed = permissions?.allow.includes(toolName) ?? false;
 		if (allowed) {
-			this._logService.trace(`[SessionPermissionManager] Auto-approving "${toolName}" via session permissions`);
+			this._logService.trace(`[SessionPermissionManager] Auto-approving "${toolName}" via permissions`);
 		}
 		return allowed;
 	}
