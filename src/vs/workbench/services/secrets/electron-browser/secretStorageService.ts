@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { createSingleCallFunction } from '../../../../base/common/functional.js';
-import { isLinux } from '../../../../base/common/platform.js';
+import { isLinux, isMacintosh } from '../../../../base/common/platform.js';
 import Severity from '../../../../base/common/severity.js';
 import { localize } from '../../../../nls.js';
 import { IDialogService } from '../../../../platform/dialogs/common/dialogs.js';
@@ -42,7 +42,7 @@ export class NativeSecretStorageService extends BaseSecretStorageService {
 
 	override get(key: string): Promise<string | undefined> {
 		return this._sequencer.queue(key, async () => {
-			if (this.type !== 'in-memory' && CROSS_APP_SHARED_SECRET_KEYS.includes(key)) {
+			if (isMacintosh && this.type !== 'in-memory' && CROSS_APP_SHARED_SECRET_KEYS.includes(key)) {
 				// Try shared keychain first (no-op on non-macOS)
 				const value = await this._sharedKeychainService.get(key);
 				if (value !== undefined) {
@@ -64,7 +64,7 @@ export class NativeSecretStorageService extends BaseSecretStorageService {
 			}
 		});
 		return this._sequencer.queue(key, async () => {
-			if (this.type !== 'in-memory' && CROSS_APP_SHARED_SECRET_KEYS.includes(key)) {
+			if (isMacintosh && this.type !== 'in-memory' && CROSS_APP_SHARED_SECRET_KEYS.includes(key)) {
 				// Write to shared keychain (no-op on non-macOS)
 				await this._sharedKeychainService.set(key, value);
 			}
@@ -75,7 +75,7 @@ export class NativeSecretStorageService extends BaseSecretStorageService {
 
 	override delete(key: string): Promise<void> {
 		return this._sequencer.queue(key, async () => {
-			if (this.type !== 'in-memory' && CROSS_APP_SHARED_SECRET_KEYS.includes(key)) {
+			if (isMacintosh && this.type !== 'in-memory' && CROSS_APP_SHARED_SECRET_KEYS.includes(key)) {
 				// Delete from shared keychain (no-op on non-macOS)
 				await this._sharedKeychainService.delete(key);
 			}
@@ -87,7 +87,7 @@ export class NativeSecretStorageService extends BaseSecretStorageService {
 	override async keys(): Promise<string[]> {
 		return this._sequencer.queue('__keys__', async () => {
 			const legacyKeys = await this._doGetKeys();
-			if (this.type !== 'in-memory') {
+			if (isMacintosh && this.type !== 'in-memory') {
 				// Include any cross-app shared keys present in the shared keychain
 				for (const sharedKey of CROSS_APP_SHARED_SECRET_KEYS) {
 					const sharedValue = await this._sharedKeychainService.get(sharedKey);
