@@ -25,6 +25,8 @@ import { ISessionsManagementService } from '../../../services/sessions/common/se
 import { ISessionsProvidersService } from '../../../services/sessions/browser/sessionsProvidersService.js';
 import { resolveRemoteAuthority } from '../browser/openInVSCodeUtils.js';
 import { DebugAgentHostInDevToolsAction } from '../../../../workbench/contrib/chat/electron-browser/actions/debugAgentHostAction.js';
+import { isLinux } from '../../../../base/common/platform.js';
+import { IEnvironmentService } from '../../../../platform/environment/common/environment.js';
 
 /**
  * Desktop version of the "Open in VS Code" action.
@@ -58,6 +60,7 @@ registerAction2(class OpenSessionWorktreeInVSCodeAction extends Action2 {
 		logSessionsInteraction(telemetryService, 'openInVSCode');
 
 		const productService = accessor.get(IProductService);
+		const environmentService = accessor.get(IEnvironmentService);
 		const sessionsManagementService = accessor.get(ISessionsManagementService);
 		const sessionsProvidersService = accessor.get(ISessionsProvidersService);
 		const remoteAgentHostService = accessor.get(IRemoteAgentHostService);
@@ -71,15 +74,8 @@ registerAction2(class OpenSessionWorktreeInVSCodeAction extends Action2 {
 			? resolveRemoteAuthority(activeSession.providerId, sessionsProvidersService, remoteAgentHostService)
 			: undefined;
 
-		const hasSibling = !!(
-			productService.darwinSiblingBundleIdentifier ||
-			productService.win32SiblingExeBasename ||
-			productService.embedded?.darwinSiblingBundleIdentifier ||
-			productService.embedded?.win32SiblingExeBasename
-		);
-
-		if (hasSibling) {
-			await this.launchViaSiblingApp(accessor, productService, activeSession, folderUri, remoteAuthority);
+		if (environmentService.isBuilt && !isLinux) {
+			await this.launchViaSiblingApp(accessor, activeSession, folderUri, remoteAuthority);
 		} else {
 			await this.launchViaProtocolHandler(accessor, productService, activeSession, folderUri, remoteAuthority);
 		}
@@ -87,7 +83,6 @@ registerAction2(class OpenSessionWorktreeInVSCodeAction extends Action2 {
 
 	private async launchViaSiblingApp(
 		accessor: ServicesAccessor,
-		productService: IProductService,
 		activeSession: ReturnType<ISessionsManagementService['activeSession']['get']>,
 		folderUri: URI | undefined,
 		remoteAuthority: string | undefined,
