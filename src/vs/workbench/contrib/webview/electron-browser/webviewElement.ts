@@ -59,7 +59,7 @@ export class ElectronWebviewElement extends WebviewElement {
 	) {
 		super(initInfo, webviewThemeDataProvider,
 			configurationService, contextMenuService, notificationService, environmentService,
-			fileService, logService, remoteAuthorityResolverService, tunnelService, instantiationService, accessibilityService, uriIdentityService);
+			logService, remoteAuthorityResolverService, tunnelService, accessibilityService, instantiationService);
 
 		this._webviewKeyboardHandler = new WindowIgnoreMenuShortcutsManager(configurationService, mainProcessService, _nativeHostService);
 
