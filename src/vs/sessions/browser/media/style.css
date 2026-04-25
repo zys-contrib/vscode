@@ -686,10 +686,22 @@
 
 /* ---- Phone Layout: Touch Target Sizing ---- */
 
-/* Ensure interactive elements meet 44px minimum touch target */
+/* Ensure interactive elements meet 44px minimum touch target.
+	Excludes:
+	- Quick pick toolbars: 44x44 icons crowd the small popup header.
+	- Chat input toolbars: a dense row of picker buttons (Local, Auto,
+	agent, model, tools, send...). Enforcing 44px makes items 50px tall
+	and shows a huge hover/active background next to smaller adjacent
+	labels, making the bar feel unbalanced. */
 .agent-sessions-workbench.phone-layout .action-item > .action-label {
 	min-height: 44px;
 	min-width: 44px;
+}
+
+.agent-sessions-workbench.phone-layout .quick-input-widget .action-item > .action-label,
+.agent-sessions-workbench.phone-layout .chat-input-toolbars .action-item > .action-label {
+	min-height: 0;
+	min-width: 0;
 }
 
 /* Touch action for tap responsiveness */
