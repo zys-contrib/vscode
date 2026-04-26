@@ -43,7 +43,7 @@ export class NativeSecretStorageService extends BaseSecretStorageService {
 	override get(key: string): Promise<string | undefined> {
 		return this._sequencer.queue(key, async () => {
 			if (isMacintosh && this.type !== 'in-memory' && CROSS_APP_SHARED_SECRET_KEYS.includes(key)) {
-				// Try shared keychain first (no-op on non-macOS)
+				// Try shared keychain first
 				const value = await this._sharedKeychainService.get(key);
 				if (value !== undefined) {
 					return value;
@@ -65,7 +65,7 @@ export class NativeSecretStorageService extends BaseSecretStorageService {
 		});
 		return this._sequencer.queue(key, async () => {
 			if (isMacintosh && this.type !== 'in-memory' && CROSS_APP_SHARED_SECRET_KEYS.includes(key)) {
-				// Write to shared keychain (no-op on non-macOS)
+				// Write to shared keychain
 				await this._sharedKeychainService.set(key, value);
 			}
 			// Also write to legacy pipeline
@@ -76,7 +76,7 @@ export class NativeSecretStorageService extends BaseSecretStorageService {
 	override delete(key: string): Promise<void> {
 		return this._sequencer.queue(key, async () => {
 			if (isMacintosh && this.type !== 'in-memory' && CROSS_APP_SHARED_SECRET_KEYS.includes(key)) {
-				// Delete from shared keychain (no-op on non-macOS)
+				// Delete from shared keychain
 				await this._sharedKeychainService.delete(key);
 			}
 			// Delete from legacy pipeline
