@@ -27,7 +27,7 @@ import { AgentService } from '../../node/agentService.js';
 import { AgentSideEffects, IAgentSideEffectsOptions } from '../../node/agentSideEffects.js';
 import { SessionDatabase } from '../../node/sessionDatabase.js';
 import { AgentHostStateManager } from '../../node/agentHostStateManager.js';
-import { createNullSessionDataService, createSessionDataService } from '../common/sessionTestHelpers.js';
+import { createNoopGitService, createNullSessionDataService, createSessionDataService } from '../common/sessionTestHelpers.js';
 import { MockAgent } from './mockAgent.js';
 
 // ---- Tests ------------------------------------------------------------------
@@ -97,6 +97,7 @@ suite('AgentSideEffects', () => {
 			getAgent: () => agent,
 			agents: agentList,
 			sessionDataService: createNullSessionDataService(),
+			onTurnComplete: () => { },
 		});
 	});
 
@@ -151,6 +152,7 @@ suite('AgentSideEffects', () => {
 				getAgent: () => undefined,
 				agents: emptyAgents,
 				sessionDataService: {} as ISessionDataService,
+				onTurnComplete: () => { },
 			});
 
 			const envelopes: ActionEnvelope[] = [];
@@ -1228,6 +1230,7 @@ suite('AgentSideEffects', () => {
 				getAgent: () => localAgent,
 				agents: observableValue<readonly IAgent[]>('agents', [localAgent]),
 				sessionDataService,
+				onTurnComplete: () => { },
 			});
 
 			localStateManager.createSession({
@@ -1256,7 +1259,7 @@ suite('AgentSideEffects', () => {
 			const sessionDataService = createSessionDataService(sessionDb);
 			const localAgent = new MockAgent();
 			disposables.add(toDisposable(() => localAgent.dispose()));
-			const localService = disposables.add(new AgentService(new NullLogService(), fileService, sessionDataService, { _serviceBrand: undefined } as IProductService));
+			const localService = disposables.add(new AgentService(new NullLogService(), fileService, sessionDataService, { _serviceBrand: undefined } as IProductService, createNoopGitService()));
 			localService.registerProvider(localAgent);
 
 			// Create a session on the agent backend
@@ -1276,7 +1279,7 @@ suite('AgentSideEffects', () => {
 			const sessionDataService = createSessionDataService(sessionDb);
 			const localAgent = new MockAgent();
 			disposables.add(toDisposable(() => localAgent.dispose()));
-			const localService = disposables.add(new AgentService(new NullLogService(), fileService, sessionDataService, { _serviceBrand: undefined } as IProductService));
+			const localService = disposables.add(new AgentService(new NullLogService(), fileService, sessionDataService, { _serviceBrand: undefined } as IProductService, createNoopGitService()));
 			localService.registerProvider(localAgent);
 
 			// Create a session on the agent backend
@@ -1309,6 +1312,7 @@ suite('AgentSideEffects', () => {
 				getAgent: () => localAgent,
 				agents: observableValue<readonly IAgent[]>('agents', [localAgent]),
 				sessionDataService,
+				onTurnComplete: () => { },
 			});
 
 			const session = localStateManager.createSession({
