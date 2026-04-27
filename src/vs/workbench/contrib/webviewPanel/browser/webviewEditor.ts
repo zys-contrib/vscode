@@ -107,6 +107,8 @@ export class WebviewEditor extends EditorPane {
 		if (this.webview && this._visible) {
 			this.setWebviewAnchorElement(this.webview);
 		}
+
+		this.setEditorVisible(dimension.width > 0 && dimension.height > 0);
 	}
 
 	public override focus(): void {
